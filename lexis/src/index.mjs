@@ -3,7 +3,7 @@
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import readline from "node:readline/promises";
 import { loadConfig, saveConfig, getConfigPath } from "./config.mjs";
 import { loadSystemPrompt, generatePlanWithOllama, reviewPlanRiskWithOllama } from "./ollama-client.mjs";
@@ -128,7 +128,7 @@ async function handleRun(runArgs) {
   let plan;
 
   try {
-    plan = await generatePlanWithOllama({
+    plan = await generatePlanWithRecovery({
       baseUrl: config.ollamaBaseUrl,
       model,
       systemPrompt,
@@ -164,7 +164,7 @@ async function handleRun(runArgs) {
     if (fetched.length > 0) {
       webContext = fetched;
       try {
-        plan = await generatePlanWithOllama({
+        plan = await generatePlanWithRecovery({
           baseUrl: config.ollamaBaseUrl,
           model,
           systemPrompt,
@@ -931,6 +931,100 @@ async function maybeReviewCriticalPlan({
   } catch {
     return null;
   }
+}
+
+async function generatePlanWithRecovery({
+  baseUrl,
+  model,
+  systemPrompt,
+  userPrompt,
+  context,
+  webContext,
+}) {
+  try {
+    return await generatePlanWithOllama({
+      baseUrl,
+      model,
+      systemPrompt,
+      userPrompt,
+      context,
+      webContext,
+    });
+  } catch (error) {
+    if (!isOllamaConnectionError(error)) {
+      throw error;
+    }
+
+    const recovered = await ensureOllamaServerReadyForRun();
+    if (!recovered) {
+      throw new Error("Cannot connect to Ollama. Run `ollama serve` and retry.");
+    }
+
+    return generatePlanWithOllama({
+      baseUrl,
+      model,
+      systemPrompt,
+      userPrompt,
+      context,
+      webContext,
+    });
+  }
+}
+
+function isOllamaConnectionError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  if (!message) {
+    return false;
+  }
+
+  return (
+    message.includes("fetch failed") ||
+    message.includes("econnrefused") ||
+    message.includes("connect") ||
+    message.includes("network")
+  );
+}
+
+async function ensureOllamaServerReadyForRun() {
+  if (isOllamaServerReady()) {
+    return true;
+  }
+
+  startOllamaServerInBackground();
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    await sleep(400);
+    if (isOllamaServerReady()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isOllamaServerReady() {
+  const run = spawnSync("ollama", ["list"], {
+    stdio: "pipe",
+    encoding: "utf8",
+  });
+  return run.status === 0;
+}
+
+function startOllamaServerInBackground() {
+  try {
+    const child = spawn("ollama", ["serve"], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    child.unref();
+  } catch {
+    // Ignore and let caller surface recovery error.
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function isPlanCritical(plan) {

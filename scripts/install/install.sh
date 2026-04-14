@@ -20,6 +20,43 @@ require_cmd() {
   fi
 }
 
+append_user_path_exports() {
+  local line='export PATH="$HOME/.local/bin:$PATH"'
+  local rc
+
+  for rc in "$HOME/.profile" "$HOME/.bashrc" "$HOME/.zshrc"; do
+    if [ ! -f "$rc" ]; then
+      touch "$rc"
+    fi
+
+    if ! grep -Fq "$line" "$rc"; then
+      printf "\n%s\n" "$line" >> "$rc"
+    fi
+  done
+}
+
+install_global_with_fallbacks() {
+  local source="$1"
+
+  if npm install -g "$source"; then
+    return 0
+  fi
+
+  if [ "$(id -u)" -ne 0 ] && has_cmd sudo; then
+    log "Global install needs elevated permissions. Retrying with sudo..."
+    if sudo npm install -g "$source"; then
+      return 0
+    fi
+  fi
+
+  local user_prefix="$HOME/.local"
+  log "Falling back to user-level npm prefix: $user_prefix"
+  npm install -g --prefix "$user_prefix" "$source"
+  export PATH="$user_prefix/bin:$PATH"
+  append_user_path_exports
+  return 0
+}
+
 is_valid_profile() {
   case "$1" in
     light|balanced|heavy)
@@ -118,7 +155,7 @@ main() {
   install_source="$(resolve_install_source)"
 
   log "Installing Lexis from: $install_source"
-  npm install -g "$install_source"
+  install_global_with_fallbacks "$install_source"
 
   if ! has_cmd lexis; then
     fail "'lexis' command not found after install"

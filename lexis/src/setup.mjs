@@ -21,6 +21,7 @@ export async function runSetup({
   hookMode,
 }) {
   await ensureOllamaAvailable();
+  await ensureOllamaServerReady();
 
   const config = await loadConfig();
 
@@ -146,6 +147,41 @@ async function ensureOllamaAvailable() {
   }
 }
 
+async function ensureOllamaServerReady() {
+  if (await isOllamaServerReady()) {
+    return;
+  }
+
+  startOllamaServer();
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await sleep(500);
+    if (await isOllamaServerReady()) {
+      return;
+    }
+  }
+
+  throw new Error("Ollama server not responding. Start it with: ollama serve");
+}
+
+async function isOllamaServerReady() {
+  const result = await run("ollama", ["list"], { stdio: "pipe" });
+  return result.exitCode === 0;
+}
+
+function startOllamaServer() {
+  try {
+    const child = spawn("ollama", ["serve"], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    child.unref();
+  } catch {
+    // If server cannot be started here, ensureOllamaServerReady will fail with a clear error.
+  }
+}
+
 async function installOllama() {
   if (process.platform === "win32") {
     return run(
@@ -180,4 +216,8 @@ async function run(command, args, options = {}) {
       resolve({ exitCode: exitCode ?? 1, signal });
     });
   });
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

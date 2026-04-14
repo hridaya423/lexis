@@ -18,7 +18,7 @@ export default function TermsPage() {
         </div>
         <div className="md:col-span-8 space-y-6">
           <p>
-            Lexis is provided "AS IS", without warranty of any kind. You assume the absolute risk 
+            Lexis is provided &quot;AS IS&quot;, without warranty of any kind. You assume the absolute risk 
             of command generation. Always verify what the shell is attempting to run.
           </p>
         </div>

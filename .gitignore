@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# lexis
+eval/reports/
+runs/
+training/artifacts/
+training/data/

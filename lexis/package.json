@@ -1,0 +1,19 @@
+{
+  "name": "@hridyacodes/lexis",
+  "version": "0.1.2",
+  "type": "module",
+  "bin": {
+    "lexis": "src/index.mjs"
+  },
+  "files": [
+    "src",
+    "prompts",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

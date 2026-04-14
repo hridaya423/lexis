@@ -1,26 +1,44 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useSyncExternalStore } from 'react';
+
+const FALLBACK_ORIGIN = 'https://lexis.hridya.tech';
+
+function noopSubscribe() {
+  return () => {};
+}
+
+function getClientOrigin() {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return FALLBACK_ORIGIN;
+}
+
+function getClientOs(): 'mac' | 'win' | 'linux' {
+  if (typeof navigator === 'undefined') {
+    return 'mac';
+  }
+
+  const userAgent = navigator.userAgent.toLowerCase();
+  if (userAgent.includes('win')) {
+    return 'win';
+  }
+  if (userAgent.includes('linux')) {
+    return 'linux';
+  }
+  return 'mac';
+}
 
 export function QuickInstall() {
-  const [os, setOs] = useState<'mac' | 'win' | 'linux'>('mac');
+  const os = useSyncExternalStore<'mac' | 'win' | 'linux'>(noopSubscribe, getClientOs, () => 'mac');
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    if (userAgent.includes('win')) {
-      setOs('win');
-    } else if (userAgent.includes('linux')) {
-      setOs('linux');
-    } else {
-      setOs('mac');
-    }
-  }, []);
+  const baseUrl = useSyncExternalStore(noopSubscribe, getClientOrigin, () => FALLBACK_ORIGIN);
 
   const commands = {
-    mac: 'curl -fsSL https://get.lexis.sh | bash',
-    linux: 'curl -fsSL https://get.lexis.sh | bash',
-    win: 'iwr https://get.lexis.sh/win.ps1 -useb | iex'
+    mac: `curl -fsSL ${baseUrl}/install.sh | bash`,
+    linux: `curl -fsSL ${baseUrl}/install.sh | bash`,
+    win: `iwr ${baseUrl}/win.ps1 -useb | iex`
   };
 
   const labels = {
@@ -48,7 +66,7 @@ export function QuickInstall() {
           [{copied ? 'COPIED' : 'COPY'}]
         </button>
       </div>
-      <pre className="font-mono text-[13px] md:text-[14px] text-white overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
+      <pre className="font-mono text-[13px] md:text-[14px] text-white overflow-x-auto whitespace-nowrap break-normal leading-relaxed">
         {commands[os]}
       </pre>
     </div>

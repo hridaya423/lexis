@@ -8,7 +8,7 @@ export default function PrivacyPage() {
       <header className="mb-24 border-b border-white pb-12">
         <h1 className="text-6xl md:text-9xl font-black uppercase tracking-tighter">PRIVACY</h1>
         <p className="mt-8 text-xl md:text-2xl font-mono uppercase tracking-widest">
-          ZERO CLOUD. ZERO TELEMETRY.
+          LOCAL-FIRST. ZERO TELEMETRY.
         </p>
       </header>
 
@@ -18,9 +18,9 @@ export default function PrivacyPage() {
         </div>
         <div className="md:col-span-8 space-y-6">
           <p>
-            Lexis operates entirely on your local hardware. Prompts are processed and commands are 
-            compiled directly on your machine. We do not transmit, log, or monitor your inputs, 
-            outputs, or workflow habits.
+            Lexis runs locally for planning and command execution. Installer defaults may enable local MCP 
+            web lookup mode, which sends search queries to public search engines when retrieval is needed. 
+            You can disable web retrieval at any time with <code>lexis config disable-web</code>.
           </p>
         </div>
 
@@ -29,9 +29,9 @@ export default function PrivacyPage() {
         </div>
         <div className="md:col-span-8 space-y-6 mt-12 md:mt-0">
           <p>
-            If you choose to configure external LLM providers (e.g., OpenAI, Anthropic), data handling 
-            will fall under their respective privacy policies. Lexis only acts as a pass-through 
-            interface. We strongly advise using local models (e.g., Ollama) for maximum data isolation.
+            External providers (including non-local MCP servers, hosted search APIs, or remote LLMs) may 
+            receive prompt fragments and queries under their own privacy policies. For maximum isolation, 
+            keep web retrieval disabled and use local models through Ollama.
           </p>
         </div>
 

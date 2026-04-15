@@ -38,32 +38,34 @@ export function InstallCommands() {
   );
 
   return (
-    <div className="w-full max-w-4xl flex flex-col border border-[#333333] text-left">
+    <div className="w-full text-left border-t border-[var(--line)]">
       {commands.map((item) => {
-        const bordered = "border-b border-[#333333]";
         return (
-          <article key={item.label} className={`${bordered} p-6 md:p-10 hover:bg-[#111111] transition-colors`}>
-            <p className="font-mono text-[10px] text-[#666666] uppercase tracking-[0.2em] mb-4">{item.label}</p>
-            <pre className="font-mono text-base md:text-xl text-white overflow-x-auto whitespace-nowrap break-normal">
+          <article
+            key={item.label}
+            className="grid grid-cols-1 gap-4 border-b border-[var(--line)] py-6 md:grid-cols-[220px_1fr] md:gap-8 md:py-7"
+          >
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--quiet)]">{item.label}</p>
+            <pre className="overflow-x-auto font-mono text-sm leading-relaxed text-[var(--text)] md:text-base">
               {item.command}
             </pre>
           </article>
         );
       })}
 
-      <article className="p-6 md:p-10 hover:bg-[#111111] transition-colors">
-        <p className="font-mono text-[10px] text-[#666666] uppercase tracking-[0.2em] mb-4">Session Controls</p>
-        <div className="space-y-3 text-sm md:text-base text-[#CCCCCC]">
-          <p>
-            Uninstall Lexis: <code className="font-mono text-white">lx uninstall --yes</code>
-          </p>
-          <p>
-            In a hooked shell you can also type <code className="font-mono text-white">uninstall</code>.
-          </p>
-          <p>
-            Disable Lexis only for this terminal session: <code className="font-mono text-white">exit</code>
-          </p>
-        </div>
+      <article className="grid grid-cols-1 gap-4 py-6 md:grid-cols-[220px_1fr] md:gap-8 md:py-7">
+        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--quiet)]">Session Controls</p>
+        <ul className="space-y-3 text-sm leading-relaxed text-[var(--muted)] md:text-base">
+          <li>
+            Uninstall Lexis: <code className="font-mono text-[var(--text)]">lx uninstall --yes</code>
+          </li>
+          <li>
+            In a hooked shell, you can also type <code className="font-mono text-[var(--text)]">uninstall</code>.
+          </li>
+          <li>
+            Disable Lexis only for this terminal session: <code className="font-mono text-[var(--text)]">exit</code>
+          </li>
+        </ul>
       </article>
     </div>
   );

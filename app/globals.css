@@ -1,26 +1,62 @@
 @import "tailwindcss";
 
+:root {
+  --bg: #0d0d0d;
+  --bg-elevated: #131313;
+  --line: #2c2c2c;
+  --line-strong: #3a3a3a;
+  --text: #f3f2ef;
+  --muted: #b8b7b1;
+  --quiet: #7b7a74;
+}
+
 @theme {
-  --font-sans: var(--font-geist-sans), "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: var(--font-sora), "Avenir Next", "Segoe UI", sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
 }
 
 @layer base {
   html,
   body {
-    @apply bg-[#000000] text-[#FFFFFF] antialiased min-h-[100dvh] overflow-x-hidden;
+    @apply antialiased min-h-[100dvh] overflow-x-hidden;
+    background:
+      radial-gradient(1100px 700px at 85% -20%, #1a1a1a 0%, transparent 60%),
+      linear-gradient(180deg, #121212 0%, var(--bg) 28%, var(--bg) 100%);
+    color: var(--text);
     text-rendering: geometricPrecision;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-family: var(--font-sans);
   }
 
   ::selection {
-    @apply bg-white text-black;
+    background: var(--text);
+    color: var(--bg);
+  }
+
+  a,
+  button {
+    transition-property: color, border-color, background-color, opacity, transform;
+    transition-duration: 180ms;
+    transition-timing-function: ease;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 1px solid var(--text);
+    outline-offset: 2px;
   }
 }
 
 .cursor-blink {
   animation: blink 1s step-end infinite;
+}
+
+.text-balance {
+  text-wrap: balance;
 }
 
 @keyframes blink {
@@ -29,5 +65,16 @@
   }
   50% {
     opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

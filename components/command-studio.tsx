@@ -113,17 +113,19 @@ export function CommandStudio() {
   }, [triggerCompile]);
 
   return (
-    <div className="w-full flex flex-col border-t border-[#333333] lg:border-t-0 pt-12 lg:pt-0">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-8 pb-12 border-b border-[#333333]">
-        <div className="flex flex-col gap-6">
-          <span className="font-mono text-[10px] text-[#666666] uppercase tracking-[0.2em]">Choose Intent</span>
-          <div className="flex items-center gap-4 md:gap-6">
-            <span className="text-4xl md:text-6xl text-[#666666] font-light">→</span>
-            <p className="w-full text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white tracking-tighter">{selected.label}</p>
+    <div className="w-full pt-2">
+      <form onSubmit={handleSubmit} className="border-b border-[var(--line)] pb-9">
+        <div className="flex flex-col gap-5">
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--quiet)]">Choose Intent</span>
+          <div className="flex items-center gap-4 md:gap-5">
+            <span className="text-3xl font-light text-[var(--quiet)] md:text-5xl">→</span>
+            <p className="w-full text-2xl tracking-[-0.03em] text-[var(--text)] sm:text-4xl md:text-5xl lg:text-6xl">
+              {selected.label}
+            </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 mt-4">
+        <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 md:gap-x-8">
           {PRESETS.map((item) => {
             const active = item.id === selectedId;
             return (
@@ -131,10 +133,10 @@ export function CommandStudio() {
                 key={item.id}
                 type="button"
                 onClick={() => applyPreset(item.id)}
-                className={`border px-4 py-2 text-[10px] uppercase font-mono tracking-[0.1em] transition-colors ${
+                className={`border-b pb-1 font-mono text-[10px] uppercase tracking-[0.14em] ${
                   active
-                    ? "border-white bg-white text-black"
-                    : "border-[#333333] text-[#888888] hover:text-black hover:bg-white hover:border-white"
+                    ? "border-[var(--text)] text-[var(--text)]"
+                    : "border-transparent text-[var(--quiet)] hover:border-[var(--quiet)] hover:text-[var(--muted)]"
                 }`}
               >
                 {item.label}
@@ -145,57 +147,61 @@ export function CommandStudio() {
 
         <button
           type="submit"
-          className="mt-8 h-20 w-full bg-white text-black font-mono text-[14px] md:text-[16px] uppercase tracking-[0.2em] font-bold px-8 md:px-12 transition-all hover:bg-[#CCCCCC] active:bg-[#999999] flex items-center justify-between group"
+          className="mt-10 inline-flex h-14 items-center justify-between border border-[var(--line-strong)] px-6 font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--text)] hover:border-[var(--text)] active:translate-y-[1px] md:h-16 md:px-8"
         >
-          <span>{phase === "loading" ? "Compiling..." : "Press Enter"}</span>
-          <span className="text-2xl group-hover:translate-x-2 transition-transform">↵</span>
+          <span>{phase === "loading" ? "Compiling command" : "Compile command"}</span>
+          <span className="text-xl md:text-2xl">↵</span>
         </button>
       </form>
 
-      <div className="pt-12 min-h-[300px]" aria-live="polite">
+      <div className="min-h-[280px] pt-9 md:min-h-[320px]" aria-live="polite">
         {phase === "idle" && (
-          <div className="flex flex-col h-full opacity-50">
-            <p className="font-mono text-[10px] text-[#666666] uppercase tracking-[0.2em] mb-4">Output / Standby</p>
-            <p className="font-mono text-xl md:text-2xl text-[#666666] tracking-tight">_</p>
+          <div className="flex h-full flex-col opacity-70">
+            <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--quiet)]">Output / Standby</p>
+            <p className="font-mono text-xl tracking-tight text-[var(--quiet)] md:text-2xl">_</p>
           </div>
         )}
 
         {phase === "loading" && (
-          <div className="flex flex-col h-full">
-            <p className="font-mono text-[10px] text-white uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
-              Output / Generating <span className="w-2 h-4 bg-white cursor-blink inline-block" />
+          <div className="flex h-full flex-col">
+            <p className="mb-4 flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
+              Output / Generating <span className="cursor-blink inline-block h-4 w-2 bg-[var(--muted)]" />
             </p>
             <div className="space-y-4 w-full">
-              <div className="h-12 bg-[#111111] w-[60%]" />
-              <div className="h-12 bg-[#111111] w-[90%]" />
+              <div className="h-11 w-[62%] bg-[var(--bg-elevated)]" />
+              <div className="h-11 w-[88%] bg-[var(--bg-elevated)]" />
             </div>
           </div>
         )}
 
         {phase === "ready" && result && (
-          <div className="flex flex-col h-full animate-in fade-in duration-300">
-            <div className="flex items-center justify-between mb-8">
-              <p className="font-mono text-[10px] text-[#00FF00] uppercase tracking-[0.2em]">Output / Success</p>
+          <div className="flex h-full flex-col">
+            <div className="mb-7 flex items-center justify-between">
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">Output / Ready</p>
               <p
-                className={`font-mono text-[10px] uppercase tracking-widest border px-3 py-1 ${
-                  result.risk === "moderate" ? "text-[#FF3333] border-[#FF3333]" : "text-[#00FF00] border-[#00FF00]"
+                className={`border px-3 py-1 font-mono text-[10px] uppercase tracking-widest ${
+                  result.risk === "moderate"
+                    ? "border-[var(--line-strong)] text-[var(--muted)]"
+                    : "border-[var(--line)] text-[var(--quiet)]"
                 }`}
               >
-                {result.risk === "moderate" ? "Review Req." : "Low Risk"}
+                {result.risk === "moderate" ? "Review Required" : "Low Risk"}
               </p>
             </div>
 
-            <div className="mb-12 overflow-x-auto">
-              <pre className="font-mono text-2xl sm:text-3xl md:text-5xl text-[#00FF00] tracking-tight leading-tight whitespace-pre-wrap break-all">
-                <span className="text-[#333333] select-none mr-4">$</span>
+            <div className="mb-10 overflow-x-auto border-b border-[var(--line)] pb-6">
+              <pre className="whitespace-pre-wrap break-all font-mono text-2xl leading-tight tracking-tight text-[var(--text)] sm:text-3xl md:text-4xl">
+                <span className="mr-4 select-none text-[var(--quiet)]">$</span>
                 {result.command}
               </pre>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 border-t border-[#333333] pt-8">
+            <div className="grid grid-cols-1 gap-6 pt-1 md:grid-cols-12">
               <div className="md:col-span-8">
-                <p className="font-mono text-[10px] text-[#666666] uppercase tracking-[0.2em] mb-3">Explanation</p>
-                <p className="text-xl md:text-2xl text-[#CCCCCC] leading-snug tracking-tight max-w-[45ch]">{result.explanation}</p>
+                <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--quiet)]">Explanation</p>
+                <p className="max-w-[45ch] text-lg leading-snug tracking-tight text-[var(--muted)] md:text-xl">
+                  {result.explanation}
+                </p>
               </div>
             </div>
           </div>

@@ -40,12 +40,20 @@ function Add-PathCandidate([string]$Candidate) {
 }
 
 function Add-CommonNodePaths {
-  $candidates = @(
-    (Join-Path $env:ProgramFiles "nodejs"),
-    (Join-Path ${env:ProgramFiles(x86)} "nodejs"),
-    (Join-Path $env:LOCALAPPDATA "Programs\nodejs"),
-    (Join-Path $env:APPDATA "npm")
-  )
+  $candidates = @()
+
+  if ($env:ProgramFiles) {
+    $candidates += (Join-Path $env:ProgramFiles "nodejs")
+  }
+  if ($env:"ProgramFiles(x86)") {
+    $candidates += (Join-Path $env:"ProgramFiles(x86)" "nodejs")
+  }
+  if ($env:LOCALAPPDATA) {
+    $candidates += (Join-Path $env:LOCALAPPDATA "Programs\nodejs")
+  }
+  if ($env:APPDATA) {
+    $candidates += (Join-Path $env:APPDATA "npm")
+  }
 
   foreach ($candidate in $candidates) {
     Add-PathCandidate $candidate

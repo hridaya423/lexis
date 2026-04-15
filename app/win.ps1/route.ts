@@ -1,5 +1,7 @@
 export const runtime = "nodejs";
 
+const PS_PROGRAM_FILES_X86 = "${env:ProgramFiles(x86)}";
+
 const INSTALL_PS1 = String.raw`param(
   [string]$Profile = "",
   [string]$HookMode = "",
@@ -47,8 +49,8 @@ function Add-CommonNodePaths {
   if ($env:ProgramFiles) {
     $candidates += (Join-Path $env:ProgramFiles "nodejs")
   }
-  if ($env:"ProgramFiles(x86)") {
-    $candidates += (Join-Path $env:"ProgramFiles(x86)" "nodejs")
+  if (${PS_PROGRAM_FILES_X86}) {
+    $candidates += (Join-Path ${PS_PROGRAM_FILES_X86} "nodejs")
   }
   if ($env:LOCALAPPDATA) {
     $candidates += (Join-Path $env:LOCALAPPDATA "Programs\nodejs")
@@ -135,12 +137,16 @@ function Resolve-LexisCommand {
     return $direct.Source
   }
 
-  $candidates = @(
-    (Join-Path (Get-NpmGlobalPrefix) "lexis.cmd"),
-    (Join-Path (Get-NpmGlobalPrefix) "lexis"),
-    (Join-Path $env:APPDATA "npm\lexis.cmd"),
-    (Join-Path $env:APPDATA "npm\lexis")
-  )
+  $candidates = @()
+  $prefix = Get-NpmGlobalPrefix
+  if ($prefix) {
+    $candidates += (Join-Path $prefix "lexis.cmd")
+    $candidates += (Join-Path $prefix "lexis")
+  }
+  if ($env:APPDATA) {
+    $candidates += (Join-Path $env:APPDATA "npm\lexis.cmd")
+    $candidates += (Join-Path $env:APPDATA "npm\lexis")
+  }
 
   foreach ($candidate in ($candidates | Where-Object { $_ } | Select-Object -Unique)) {
     if (Test-Path $candidate) {

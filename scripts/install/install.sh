@@ -20,6 +20,83 @@ require_cmd() {
   fi
 }
 
+run_with_optional_sudo() {
+  if [ "$(id -u)" -eq 0 ]; then
+    "$@"
+    return $?
+  fi
+
+  if has_cmd sudo; then
+    sudo "$@"
+    return $?
+  fi
+
+  return 1
+}
+
+ensure_npm_installed() {
+  if has_cmd npm; then
+    return 0
+  fi
+
+  log "npm not found. Attempting to install Node.js + npm..."
+
+  case "$(uname -s)" in
+    Darwin)
+      ensure_homebrew_available
+      brew install node
+      ;;
+    Linux)
+      if has_cmd apt-get; then
+        run_with_optional_sudo apt-get update || fail "failed to run apt-get update"
+        run_with_optional_sudo apt-get install -y nodejs npm || fail "failed to install nodejs/npm with apt-get"
+      elif has_cmd dnf; then
+        run_with_optional_sudo dnf install -y nodejs npm || fail "failed to install nodejs/npm with dnf"
+      elif has_cmd yum; then
+        run_with_optional_sudo yum install -y nodejs npm || fail "failed to install nodejs/npm with yum"
+      elif has_cmd pacman; then
+        run_with_optional_sudo pacman -Sy --noconfirm nodejs npm || fail "failed to install nodejs/npm with pacman"
+      elif has_cmd zypper; then
+        run_with_optional_sudo zypper --non-interactive install nodejs npm || fail "failed to install nodejs/npm with zypper"
+      elif has_cmd apk; then
+        run_with_optional_sudo apk add --no-cache nodejs npm || fail "failed to install nodejs/npm with apk"
+      else
+        fail "npm is missing and no supported package manager was found"
+      fi
+      ;;
+    *)
+      fail "unsupported platform for auto-installing npm"
+      ;;
+  esac
+
+  if ! has_cmd npm; then
+    fail "npm is still unavailable after auto-install attempt"
+  fi
+}
+
+ensure_homebrew_available() {
+  if has_cmd brew; then
+    return 0
+  fi
+
+  if ! has_cmd curl; then
+    fail "Homebrew is required on macOS but curl is not installed"
+  fi
+
+  log "Homebrew not found. Installing Homebrew..."
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+  if [ -x "/opt/homebrew/bin/brew" ]; then
+    export PATH="/opt/homebrew/bin:$PATH"
+  elif [ -x "/usr/local/bin/brew" ]; then
+    export PATH="/usr/local/bin:$PATH"
+  fi
+
+  if ! has_cmd brew; then
+    fail "Homebrew installation completed but brew is unavailable. Open a new shell and rerun installer."
+  fi
+}
+
 append_user_path_exports() {
   local line='export PATH="$HOME/.local/bin:$PATH"'
   local rc
@@ -148,6 +225,7 @@ resolve_install_source() {
 }
 
 main() {
+  ensure_npm_installed
   require_cmd node
   require_cmd npm
 

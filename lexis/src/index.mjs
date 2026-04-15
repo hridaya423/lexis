@@ -6,7 +6,7 @@ import process from "node:process";
 import { spawn, spawnSync } from "node:child_process";
 import readline from "node:readline/promises";
 import { loadConfig, saveConfig, getConfigPath } from "./config.mjs";
-import { loadSystemPrompt, generatePlanWithOllama, reviewPlanRiskWithOllama } from "./ollama-client.mjs";
+import { loadSystemPrompt, generatePlanWithLLM } from "./llm-client.mjs";
 import { shouldRequireConfirmation } from "./risk-policy.mjs";
 import { executePlan } from "./executor.mjs";
 import { installHooks, normalizeHookMode, uninstallHooks } from "./hooks.mjs";
@@ -87,6 +87,7 @@ async function handleRun(runArgs) {
   }
 
   const config = await loadConfig();
+  const llm = resolveLlmConfig(config.llm);
 
   if (isBareHelpPrompt(prompt)) {
     const hookMode = normalizeHookMode(config.execution?.hookMode) || "auto";
@@ -94,7 +95,7 @@ async function handleRun(runArgs) {
     return;
   }
 
-  const model = options.model || config.model;
+  const model = options.model || config.model || llm.model;
   const platform = process.platform === "win32" ? "windows" : "unix";
   const shell = detectShell();
   const context = {
@@ -129,7 +130,7 @@ async function handleRun(runArgs) {
 
   try {
     plan = await generatePlanWithRecovery({
-      baseUrl: config.ollamaBaseUrl,
+      llm,
       model,
       systemPrompt,
       userPrompt: prompt,
@@ -165,7 +166,7 @@ async function handleRun(runArgs) {
       webContext = fetched;
       try {
         plan = await generatePlanWithRecovery({
-          baseUrl: config.ollamaBaseUrl,
+          llm,
           model,
           systemPrompt,
           userPrompt: prompt,
@@ -183,23 +184,6 @@ async function handleRun(runArgs) {
         }
       }
     }
-  }
-
-  const criticalReview = await maybeReviewCriticalPlan({
-    plan,
-    baseUrl: config.ollamaBaseUrl,
-    primaryModel: model,
-    reviewConfig: config.execution?.criticalReview,
-    userPrompt: prompt,
-    context,
-  });
-
-  if (criticalReview?.revisedOverallRisk) {
-    plan.overall_risk = criticalReview.revisedOverallRisk;
-  }
-
-  if (criticalReview?.reason) {
-    plan.preflight_checks = [...(plan.preflight_checks || []), `Critical review: ${criticalReview.reason}`];
   }
 
   for (const step of plan.commands) {
@@ -232,7 +216,7 @@ async function handleRun(runArgs) {
   const requiresDoubleConfirmation =
     !force &&
     !dryRun &&
-    (isPlanCritical(plan) || Boolean(criticalReview?.forceDoubleConfirmation));
+    isPlanCritical(plan);
 
   const quiet = Boolean(options.quiet);
 
@@ -250,7 +234,6 @@ async function handleRun(runArgs) {
       approved = await askForCriticalConfirmation({
         prompt,
         commands: plan.commands,
-        reason: criticalReview?.reason || "",
       });
     } else {
       approved = await askForConfirmation({
@@ -316,9 +299,12 @@ async function handleSetup(args) {
   process.stdout.write(`- hook mode: ${result.hookMode}\n`);
   process.stdout.write(`- change model later: lx config set-model <model>\n`);
   process.stdout.write(`- change hook mode later: lx config set-hook-mode <auto|lx>\n`);
-
-  if (process.platform === "darwin") {
-    process.stdout.write(`- runtime: ollama (mlx-backed on supported macOS builds)\n`);
+  process.stdout.write(`- runtime provider: ${result.runtime.provider}\n`);
+  process.stdout.write(`- runtime endpoint: ${result.runtime.baseUrl}\n`);
+  process.stdout.write(`- python: ${result.runtime.python}\n`);
+  process.stdout.write(`- runtime warmup: ${result.runtime.warmed ? "ok" : "incomplete"}\n`);
+  if (result.runtime.warmupMessage) {
+    process.stdout.write(`- warmup note: ${result.runtime.warmupMessage}\n`);
   }
 
   if (result.webSearch) {
@@ -581,7 +567,91 @@ async function handleConfig(args) {
     }
 
     const config = await loadConfig();
+    const provider = normalizeProvider(config.llm?.provider);
     config.model = model;
+    config.llm = {
+      ...(config.llm || {}),
+      model,
+      start: rewriteStartArgsForModel(config.llm?.start, provider, model),
+    };
+    const filePath = await saveConfig(config);
+    process.stdout.write(`Updated ${filePath}\n`);
+
+    const llm = resolveLlmConfig(config.llm);
+    process.stdout.write(`Warming model ${model}...\n`);
+    const warmup = await warmupLlmModel({
+      llm,
+      model,
+    });
+    process.stdout.write(`Warmup: ${warmup.ok ? "ok" : "incomplete"}\n`);
+    if (warmup.message) {
+      process.stdout.write(`${warmup.message}\n`);
+    }
+    return;
+  }
+
+  if (mode === "set-llm-provider") {
+    const provider = normalizeProvider(args[1]);
+    if (!["mlx", "vllm", "llamacpp"].includes(provider)) {
+      throw new Error("Usage: lexis config set-llm-provider <mlx|vllm|llamacpp>");
+    }
+
+    const config = await loadConfig();
+    config.llm = {
+      ...(config.llm || {}),
+      provider,
+    };
+    const filePath = await saveConfig(config);
+    process.stdout.write(`Updated ${filePath}\n`);
+    return;
+  }
+
+  if (mode === "set-llm-base-url") {
+    const value = (args[1] || "").trim();
+    if (!value) {
+      throw new Error("Usage: lexis config set-llm-base-url <url>");
+    }
+
+    const config = await loadConfig();
+    config.llm = {
+      ...(config.llm || {}),
+      baseUrl: value.replace(/\/+$/, ""),
+    };
+    const filePath = await saveConfig(config);
+    process.stdout.write(`Updated ${filePath}\n`);
+    return;
+  }
+
+  if (mode === "set-llm-start-command") {
+    const command = (args[1] || "").trim();
+    if (!command) {
+      throw new Error("Usage: lexis config set-llm-start-command <command>");
+    }
+
+    const config = await loadConfig();
+    config.llm = {
+      ...(config.llm || {}),
+      start: {
+        ...(config.llm?.start || {}),
+        command,
+      },
+    };
+    const filePath = await saveConfig(config);
+    process.stdout.write(`Updated ${filePath}\n`);
+    return;
+  }
+
+  if (mode === "set-llm-start-args") {
+    const argsCsv = args[1] || "";
+    const startArgs = parseCsv(argsCsv);
+    const config = await loadConfig();
+    config.llm = {
+      ...(config.llm || {}),
+      start: {
+        ...(config.llm?.start || {}),
+        args: startArgs,
+      },
+    };
     const filePath = await saveConfig(config);
     process.stdout.write(`Updated ${filePath}\n`);
     return;
@@ -628,7 +698,7 @@ async function handleConfig(args) {
   }
 
   throw new Error(
-    "Usage: lexis config [show|set-model|set-risk-mode|set-hook-mode|enable-web|disable-web|set-web-provider|set-web-max-results|set-web-timeout|set-mcp-command|set-mcp-args|set-mcp-tool|set-mcp-env]"
+    "Usage: lexis config [show|set-model|set-llm-provider|set-llm-base-url|set-llm-start-command|set-llm-start-args|set-risk-mode|set-hook-mode|enable-web|disable-web|set-web-provider|set-web-max-results|set-web-timeout|set-mcp-command|set-mcp-args|set-mcp-tool|set-mcp-env]"
   );
 }
 
@@ -643,15 +713,15 @@ async function handleDoctor() {
   process.stdout.write(`- config: ${getConfigPath()}\n`);
   process.stdout.write(`- audit log: ${getAuditLogPath()}\n`);
   process.stdout.write(`- model: ${config.model}\n`);
-  if (process.platform === "darwin") {
-    process.stdout.write(`- runtime: ollama (mlx-backed on supported macOS builds)\n`);
-  }
+  const llm = resolveLlmConfig(config.llm);
+  process.stdout.write(`- runtime provider: ${llm.provider}\n`);
+  process.stdout.write(`- runtime endpoint: ${llm.baseUrl}\n`);
+  process.stdout.write(`- runtime model: ${llm.model || config.model}\n`);
+  process.stdout.write(`- runtime start command: ${llm.start.command || "(not set)"}\n`);
   process.stdout.write(`- web search: ${config.webSearch.enabled ? "enabled" : "disabled"} (${config.webSearch.provider})\n`);
   process.stdout.write(`- web mode: ${config.webSearch.mode || "auto"}\n`);
   process.stdout.write(`- web auto threshold: ${config.webSearch.autoRetryBelowConfidence ?? 0.82}\n`);
   process.stdout.write(`- risk mode: ${config.execution?.riskMode || "model"}\n`);
-  process.stdout.write(`- critical review: ${config.execution?.criticalReview?.enabled === false ? "disabled" : "enabled"}\n`);
-  process.stdout.write(`- critical reviewer model: ${config.execution?.criticalReview?.model || "qwen3:14b"}\n`);
   process.stdout.write(`- hook mode: ${normalizeHookMode(config.execution?.hookMode) || "auto"}\n`);
   process.stdout.write(`- web max results: ${config.webSearch.maxResults}\n`);
   process.stdout.write(`- web timeout: ${config.webSearch.timeoutMs}ms\n`);
@@ -895,46 +965,8 @@ function buildManualReviewFallbackPlan({ platform, webContext }) {
   };
 }
 
-async function maybeReviewCriticalPlan({
-  plan,
-  baseUrl,
-  primaryModel,
-  reviewConfig,
-  userPrompt,
-  context,
-}) {
-  if (!isPlanCritical(plan)) {
-    return null;
-  }
-
-  if (reviewConfig && reviewConfig.enabled === false) {
-    return null;
-  }
-
-  const reviewerModel =
-    typeof reviewConfig?.model === "string" && reviewConfig.model.trim()
-      ? reviewConfig.model.trim()
-      : "qwen3:14b";
-
-  if (!reviewerModel || reviewerModel === primaryModel) {
-    return null;
-  }
-
-  try {
-    return await reviewPlanRiskWithOllama({
-      baseUrl,
-      model: reviewerModel,
-      userPrompt,
-      context,
-      plan,
-    });
-  } catch {
-    return null;
-  }
-}
-
 async function generatePlanWithRecovery({
-  baseUrl,
+  llm,
   model,
   systemPrompt,
   userPrompt,
@@ -942,8 +974,8 @@ async function generatePlanWithRecovery({
   webContext,
 }) {
   try {
-    return await generatePlanWithOllama({
-      baseUrl,
+    return await generatePlanWithLLM({
+      llm,
       model,
       systemPrompt,
       userPrompt,
@@ -951,17 +983,19 @@ async function generatePlanWithRecovery({
       webContext,
     });
   } catch (error) {
-    if (!isOllamaConnectionError(error)) {
+    if (!isLlmConnectionError(error)) {
       throw error;
     }
 
-    const recovered = await ensureOllamaServerReadyForRun();
+    const recovered = await ensureLlmServerReadyForRun(llm);
     if (!recovered) {
-      throw new Error("Cannot connect to Ollama. Run `ollama serve` and retry.");
+      throw new Error(
+        `Cannot connect to LLM server at ${llm.baseUrl}. Start your ${llm.provider} server and retry.`
+      );
     }
 
-    return generatePlanWithOllama({
-      baseUrl,
+    return generatePlanWithLLM({
+      llm,
       model,
       systemPrompt,
       userPrompt,
@@ -971,7 +1005,7 @@ async function generatePlanWithRecovery({
   }
 }
 
-function isOllamaConnectionError(error) {
+function isLlmConnectionError(error) {
   const message = String(error?.message || "").toLowerCase();
   if (!message) {
     return false;
@@ -980,21 +1014,22 @@ function isOllamaConnectionError(error) {
   return (
     message.includes("fetch failed") ||
     message.includes("econnrefused") ||
+    message.includes("timed out") ||
     message.includes("connect") ||
     message.includes("network")
   );
 }
 
-async function ensureOllamaServerReadyForRun() {
-  if (isOllamaServerReady()) {
+async function ensureLlmServerReadyForRun(llm) {
+  if (await isLlmServerReady(llm.baseUrl)) {
     return true;
   }
 
-  startOllamaServerInBackground();
+  startLlmServerInBackground(llm);
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
     await sleep(400);
-    if (isOllamaServerReady()) {
+    if (await isLlmServerReady(llm.baseUrl)) {
       return true;
     }
   }
@@ -1002,20 +1037,31 @@ async function ensureOllamaServerReadyForRun() {
   return false;
 }
 
-function isOllamaServerReady() {
-  const run = spawnSync("ollama", ["list"], {
-    stdio: "pipe",
-    encoding: "utf8",
-  });
-  return run.status === 0;
+async function isLlmServerReady(baseUrl) {
+  try {
+    const response = await fetch(`${String(baseUrl || "").replace(/\/+$/, "")}/v1/models`, {
+      method: "GET",
+      signal: AbortSignal.timeout(2500),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
-function startOllamaServerInBackground() {
+function startLlmServerInBackground(llm) {
+  const command = llm?.start?.command;
+  const args = Array.isArray(llm?.start?.args) ? llm.start.args : [];
+  if (!command) {
+    return;
+  }
+
   try {
-    const child = spawn("ollama", ["serve"], {
+    const child = spawn(command, args, {
       detached: true,
       stdio: "ignore",
       windowsHide: true,
+      env: process.env,
     });
     child.unref();
   } catch {
@@ -1025,6 +1071,182 @@ function startOllamaServerInBackground() {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function warmupLlmModel({ llm, model }) {
+  const baseUrl = String(llm?.baseUrl || "http://127.0.0.1:8000").replace(/\/+$/, "");
+  const timeoutMs = estimateModelTimeoutMs(model) + 60_000;
+  const headers = {
+    "content-type": "application/json",
+  };
+
+  if (typeof llm?.apiKey === "string" && llm.apiKey.trim()) {
+    headers.authorization = `Bearer ${llm.apiKey.trim()}`;
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: "POST",
+      headers,
+      signal: AbortSignal.timeout(timeoutMs),
+      body: JSON.stringify({
+        model,
+        stream: false,
+        temperature: 0,
+        max_tokens: 24,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: "Return JSON only.",
+          },
+          {
+            role: "user",
+            content: "Return {'ok':true} as valid JSON.",
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      return {
+        ok: false,
+        message: `Warmup request failed (${response.status}): ${body.slice(0, 180)}`,
+      };
+    }
+
+    return {
+      ok: true,
+      message: "Model warmup completed.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: `Warmup did not complete: ${error.message}`,
+    };
+  }
+}
+
+function estimateModelTimeoutMs(model) {
+  const text = String(model || "").toLowerCase();
+  const sizeMatch = text.match(/(\d+(?:\.\d+)?)b/);
+  const sizeInBillions = sizeMatch ? Number.parseFloat(sizeMatch[1]) : Number.NaN;
+
+  if (Number.isFinite(sizeInBillions) && sizeInBillions >= 14) {
+    return 150000;
+  }
+  if (Number.isFinite(sizeInBillions) && sizeInBillions >= 7) {
+    return 90000;
+  }
+  if (Number.isFinite(sizeInBillions) && sizeInBillions <= 3) {
+    return 50000;
+  }
+  return 80000;
+}
+
+function resolveLlmConfig(rawLlmConfig) {
+  const llm = rawLlmConfig && typeof rawLlmConfig === "object" ? rawLlmConfig : {};
+  const provider = normalizeProvider(llm.provider);
+  const defaultModel = defaultModelForProvider(provider);
+
+  return {
+    provider,
+    baseUrl:
+      typeof llm.baseUrl === "string" && llm.baseUrl.trim()
+        ? llm.baseUrl.trim().replace(/\/+$/, "")
+        : "http://127.0.0.1:8000",
+    apiKey: typeof llm.apiKey === "string" ? llm.apiKey : "",
+    model:
+      typeof llm.model === "string" && llm.model.trim()
+        ? llm.model.trim()
+        : defaultModel,
+    start: {
+      command:
+        typeof llm.start?.command === "string" && llm.start.command.trim() ? llm.start.command.trim() : "",
+      args: Array.isArray(llm.start?.args) ? llm.start.args.map((item) => String(item)) : [],
+    },
+  };
+}
+
+function defaultModelForProvider(provider) {
+  if (provider === "mlx") {
+    return "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit";
+  }
+
+  if (provider === "llamacpp") {
+    return "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF";
+  }
+
+  if (provider === "vllm") {
+    return "Qwen/Qwen2.5-Coder-7B-Instruct-AWQ";
+  }
+
+  return "Qwen/Qwen2.5-Coder-7B-Instruct";
+}
+
+function normalizeProvider(provider) {
+  const normalized = String(provider || "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "mlx" || normalized === "vllm" || normalized === "llamacpp") {
+    return normalized;
+  }
+
+  if (process.platform === "darwin") {
+    return "mlx";
+  }
+  if (process.platform === "linux") {
+    return "llamacpp";
+  }
+  return "llamacpp";
+}
+
+function rewriteStartArgsForModel(start, provider, model) {
+  const current = {
+    command:
+      typeof start?.command === "string" && start.command.trim() ? start.command.trim() : "",
+    args: Array.isArray(start?.args) ? [...start.args.map((item) => String(item))] : [],
+  };
+
+  const replaceOrAppend = (flag, value) => {
+    const index = current.args.indexOf(flag);
+    if (index >= 0 && index + 1 < current.args.length) {
+      current.args[index + 1] = value;
+      return;
+    }
+    current.args.push(flag, value);
+  };
+
+  if (provider === "llamacpp") {
+    replaceOrAppend("--hf_model_repo_id", model);
+    const modelFile = resolveLlamaCppModelFile(model);
+    if (modelFile) {
+      replaceOrAppend("--hf_model_file", modelFile);
+    }
+    return current;
+  }
+
+  replaceOrAppend("--model", model);
+  if (provider === "vllm") {
+    replaceOrAppend("--served-model-name", model);
+  }
+
+  return current;
+}
+
+function resolveLlamaCppModelFile(repoId) {
+  const model = String(repoId || "");
+  if (model.includes("Qwen2.5-Coder-3B-Instruct-GGUF")) {
+    return "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf";
+  }
+  if (model.includes("Qwen2.5-Coder-7B-Instruct-GGUF")) {
+    return "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf";
+  }
+  if (model.includes("Qwen2.5-Coder-14B-Instruct-GGUF")) {
+    return "Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf";
+  }
+  return "";
 }
 
 function isPlanCritical(plan) {
@@ -1067,7 +1289,7 @@ async function askForConfirmation({ risk, prompt, commands }) {
   }
 }
 
-async function askForCriticalConfirmation({ prompt, commands, reason }) {
+async function askForCriticalConfirmation({ prompt, commands }) {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     throw new Error("Critical-risk plan requires interactive confirmation. Re-run with --force if intentional.");
   }
@@ -1085,9 +1307,6 @@ async function askForCriticalConfirmation({ prompt, commands, reason }) {
 
     process.stdout.write("CRITICAL RISK ACTION\n");
     process.stdout.write(`Prompt: ${prompt}\n`);
-    if (reason) {
-      process.stdout.write(`Review: ${reason}\n`);
-    }
     process.stdout.write(`This will run:\n${commandPreview || "  (none)"}\n`);
 
     const first = (await rl.question("Type YES to continue: ")).trim();
@@ -1169,7 +1388,7 @@ function printHelp() {
   process.stdout.write(`  lexis hooks <install|uninstall> [--mode auto|lx]\n`);
   process.stdout.write(`  lexis uninstall [--yes]\n`);
   process.stdout.write(
-    `  lexis config [show|set-model|set-risk-mode|set-hook-mode|enable-web|disable-web|set-web-provider|set-web-max-results|set-web-timeout|set-mcp-command|set-mcp-args|set-mcp-tool|set-mcp-env]\n`
+    `  lexis config [show|set-model|set-llm-provider|set-llm-base-url|set-llm-start-command|set-llm-start-args|set-risk-mode|set-hook-mode|enable-web|disable-web|set-web-provider|set-web-max-results|set-web-timeout|set-mcp-command|set-mcp-args|set-mcp-tool|set-mcp-env]\n`
   );
   process.stdout.write(`  lexis web-search <query> [--provider mcp] [--max-results 1-10]\n`);
   process.stdout.write(`  lexis mcp serve-web\n`);

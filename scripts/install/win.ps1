@@ -16,6 +16,47 @@ function Require-Command([string]$Name) {
   }
 }
 
+function Add-CommonNodePaths {
+  $candidates = @(
+    (Join-Path $env:ProgramFiles "nodejs"),
+    (Join-Path ${env:ProgramFiles(x86)} "nodejs"),
+    (Join-Path $env:LOCALAPPDATA "Programs\nodejs")
+  )
+
+  foreach ($path in $candidates) {
+    if ($path -and (Test-Path $path) -and -not ($env:Path.Split(';') -contains $path)) {
+      $env:Path = "$path;$env:Path"
+    }
+  }
+}
+
+function Ensure-Npm {
+  if (Get-Command npm -ErrorAction SilentlyContinue) {
+    return
+  }
+
+  Log "npm not found. Attempting to install Node.js LTS..."
+
+  if (Get-Command winget -ErrorAction SilentlyContinue) {
+    winget install --id OpenJS.NodeJS.LTS -e --accept-source-agreements --accept-package-agreements --silent | Out-Host
+  }
+  elseif (Get-Command choco -ErrorAction SilentlyContinue) {
+    choco install nodejs-lts -y | Out-Host
+  }
+  elseif (Get-Command scoop -ErrorAction SilentlyContinue) {
+    scoop install nodejs-lts | Out-Host
+  }
+  else {
+    throw "npm is missing and no package manager was found. Install Node.js LTS, then rerun installer."
+  }
+
+  Add-CommonNodePaths
+
+  if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    throw "npm is still unavailable after auto-install attempt"
+  }
+}
+
 function Resolve-InstallSource {
   if ($InstallSource) {
     return $InstallSource
@@ -79,6 +120,7 @@ function Choose-HookMode {
   return "auto"
 }
 
+Ensure-Npm
 Require-Command node
 Require-Command npm
 

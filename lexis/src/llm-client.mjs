@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import process from "node:process";
 import { parsePlanFromText } from "./plan-schema.mjs";
-import { RISK_LEVELS } from "./constants.mjs";
 
 const MAX_WEB_ITEMS_FOR_PROMPT = 1;
 const MAX_TOP_WEB_CHARS = 1400;
@@ -12,8 +11,8 @@ export async function loadSystemPrompt() {
   return fs.readFile(promptUrl, "utf8");
 }
 
-export async function generatePlanWithOllama({
-  baseUrl,
+export async function generatePlanWithLLM({
+  llm,
   model,
   systemPrompt,
   userPrompt,
@@ -33,7 +32,7 @@ export async function generatePlanWithOllama({
   for (const candidateModel of modelCandidates) {
     try {
       return await generatePlanForModel({
-        baseUrl,
+        llm,
         model: candidateModel,
         systemPrompt,
         enhancedPrompt,
@@ -44,99 +43,42 @@ export async function generatePlanWithOllama({
     }
   }
 
-  throw lastError || new Error("Ollama planning failed");
-}
-
-export async function reviewPlanRiskWithOllama({
-  baseUrl,
-  model,
-  userPrompt,
-  context,
-  plan,
-}) {
-  const systemPrompt = [
-    "You are a terminal safety reviewer.",
-    "Return strict JSON only.",
-    "Decide if the plan should remain critical or be downgraded.",
-    "Mark critical only for broad irreversible destructive impact.",
-    "Examples that are usually not critical: deleting node_modules, cache, temp directories.",
-  ].join("\n");
-
-  const enhancedPrompt = [
-    `User intent: ${userPrompt}`,
-    "",
-    "Execution context:",
-    `- platform: ${context.platform}`,
-    `- shell: ${context.shell}`,
-    `- cwd: ${context.cwd}`,
-    "",
-    "Plan JSON:",
-    JSON.stringify(plan),
-    "",
-    "Return JSON object with fields:",
-    "- revised_overall_risk: low|moderate|high|critical",
-    "- force_double_confirmation: boolean",
-    "- reason: string (<= 120 chars)",
-  ].join("\n");
-
-  const content = await requestOllamaPlan({
-    baseUrl,
-    model,
-    systemPrompt,
-    enhancedPrompt,
-    options: {
-      temperature: 0,
-      num_predict: 220,
-      num_ctx: 4096,
-    },
-    timeoutMs: 14000,
-  });
-
-  const review = parseJsonObject(content);
-  const revisedRisk = normalizeRiskLevel(review?.revised_overall_risk) || "critical";
-
-  return {
-    revisedOverallRisk: revisedRisk,
-    forceDoubleConfirmation:
-      typeof review?.force_double_confirmation === "boolean"
-        ? review.force_double_confirmation
-        : revisedRisk === "critical",
-    reason: typeof review?.reason === "string" ? review.reason.trim().slice(0, 240) : "",
-  };
+  throw lastError || new Error("LLM planning failed");
 }
 
 function isRetriablePlanningError(error) {
   const message = String(error?.message || "");
-  return /json|empty response|unterminated|expected/i.test(message);
+  return /json|empty response|unterminated|expected|gateway timeout|bad gateway/i.test(message);
 }
 
-async function requestOllamaPlan({
-  baseUrl,
+async function requestLLMPlan({
+  llm,
   model,
   systemPrompt,
   enhancedPrompt,
   options,
   timeoutMs,
 }) {
-  const effectiveTimeoutMs =
-    typeof timeoutMs === "number"
-      ? timeoutMs
-      : String(model).endsWith(":1.5b")
-        ? 9000
-        : 18000;
+  const baseUrl = String(llm?.baseUrl || "http://127.0.0.1:8000").replace(/\/+$/, "");
+  const effectiveTimeoutMs = typeof timeoutMs === "number" ? timeoutMs : 60000;
+  const headers = {
+    "content-type": "application/json",
+  };
 
-  const response = await fetch(`${baseUrl}/api/chat`, {
+  if (typeof llm?.apiKey === "string" && llm.apiKey.trim()) {
+    headers.authorization = `Bearer ${llm.apiKey.trim()}`;
+  }
+
+  const response = await fetch(`${baseUrl}/v1/chat/completions`, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
+    headers,
     signal: AbortSignal.timeout(effectiveTimeoutMs),
     body: JSON.stringify({
       model,
       stream: false,
-      format: "json",
-      keep_alive: "30m",
-      options,
+      temperature: options.temperature,
+      max_tokens: options.max_tokens,
+      response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: enhancedPrompt },
@@ -146,20 +88,21 @@ async function requestOllamaPlan({
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`Ollama request failed (${response.status}): ${body}`);
+    throw new Error(`LLM request failed (${response.status}): ${body}`);
   }
 
   const payload = await response.json();
-  const content = payload?.message?.content;
+  const content = payload?.choices?.[0]?.message?.content;
+  const text = typeof content === "string" ? content : Array.isArray(content) ? content.map((part) => part?.text || "").join("") : "";
 
-  if (typeof content !== "string" || content.trim().length === 0) {
-    throw new Error("Ollama returned an empty response");
+  if (typeof text !== "string" || text.trim().length === 0) {
+    throw new Error("LLM returned an empty response");
   }
 
-  return content;
+  return text;
 }
 
-async function repairPlanJsonWithOllama({ baseUrl, model, rawContent }) {
+async function repairPlanJsonWithLLM({ llm, model, rawContent }) {
   const repairPrompt = [
     "Repair the following broken JSON into valid JSON.",
     "Return JSON only, no markdown.",
@@ -168,22 +111,21 @@ async function repairPlanJsonWithOllama({ baseUrl, model, rawContent }) {
     rawContent.slice(0, 6000),
   ].join("\n");
 
-  return requestOllamaPlan({
-    baseUrl,
+  return requestLLMPlan({
+    llm,
     model,
     systemPrompt: "You are a strict JSON repair tool.",
     enhancedPrompt: repairPrompt,
     options: {
       temperature: 0,
-      num_predict: 900,
-      num_ctx: 4096,
+      max_tokens: 900,
     },
-    timeoutMs: 7000,
+    timeoutMs: 20000,
   });
 }
 
 async function generatePlanForModel({
-  baseUrl,
+  llm,
   model,
   systemPrompt,
   enhancedPrompt,
@@ -193,13 +135,13 @@ async function generatePlanForModel({
 
   for (const options of optionCandidates) {
     try {
-      const content = await requestOllamaPlan({
-        baseUrl,
+      const content = await requestLLMPlan({
+        llm,
         model,
         systemPrompt,
         enhancedPrompt,
         options,
-        timeoutMs: String(model).endsWith(":1.5b") ? 9000 : 18000,
+        timeoutMs: estimateModelTimeoutMs(model),
       });
 
       try {
@@ -211,8 +153,8 @@ async function generatePlanForModel({
     } catch (error) {
       if (error?.rawContent && isRetriablePlanningError(error)) {
         try {
-          const repaired = await repairPlanJsonWithOllama({
-            baseUrl,
+          const repaired = await repairPlanJsonWithLLM({
+            llm,
             model,
             rawContent: error.rawContent,
           });
@@ -232,13 +174,29 @@ async function generatePlanForModel({
   throw lastError || new Error("Planning failed for model");
 }
 
+function estimateModelTimeoutMs(model) {
+  const text = String(model || "").toLowerCase();
+  const sizeMatch = text.match(/(\d+(?:\.\d+)?)b/);
+  const sizeInBillions = sizeMatch ? Number.parseFloat(sizeMatch[1]) : Number.NaN;
+
+  if (Number.isFinite(sizeInBillions) && sizeInBillions >= 14) {
+    return 150000;
+  }
+  if (Number.isFinite(sizeInBillions) && sizeInBillions >= 7) {
+    return 90000;
+  }
+  if (Number.isFinite(sizeInBillions) && sizeInBillions <= 3) {
+    return 50000;
+  }
+  return 80000;
+}
+
 function buildOptionCandidates(baseOptions) {
   return [
     baseOptions,
     {
       ...baseOptions,
-      num_predict: Math.min(baseOptions.num_predict * 2, 1000),
-      num_ctx: Math.min(baseOptions.num_ctx + 1024, 8192),
+      max_tokens: Math.min(baseOptions.max_tokens + 180, 720),
     },
   ];
 }
@@ -248,41 +206,15 @@ function getFallbackModelCandidates(model) {
     return [];
   }
 
+  const text = String(model || "").toLowerCase();
+  const sizeMatch = text.match(/(\d+(?:\.\d+)?)b/);
+  const sizeInBillions = sizeMatch ? Number.parseFloat(sizeMatch[1]) : Number.NaN;
   const candidates = [];
-  if (String(model).endsWith(":1.5b")) {
-    candidates.push("qwen2.5-coder:14b", "qwen3:14b");
+  if (Number.isFinite(sizeInBillions) && sizeInBillions <= 3) {
+    candidates.push("Qwen/Qwen2.5-Coder-7B-Instruct", "Qwen/Qwen2.5-Coder-14B-Instruct");
   }
 
   return candidates.filter((candidate) => candidate !== model);
-}
-
-function parseJsonObject(text) {
-  const trimmed = String(text || "").trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const first = trimmed.indexOf("{");
-    const last = trimmed.lastIndexOf("}");
-    if (first === -1 || last === -1 || last <= first) {
-      return {};
-    }
-
-    try {
-      return JSON.parse(trimmed.slice(first, last + 1));
-    } catch {
-      return {};
-    }
-  }
-}
-
-function normalizeRiskLevel(value) {
-  const normalized = String(value || "")
-    .trim()
-    .toLowerCase();
-  if (normalized === "medium") {
-    return "moderate";
-  }
-  return RISK_LEVELS.includes(normalized) ? normalized : "";
 }
 
 function buildUserPrompt({ userPrompt, context, webContext }) {
@@ -344,22 +276,19 @@ function buildGenerationOptions({ userPrompt, webContext }) {
     score += 1;
   }
 
-  let numPredict = 240;
+  let maxTokens = 140;
   if (score >= 2) {
-    numPredict = 360;
+    maxTokens = 220;
   }
   if (score >= 3) {
-    numPredict = 520;
+    maxTokens = 320;
   }
   if (score >= 4) {
-    numPredict = 760;
+    maxTokens = 420;
   }
-
-  const numCtx = hasWebContext ? 4096 : 1536;
 
   return {
     temperature: 0,
-    num_predict: numPredict,
-    num_ctx: numCtx,
+    max_tokens: maxTokens,
   };
 }

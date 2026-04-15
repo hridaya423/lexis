@@ -27,8 +27,13 @@ If you self-host the website, these endpoints are served directly by the app:
 - `/install.sh`
 - `/win.ps1`
 
-The installer sets up Ollama-backed local runtime, writes config, and installs shell hooks.
-If Ollama is missing, setup attempts to install it automatically.
+The installer sets up local inference runtime, writes config, and installs shell hooks.
+Runtime selection is automatic:
+
+- macOS: MLX
+- Linux + NVIDIA: vLLM
+- Linux CPU-only: llama.cpp
+- Windows: llama.cpp
 
 You do not need `npm` to use Lexis after installation.
 
@@ -66,7 +71,7 @@ lx show node and npm versions
 ```bash
 lx doctor
 lx config show
-lx config set-model qwen2.5-coder:14b
+lx config set-model <model-id>
 lx config set-hook-mode auto
 lx config set-hook-mode lx
 lx hooks uninstall
@@ -76,8 +81,7 @@ lx hooks uninstall
 
 - Risk is model-driven.
 - Low-confidence plans require confirmation.
-- Critical plans get a second-pass review by a larger model.
-- If still critical, Lexis asks for double confirmation before execution.
+- Critical plans require double confirmation before execution.
 - Planning always includes detected platform/shell context, so Windows and Unix commands can differ.
 
 ## Web Retrieval (No API Key Required)

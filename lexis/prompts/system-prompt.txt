@@ -56,3 +56,4 @@ Rules:
 - If the user asks to setup/install/configure/download a tool and web context is provided, use that context to pick the command and cite sources.
 - If setup/install intent is present but web context is missing or uncertain, lower confidence and add preflight checks that verify official docs/version before execution.
 - For status/check questions (installed?, running?, exists?, version?), choose commands that print a clear human-readable result, not exit-code-only checks.
+- If Web context is absent, set "sources" to an empty array.

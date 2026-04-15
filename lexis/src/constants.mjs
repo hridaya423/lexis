@@ -7,9 +7,23 @@ export const RISK_SCORE = {
   critical: 3,
 };
 
+const DEFAULT_MODEL_BY_PLATFORM =
+  process.platform === "darwin"
+    ? "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"
+    : "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF";
+
 export const DEFAULT_CONFIG = {
-  model: "qwen2.5-coder:14b",
-  ollamaBaseUrl: "http://localhost:11434",
+  model: DEFAULT_MODEL_BY_PLATFORM,
+  llm: {
+    provider: process.platform === "darwin" ? "mlx" : process.platform === "win32" ? "llamacpp" : "llamacpp",
+    baseUrl: "http://127.0.0.1:8000",
+    apiKey: "",
+    model: DEFAULT_MODEL_BY_PLATFORM,
+    start: {
+      command: "",
+      args: [],
+    },
+  },
   webSearch: {
     enabled: true,
     provider: "mcp",
@@ -29,10 +43,6 @@ export const DEFAULT_CONFIG = {
     hookMode: "auto",
     autoExecuteLowRisk: true,
     askConfirmationAt: "moderate",
-    criticalReview: {
-      enabled: true,
-      model: "qwen3:14b",
-    },
   },
 };
 

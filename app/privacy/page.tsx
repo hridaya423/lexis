@@ -31,7 +31,7 @@ export default function PrivacyPage() {
           <p>
             External providers (including non-local MCP servers, hosted search APIs, or remote LLMs) may 
             receive prompt fragments and queries under their own privacy policies. For maximum isolation, 
-            keep web retrieval disabled and use local models through Ollama.
+            keep web retrieval disabled and use local model servers (MLX, vLLM, or llama.cpp).
           </p>
         </div>
 

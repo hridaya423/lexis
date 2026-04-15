@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -16,6 +17,7 @@ import { runLocalWebSearchMcpServer } from "./mcp-local-web-server.mjs";
 import { getAuditLogPath } from "./audit-log.mjs";
 
 const argv = process.argv.slice(2);
+const MODEL_ARG_FLAGS = new Set(["--model", "--hf_model_repo_id", "--served-model-name"]);
 
 main().catch((error) => {
   console.error(`Lexis error: ${error.message}`);
@@ -347,6 +349,7 @@ async function handleHooks(args) {
 async function handleUninstall(args) {
   const { options } = parseFlags(args);
   const autoYes = Boolean(options.yes);
+  const config = await loadConfig();
 
   let approved = autoYes;
   if (!approved) {
@@ -375,6 +378,17 @@ async function handleUninstall(args) {
   const packageResults = uninstallGlobalPackages();
   for (const item of packageResults) {
     process.stdout.write(`${item.ok ? "ok" : "skip"} npm uninstall -g ${item.packageName}\n`);
+  }
+
+  const cleanupResults = await cleanupLexisRuntimeArtifacts(config);
+  for (const item of cleanupResults) {
+    if (item.status === "removed") {
+      process.stdout.write(`removed ${item.label}: ${item.path}\n`);
+      continue;
+    }
+    if (item.status === "failed") {
+      process.stdout.write(`warn ${item.label}: ${item.path} (${item.message})\n`);
+    }
   }
 
   process.stdout.write("Lexis uninstall complete.\n");
@@ -407,6 +421,220 @@ function uninstallGlobalPackages() {
   }
 
   return results;
+}
+
+async function cleanupLexisRuntimeArtifacts(config) {
+  const cleanupTargets = [
+    {
+      label: "runtime venv",
+      path: getRuntimeVenvDir(),
+    },
+    {
+      label: "config",
+      path: path.dirname(getConfigPath()),
+    },
+    {
+      label: "data",
+      path: path.dirname(getAuditLogPath()),
+    },
+    {
+      label: "web cache",
+      path: path.join(os.homedir(), ".cache", "lexis"),
+    },
+  ];
+
+  const configuredModels = collectConfiguredModels(config);
+  const modelCacheTargets = buildModelCacheTargets(configuredModels);
+
+  for (const target of modelCacheTargets) {
+    cleanupTargets.push({
+      label: `model cache (${target.model})`,
+      path: target.path,
+    });
+  }
+
+  const uniqueTargets = dedupeCleanupTargets(cleanupTargets);
+  const results = [];
+
+  for (const target of uniqueTargets) {
+    const result = await removePathIfPresent(target.path);
+    results.push({
+      ...result,
+      label: target.label,
+      path: target.path,
+    });
+  }
+
+  return results;
+}
+
+async function removePathIfPresent(targetPath) {
+  if (!targetPath || typeof targetPath !== "string") {
+    return { status: "skipped" };
+  }
+
+  const exists = await pathExists(targetPath);
+  if (!exists) {
+    return { status: "skipped" };
+  }
+
+  try {
+    await fs.rm(targetPath, { recursive: true, force: true });
+    return { status: "removed" };
+  } catch (error) {
+    return {
+      status: "failed",
+      message: error?.message || "unknown error",
+    };
+  }
+}
+
+async function pathExists(targetPath) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getRuntimeVenvDir() {
+  if (process.platform === "win32") {
+    const localAppData =
+      typeof process.env.LOCALAPPDATA === "string" && process.env.LOCALAPPDATA.trim()
+        ? process.env.LOCALAPPDATA.trim()
+        : path.join(os.homedir(), "AppData", "Local");
+
+    return path.join(localAppData, "Lexis", "runtime-venv");
+  }
+
+  const xdgDataHome =
+    typeof process.env.XDG_DATA_HOME === "string" && process.env.XDG_DATA_HOME.trim()
+      ? process.env.XDG_DATA_HOME.trim()
+      : path.join(os.homedir(), ".local", "share");
+
+  return path.join(xdgDataHome, "lexis", "runtime-venv");
+}
+
+function collectConfiguredModels(config) {
+  const models = uniqueStrings([
+    config?.model,
+    config?.llm?.model,
+  ]);
+
+  const startArgs = Array.isArray(config?.llm?.start?.args) ? config.llm.start.args.map((item) => String(item)) : [];
+  for (let index = 0; index < startArgs.length; index += 1) {
+    const value = startArgs[index];
+    if (!MODEL_ARG_FLAGS.has(value)) {
+      continue;
+    }
+
+    const next = startArgs[index + 1];
+    if (typeof next === "string" && next.trim()) {
+      models.push(next.trim());
+      index += 1;
+    }
+  }
+
+  return uniqueStrings(models);
+}
+
+function buildModelCacheTargets(models) {
+  if (!Array.isArray(models) || models.length === 0) {
+    return [];
+  }
+
+  const hubRoots = getHuggingFaceHubRoots();
+  const targets = [];
+
+  for (const model of models) {
+    const normalized = normalizeModelRepoId(model);
+    if (!normalized || !normalized.includes("/")) {
+      continue;
+    }
+
+    const modelDir = `models--${normalized.replace(/\//g, "--")}`;
+    for (const root of hubRoots) {
+      targets.push({
+        model: normalized,
+        path: path.join(root, modelDir),
+      });
+    }
+  }
+
+  return dedupeModelTargets(targets);
+}
+
+function getHuggingFaceHubRoots() {
+  const roots = [];
+
+  if (typeof process.env.HUGGINGFACE_HUB_CACHE === "string" && process.env.HUGGINGFACE_HUB_CACHE.trim()) {
+    roots.push(process.env.HUGGINGFACE_HUB_CACHE.trim());
+  }
+
+  if (typeof process.env.HF_HOME === "string" && process.env.HF_HOME.trim()) {
+    roots.push(path.join(process.env.HF_HOME.trim(), "hub"));
+  }
+
+  if (typeof process.env.TRANSFORMERS_CACHE === "string" && process.env.TRANSFORMERS_CACHE.trim()) {
+    roots.push(process.env.TRANSFORMERS_CACHE.trim());
+  }
+
+  if (process.platform === "win32") {
+    const localAppData =
+      typeof process.env.LOCALAPPDATA === "string" && process.env.LOCALAPPDATA.trim()
+        ? process.env.LOCALAPPDATA.trim()
+        : path.join(os.homedir(), "AppData", "Local");
+    roots.push(path.join(localAppData, "huggingface", "hub"));
+  } else {
+    const xdgCacheHome =
+      typeof process.env.XDG_CACHE_HOME === "string" && process.env.XDG_CACHE_HOME.trim()
+        ? process.env.XDG_CACHE_HOME.trim()
+        : path.join(os.homedir(), ".cache");
+    roots.push(path.join(xdgCacheHome, "huggingface", "hub"));
+  }
+
+  return uniqueStrings(roots);
+}
+
+function normalizeModelRepoId(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+}
+
+function dedupeModelTargets(targets) {
+  const seen = new Set();
+  const output = [];
+
+  for (const item of targets) {
+    const key = `${item.model}|${item.path}`;
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    output.push(item);
+  }
+
+  return output;
+}
+
+function dedupeCleanupTargets(targets) {
+  const seen = new Set();
+  const output = [];
+
+  for (const item of targets) {
+    if (!item?.path || seen.has(item.path)) {
+      continue;
+    }
+    seen.add(item.path);
+    output.push(item);
+  }
+
+  return output;
 }
 
 async function handleConfig(args) {

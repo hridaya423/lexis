@@ -6,6 +6,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+try {
+  [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+}
+catch {
+}
+
 function Log([string]$Message) {
   Write-Host "[lexis-install] $Message"
 }
@@ -16,17 +22,59 @@ function Require-Command([string]$Name) {
   }
 }
 
+function Add-PathCandidate([string]$Candidate) {
+  if (-not $Candidate) {
+    return
+  }
+
+  if (-not (Test-Path $Candidate)) {
+    return
+  }
+
+  $entries = @($env:Path -split ';' | Where-Object { $_ })
+  if ($entries -contains $Candidate) {
+    return
+  }
+
+  $env:Path = "$Candidate;$env:Path"
+}
+
 function Add-CommonNodePaths {
   $candidates = @(
     (Join-Path $env:ProgramFiles "nodejs"),
     (Join-Path ${env:ProgramFiles(x86)} "nodejs"),
-    (Join-Path $env:LOCALAPPDATA "Programs\nodejs")
+    (Join-Path $env:LOCALAPPDATA "Programs\nodejs"),
+    (Join-Path $env:APPDATA "npm")
   )
 
-  foreach ($path in $candidates) {
-    if ($path -and (Test-Path $path) -and -not ($env:Path.Split(';') -contains $path)) {
-      $env:Path = "$path;$env:Path"
+  foreach ($candidate in $candidates) {
+    Add-PathCandidate $candidate
+  }
+}
+
+function Get-NpmGlobalPrefix {
+  if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    return ""
+  }
+
+  try {
+    $prefixLine = (& npm prefix -g 2>$null | Select-Object -First 1)
+    if ($prefixLine) {
+      return $prefixLine.Trim()
     }
+  }
+  catch {
+  }
+
+  return ""
+}
+
+function Add-NpmGlobalBinPath {
+  Add-CommonNodePaths
+
+  $prefix = Get-NpmGlobalPrefix
+  if ($prefix) {
+    Add-PathCandidate $prefix
   }
 }
 
@@ -38,7 +86,21 @@ function Ensure-Npm {
   Log "npm not found. Attempting to install Node.js LTS..."
 
   if (Get-Command winget -ErrorAction SilentlyContinue) {
-    winget install --id OpenJS.NodeJS.LTS -e --accept-source-agreements --accept-package-agreements --silent | Out-Host
+    $wingetArgs = @(
+      "install",
+      "--id",
+      "OpenJS.NodeJS.LTS",
+      "-e",
+      "--accept-source-agreements",
+      "--accept-package-agreements",
+      "--silent",
+      "--disable-interactivity"
+    )
+
+    & winget @wingetArgs 1>$null
+    if ($LASTEXITCODE -ne 0) {
+      throw "winget failed to install Node.js LTS"
+    }
   }
   elseif (Get-Command choco -ErrorAction SilentlyContinue) {
     choco install nodejs-lts -y | Out-Host
@@ -50,11 +112,33 @@ function Ensure-Npm {
     throw "npm is missing and no package manager was found. Install Node.js LTS, then rerun installer."
   }
 
-  Add-CommonNodePaths
+  Add-NpmGlobalBinPath
 
   if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     throw "npm is still unavailable after auto-install attempt"
   }
+}
+
+function Resolve-LexisCommand {
+  $direct = Get-Command lexis -ErrorAction SilentlyContinue
+  if ($direct) {
+    return $direct.Source
+  }
+
+  $candidates = @(
+    (Join-Path (Get-NpmGlobalPrefix) "lexis.cmd"),
+    (Join-Path (Get-NpmGlobalPrefix) "lexis"),
+    (Join-Path $env:APPDATA "npm\lexis.cmd"),
+    (Join-Path $env:APPDATA "npm\lexis")
+  )
+
+  foreach ($candidate in ($candidates | Where-Object { $_ } | Select-Object -Unique)) {
+    if (Test-Path $candidate) {
+      return $candidate
+    }
+  }
+
+  return ""
 }
 
 function Resolve-InstallSource {
@@ -121,21 +205,32 @@ function Choose-HookMode {
 }
 
 Ensure-Npm
+Add-NpmGlobalBinPath
 Require-Command node
 Require-Command npm
 
 $source = Resolve-InstallSource
 Log "Installing Lexis from: $source"
 npm install -g $source | Out-Host
+if ($LASTEXITCODE -ne 0) {
+  throw "npm install -g failed"
+}
 
-if (-not (Get-Command lexis -ErrorAction SilentlyContinue)) {
-  throw "'lexis' command not found after install"
+Add-NpmGlobalBinPath
+
+$lexisCommand = Resolve-LexisCommand
+if (-not $lexisCommand) {
+  $prefix = Get-NpmGlobalPrefix
+  throw "'lexis' command not found after install (npm prefix: $prefix)"
 }
 
 $selectedProfile = Choose-Profile
 $selectedHookMode = Choose-HookMode
 
 Log "Running setup (profile=$selectedProfile, hook-mode=$selectedHookMode)"
-lexis setup --profile $selectedProfile --hook-mode $selectedHookMode --enable-web-search --web-provider mcp | Out-Host
+& $lexisCommand setup --profile $selectedProfile --hook-mode $selectedHookMode --enable-web-search --web-provider mcp | Out-Host
+if ($LASTEXITCODE -ne 0) {
+  throw "lexis setup failed"
+}
 
 Log "Done. Open a new terminal and run: lx doctor"

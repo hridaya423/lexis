@@ -52,3 +52,5 @@ lx hooks uninstall
 ```bash
 lx uninstall --yes
 ```
+
+This removes Lexis hooks, global package, runtime venv, and the configured model cache.

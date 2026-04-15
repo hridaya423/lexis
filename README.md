@@ -93,7 +93,7 @@ Lexis uses MCP web search by default and can pull page content into model contex
 In a hooked shell:
 
 - `exit` disables Lexis for the current terminal session (instead of closing your shell).
-- `uninstall` (no args) removes Lexis hooks + package.
+- `uninstall` (no args) removes Lexis hooks, package, runtime venv, and configured model cache.
 - You can also run `lx uninstall --yes`.
 
 For full command options, run:

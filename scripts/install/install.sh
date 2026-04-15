@@ -61,7 +61,7 @@ ensure_npm_installed() {
       elif has_cmd apk; then
         run_with_optional_sudo apk add --no-cache nodejs npm || fail "failed to install nodejs/npm with apk"
       else
-        fail "npm is missing and no supported package manager was found"
+        install_node_with_nvm_fallback
       fi
       ;;
     *)
@@ -72,6 +72,24 @@ ensure_npm_installed() {
   if ! has_cmd npm; then
     fail "npm is still unavailable after auto-install attempt"
   fi
+}
+
+install_node_with_nvm_fallback() {
+  if ! has_cmd curl; then
+    fail "npm is missing, no supported package manager found, and curl is unavailable for nvm fallback"
+  fi
+
+  log "No supported package manager found. Installing Node.js via nvm fallback..."
+
+  export NVM_DIR="$HOME/.nvm"
+  if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+  fi
+
+  # shellcheck disable=SC1090
+  . "$NVM_DIR/nvm.sh"
+  nvm install --lts
+  nvm use --lts
 }
 
 ensure_homebrew_available() {

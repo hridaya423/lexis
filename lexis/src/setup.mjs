@@ -1,3 +1,6 @@
+import { mkdir } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { spawn } from "node:child_process";
 import { loadConfig, saveConfig } from "./config.mjs";
 import { installHooks, normalizeHookMode } from "./hooks.mjs";
@@ -174,8 +177,10 @@ async function hasNvidiaGpu() {
 }
 
 async function ensureRuntimeAvailable({ provider, model, baseUrl }) {
-  const python = await ensurePythonAvailable();
+  const systemPython = await ensurePythonAvailable();
+  const python = await ensureRuntimePython(systemPython);
   await ensurePipAvailable(python);
+  await ensurePackagingToolsAvailable(python);
   await installProviderDependencies(provider, python);
 
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
@@ -216,6 +221,45 @@ async function ensurePythonAvailable() {
   throw new Error("Python 3 is required but could not be installed automatically.");
 }
 
+async function ensureRuntimePython(systemPython) {
+  const venvDir = runtimeVenvDir();
+  await mkdir(venvDir, { recursive: true });
+
+  const existing = await findWorkingPython(runtimeVenvPythonCandidates(venvDir));
+  if (existing) {
+    return existing;
+  }
+
+  const created = await run(systemPython.command, [...systemPython.prefix, "-m", "venv", venvDir], {
+    stdio: "inherit",
+  });
+
+  if (created.exitCode !== 0 && process.platform === "linux") {
+    const installedVenvPackage = await installPythonVenvWithSystemPackageManager();
+    if (installedVenvPackage) {
+      const retryCreate = await run(
+        systemPython.command,
+        [...systemPython.prefix, "-m", "venv", venvDir],
+        { stdio: "inherit" }
+      );
+      if (retryCreate.exitCode !== 0) {
+        throw new Error("Failed to create Lexis Python virtual environment.");
+      }
+    } else {
+      throw new Error("Failed to create Lexis Python virtual environment.");
+    }
+  } else if (created.exitCode !== 0) {
+    throw new Error("Failed to create Lexis Python virtual environment.");
+  }
+
+  const runtimePython = await findWorkingPython(runtimeVenvPythonCandidates(venvDir));
+  if (runtimePython) {
+    return runtimePython;
+  }
+
+  throw new Error("Virtual environment created but Python executable was not found.");
+}
+
 async function findWorkingPython(candidates) {
   for (const candidate of candidates) {
     const probe = await run(candidate.command, [...candidate.prefix, "-c", "print('ok')"], {
@@ -237,38 +281,124 @@ async function installPython() {
   }
 
   if (process.platform === "win32") {
-    await runOrThrow(
-      "powershell",
-      [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        "winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements",
-      ],
-      "Failed to install Python via winget"
-    );
-    return;
+    if (await canRun("winget")) {
+      await runOrThrow(
+        "powershell",
+        [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements",
+        ],
+        "Failed to install Python via winget"
+      );
+      return;
+    }
+
+    if (await canRun("choco")) {
+      await runOrThrow("choco", ["install", "python", "-y"], "Failed to install Python via choco");
+      return;
+    }
+
+    if (await canRun("scoop")) {
+      await runOrThrow("scoop", ["install", "python"], "Failed to install Python via scoop");
+      return;
+    }
+
+    throw new Error("Python is required but no supported Windows package manager was found.");
   }
 
   if (process.platform === "linux") {
+    const privilegePrefix = await getPrivilegePrefix();
+    if (privilegePrefix === null) {
+      throw new Error("Python install requires root privileges. Run setup with sudo or install Python manually.");
+    }
+
     if (await canRun("apt-get")) {
-      await runOrThrow("sh", ["-c", "sudo apt-get update && sudo apt-get install -y python3 python3-pip"], "Failed to install Python via apt-get");
+      await runOrThrow(
+        "sh",
+        ["-c", `${privilegePrefix}apt-get update && ${privilegePrefix}apt-get install -y python3 python3-pip python3-venv`],
+        "Failed to install Python via apt-get"
+      );
       return;
     }
     if (await canRun("dnf")) {
-      await runOrThrow("sh", ["-c", "sudo dnf install -y python3 python3-pip"], "Failed to install Python via dnf");
+      await runOrThrow(
+        "sh",
+        ["-c", `${privilegePrefix}dnf install -y python3 python3-pip`],
+        "Failed to install Python via dnf"
+      );
       return;
     }
     if (await canRun("yum")) {
-      await runOrThrow("sh", ["-c", "sudo yum install -y python3 python3-pip"], "Failed to install Python via yum");
+      await runOrThrow(
+        "sh",
+        ["-c", `${privilegePrefix}yum install -y python3 python3-pip`],
+        "Failed to install Python via yum"
+      );
       return;
     }
     if (await canRun("pacman")) {
-      await runOrThrow("sh", ["-c", "sudo pacman -Sy --noconfirm python python-pip"], "Failed to install Python via pacman");
+      await runOrThrow(
+        "sh",
+        ["-c", `${privilegePrefix}pacman -Sy --noconfirm python python-pip`],
+        "Failed to install Python via pacman"
+      );
       return;
     }
+    if (await canRun("zypper")) {
+      await runOrThrow(
+        "sh",
+        ["-c", `${privilegePrefix}zypper --non-interactive install python3 python3-pip python3-virtualenv`],
+        "Failed to install Python via zypper"
+      );
+      return;
+    }
+    if (await canRun("apk")) {
+      await runOrThrow(
+        "sh",
+        ["-c", `${privilegePrefix}apk add --no-cache python3 py3-pip py3-virtualenv`],
+        "Failed to install Python via apk"
+      );
+      return;
+    }
+
+    throw new Error("Python is required but no supported Linux package manager was found.");
   }
+
+  throw new Error("Python 3 is required but this platform is not supported for auto-install.");
+}
+
+function runtimeVenvDir() {
+  if (process.platform === "win32") {
+    const localAppData =
+      typeof process.env.LOCALAPPDATA === "string" && process.env.LOCALAPPDATA.trim()
+        ? process.env.LOCALAPPDATA.trim()
+        : path.join(os.homedir(), "AppData", "Local");
+    return path.join(localAppData, "Lexis", "runtime-venv");
+  }
+
+  const xdgDataHome =
+    typeof process.env.XDG_DATA_HOME === "string" && process.env.XDG_DATA_HOME.trim()
+      ? process.env.XDG_DATA_HOME.trim()
+      : path.join(os.homedir(), ".local", "share");
+
+  return path.join(xdgDataHome, "lexis", "runtime-venv");
+}
+
+function runtimeVenvPythonCandidates(venvDir) {
+  if (process.platform === "win32") {
+    return [
+      { command: path.join(venvDir, "Scripts", "python.exe"), prefix: [] },
+      { command: path.join(venvDir, "Scripts", "python"), prefix: [] },
+    ];
+  }
+
+  return [
+    { command: path.join(venvDir, "bin", "python3"), prefix: [] },
+    { command: path.join(venvDir, "bin", "python"), prefix: [] },
+  ];
 }
 
 async function ensurePipAvailable(python) {
@@ -279,21 +409,336 @@ async function ensurePipAvailable(python) {
     return;
   }
 
-  await runOrThrow(
+  const ensurePip = await run(
     python.command,
     [...python.prefix, "-m", "ensurepip", "--upgrade"],
-    "Failed to initialize pip"
+    { stdio: "inherit" }
   );
+
+  if (ensurePip.exitCode === 0) {
+    return;
+  }
+
+  if (process.platform === "linux") {
+    const installedViaSystem = await installPipWithSystemPackageManager();
+    if (installedViaSystem) {
+      const retry = await run(python.command, [...python.prefix, "-m", "pip", "--version"], {
+        stdio: "pipe",
+      });
+      if (retry.exitCode === 0) {
+        return;
+      }
+    }
+  }
+
+  throw new Error("Failed to initialize pip");
+}
+
+async function ensurePackagingToolsAvailable(python) {
+  const result = await run(
+    python.command,
+    [...python.prefix, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"],
+    { stdio: "inherit" }
+  );
+
+  if (result.exitCode !== 0) {
+    process.stdout.write("[lexis-setup] Packaging tool upgrade failed; continuing with existing pip toolchain.\n");
+  }
 }
 
 async function installProviderDependencies(provider, python) {
   const pkg =
     provider === "mlx" ? "mlx-lm" : provider === "vllm" ? "vllm" : "llama-cpp-python[server]";
 
-  await runOrThrow(
+  const installArgs = [...python.prefix, "-m", "pip", "install", "--upgrade", pkg];
+  const installUserArgs = [...python.prefix, "-m", "pip", "install", "--upgrade", "--user", pkg];
+  const preferUserInstall = !isLikelyVirtualEnvironment(python);
+
+  const firstAttempt = await run(
     python.command,
-    [...python.prefix, "-m", "pip", "install", "--upgrade", "--user", pkg],
-    `Failed to install ${provider} runtime dependencies`
+    preferUserInstall ? installUserArgs : installArgs,
+    { stdio: "inherit" }
+  );
+  if (firstAttempt.exitCode === 0) {
+    return;
+  }
+
+  const secondAttempt = await run(
+    python.command,
+    preferUserInstall ? installArgs : installUserArgs,
+    { stdio: "inherit" }
+  );
+  if (secondAttempt.exitCode === 0) {
+    return;
+  }
+
+  const installedBuildDeps = await installProviderBuildDependencies(provider);
+  if (installedBuildDeps) {
+    const retry = await run(
+      python.command,
+      preferUserInstall ? installUserArgs : installArgs,
+      { stdio: "inherit" }
+    );
+    if (retry.exitCode === 0) {
+      return;
+    }
+  }
+
+  throw new Error(`Failed to install ${provider} runtime dependencies`);
+}
+
+async function installProviderBuildDependencies(provider) {
+  if (process.platform === "darwin") {
+    const xcode = await run("xcode-select", ["-p"], { stdio: "pipe" });
+    if (xcode.exitCode === 0) {
+      return false;
+    }
+
+    process.stdout.write("[lexis-setup] Xcode Command Line Tools are required; requesting install...\n");
+    await run("xcode-select", ["--install"], { stdio: "inherit" });
+    return false;
+  }
+
+  if (process.platform !== "linux") {
+    return false;
+  }
+
+  const privilegePrefix = await getPrivilegePrefix();
+  if (privilegePrefix === null) {
+    return false;
+  }
+
+  if (await canRun("apt-get")) {
+    const pkgs =
+      provider === "vllm"
+        ? "build-essential python3-dev"
+        : "build-essential cmake ninja-build pkg-config python3-dev";
+    const result = await run(
+      "sh",
+      ["-c", `${privilegePrefix}apt-get update && ${privilegePrefix}apt-get install -y ${pkgs}`],
+      { stdio: "inherit" }
+    );
+    return result.exitCode === 0;
+  }
+
+  if (await canRun("dnf")) {
+    const pkgs =
+      provider === "vllm"
+        ? "gcc gcc-c++ make python3-devel"
+        : "gcc gcc-c++ make cmake ninja-build pkgconf-pkg-config python3-devel";
+    const result = await run("sh", ["-c", `${privilegePrefix}dnf install -y ${pkgs}`], {
+      stdio: "inherit",
+    });
+    return result.exitCode === 0;
+  }
+
+  if (await canRun("yum")) {
+    const pkgs =
+      provider === "vllm"
+        ? "gcc gcc-c++ make python3-devel"
+        : "gcc gcc-c++ make cmake ninja-build pkgconfig python3-devel";
+    const result = await run("sh", ["-c", `${privilegePrefix}yum install -y ${pkgs}`], {
+      stdio: "inherit",
+    });
+    return result.exitCode === 0;
+  }
+
+  if (await canRun("pacman")) {
+    const pkgs =
+      provider === "vllm"
+        ? "base-devel python"
+        : "base-devel cmake ninja pkgconf python";
+    const result = await run("sh", ["-c", `${privilegePrefix}pacman -Sy --noconfirm ${pkgs}`], {
+      stdio: "inherit",
+    });
+    return result.exitCode === 0;
+  }
+
+  if (await canRun("zypper")) {
+    const pkgs =
+      provider === "vllm"
+        ? "gcc gcc-c++ make python3-devel"
+        : "gcc gcc-c++ make cmake ninja pkg-config python3-devel";
+    const result = await run(
+      "sh",
+      ["-c", `${privilegePrefix}zypper --non-interactive install ${pkgs}`],
+      { stdio: "inherit" }
+    );
+    return result.exitCode === 0;
+  }
+
+  if (await canRun("apk")) {
+    const pkgs =
+      provider === "vllm"
+        ? "build-base python3-dev"
+        : "build-base cmake ninja pkgconf python3-dev";
+    const result = await run("sh", ["-c", `${privilegePrefix}apk add --no-cache ${pkgs}`], {
+      stdio: "inherit",
+    });
+    return result.exitCode === 0;
+  }
+
+  return false;
+}
+
+async function installPipWithSystemPackageManager() {
+  const privilegePrefix = await getPrivilegePrefix();
+  if (privilegePrefix === null) {
+    return false;
+  }
+
+  if (await canRun("apt-get")) {
+    const result = await run(
+      "sh",
+      ["-c", `${privilegePrefix}apt-get update && ${privilegePrefix}apt-get install -y python3-pip`],
+      { stdio: "inherit" }
+    );
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  if (await canRun("dnf")) {
+    const result = await run("sh", ["-c", `${privilegePrefix}dnf install -y python3-pip`], {
+      stdio: "inherit",
+    });
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  if (await canRun("yum")) {
+    const result = await run("sh", ["-c", `${privilegePrefix}yum install -y python3-pip`], {
+      stdio: "inherit",
+    });
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  if (await canRun("pacman")) {
+    const result = await run("sh", ["-c", `${privilegePrefix}pacman -Sy --noconfirm python-pip`], {
+      stdio: "inherit",
+    });
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  if (await canRun("zypper")) {
+    const result = await run(
+      "sh",
+      ["-c", `${privilegePrefix}zypper --non-interactive install python3-pip`],
+      { stdio: "inherit" }
+    );
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  if (await canRun("apk")) {
+    const result = await run("sh", ["-c", `${privilegePrefix}apk add --no-cache py3-pip`], {
+      stdio: "inherit",
+    });
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function installPythonVenvWithSystemPackageManager() {
+  const privilegePrefix = await getPrivilegePrefix();
+  if (privilegePrefix === null) {
+    return false;
+  }
+
+  if (await canRun("apt-get")) {
+    const result = await run(
+      "sh",
+      ["-c", `${privilegePrefix}apt-get update && ${privilegePrefix}apt-get install -y python3-venv`],
+      { stdio: "inherit" }
+    );
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  if (await canRun("dnf")) {
+    const result = await run("sh", ["-c", `${privilegePrefix}dnf install -y python3`], {
+      stdio: "inherit",
+    });
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  if (await canRun("yum")) {
+    const result = await run("sh", ["-c", `${privilegePrefix}yum install -y python3`], {
+      stdio: "inherit",
+    });
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  if (await canRun("pacman")) {
+    const result = await run("sh", ["-c", `${privilegePrefix}pacman -Sy --noconfirm python`], {
+      stdio: "inherit",
+    });
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  if (await canRun("zypper")) {
+    const result = await run(
+      "sh",
+      ["-c", `${privilegePrefix}zypper --non-interactive install python3-virtualenv`],
+      { stdio: "inherit" }
+    );
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  if (await canRun("apk")) {
+    const result = await run("sh", ["-c", `${privilegePrefix}apk add --no-cache py3-virtualenv`], {
+      stdio: "inherit",
+    });
+    if (result.exitCode === 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function getPrivilegePrefix() {
+  if (typeof process.getuid !== "function") {
+    return "";
+  }
+
+  if (process.getuid() === 0) {
+    return "";
+  }
+
+  if (await canRun("sudo")) {
+    return "sudo ";
+  }
+
+  return null;
+}
+
+function isLikelyVirtualEnvironment(python) {
+  const commandPath = String(python?.command || "").toLowerCase();
+  return (
+    Boolean(process.env.VIRTUAL_ENV || process.env.CONDA_PREFIX) ||
+    commandPath.includes("runtime-venv") ||
+    commandPath.includes(".venv") ||
+    commandPath.includes("/venv/") ||
+    commandPath.includes("\\venv\\")
   );
 }
 

@@ -44,7 +44,7 @@ export default function Home() {
             aria-labelledby="hero-title"
           >
             <div className="mx-auto flex w-full max-w-[980px] flex-col items-center text-center">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--quiet)]">/ 01 - Positioning</p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--quiet)]">/ 01 - Intro</p>
               <h1
                 id="hero-title"
                 className="mt-6 max-w-[11ch] text-balance text-[14vw] leading-[0.88] tracking-[-0.045em] uppercase font-medium text-[var(--text)] md:text-[9.4vw] lg:text-[6.6vw]"

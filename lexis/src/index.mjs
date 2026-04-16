@@ -15,6 +15,20 @@ import { runSetup } from "./setup.mjs";
 import { fetchWebContext } from "./mcp-web-search.mjs";
 import { runLocalWebSearchMcpServer } from "./mcp-local-web-server.mjs";
 import { getAuditLogPath } from "./audit-log.mjs";
+import { loadModelHistory, recordModelUsage } from "./model-history.mjs";
+import {
+  buildWarmupRequest,
+  defaultModelForProvider,
+  getCurrentMachineProfile,
+  getProviderReadinessEndpoints,
+  getProviderSupportError,
+  isProviderSupported,
+  mapModelIdForProvider,
+  normalizeBaseUrl,
+  normalizeProvider,
+  rewriteStartArgsForModel,
+  uniqueStrings,
+} from "./providers.mjs";
 
 const argv = process.argv.slice(2);
 const MODEL_ARG_FLAGS = new Set(["--model", "--hf_model_repo_id", "--served-model-name"]);
@@ -356,6 +370,7 @@ async function handleUninstall(args) {
   const { options } = parseFlags(args);
   const autoYes = Boolean(options.yes);
   const config = await loadConfig();
+  const history = await loadModelHistory();
 
   let approved = autoYes;
   if (!approved) {
@@ -386,7 +401,7 @@ async function handleUninstall(args) {
     process.stdout.write(`${item.ok ? "ok" : "skip"} npm uninstall -g ${item.packageName}\n`);
   }
 
-  const cleanupResults = await cleanupLexisRuntimeArtifacts(config);
+  const cleanupResults = await cleanupLexisRuntimeArtifacts(config, history);
   for (const item of cleanupResults) {
     if (item.status === "removed") {
       process.stdout.write(`removed ${item.label}: ${item.path}\n`);
@@ -429,7 +444,7 @@ function uninstallGlobalPackages() {
   return results;
 }
 
-async function cleanupLexisRuntimeArtifacts(config) {
+async function cleanupLexisRuntimeArtifacts(config, history) {
   const cleanupTargets = [
     {
       label: "runtime venv",
@@ -449,9 +464,12 @@ async function cleanupLexisRuntimeArtifacts(config) {
     },
   ];
 
-  const configuredModels = collectConfiguredModels(config);
+  const configuredModels = uniqueStrings([
+    ...collectConfiguredModels(config),
+    ...(Array.isArray(history?.models) ? history.models : []),
+  ]);
   const modelCacheTargets = buildModelCacheTargets(configuredModels);
-  const providerCacheTargets = buildProviderCacheTargets(config);
+  const providerCacheTargets = buildProviderCacheTargets(config, history);
 
   for (const target of modelCacheTargets) {
     cleanupTargets.push({
@@ -621,16 +639,21 @@ function getHuggingFaceHubRoots() {
   return uniqueStrings(roots);
 }
 
-function buildProviderCacheTargets(config) {
-  const provider = String(config?.llm?.provider || "").trim().toLowerCase();
+function buildProviderCacheTargets(config, history) {
+  const providers = uniqueStrings([
+    String(config?.llm?.provider || "").trim().toLowerCase(),
+    ...(Array.isArray(history?.providers) ? history.providers : []),
+  ]);
   const targets = [];
 
-  if (provider === "vllm") {
-    for (const cacheRoot of getVllmCacheRoots()) {
-      targets.push({
-        label: "vllm cache",
-        path: cacheRoot,
-      });
+  for (const provider of providers) {
+    if (provider === "vllm") {
+      for (const cacheRoot of getVllmCacheRoots()) {
+        targets.push({
+          label: "vllm cache",
+          path: cacheRoot,
+        });
+      }
     }
   }
 
@@ -853,21 +876,25 @@ async function handleConfig(args) {
     }
 
     const config = await loadConfig();
-    const provider = normalizeProvider(config.llm?.provider);
-    config.model = model;
+    const machine = getCurrentMachineProfile();
+    const provider = normalizeProvider(config.llm?.provider, machine);
+    const mappedModel = mapModelIdForProvider(model, provider, machine) || model;
+    config.model = mappedModel;
     config.llm = {
       ...(config.llm || {}),
-      model,
-      start: rewriteStartArgsForModel(config.llm?.start, provider, model, config.llm?.baseUrl),
+      provider,
+      model: mappedModel,
+      start: rewriteStartArgsForModel(config.llm?.start, provider, mappedModel, config.llm?.baseUrl, machine),
     };
     const filePath = await saveConfig(config);
+    await recordModelUsage({ provider, models: [mappedModel] });
     process.stdout.write(`Updated ${filePath}\n`);
 
     const llm = resolveLlmConfig(config.llm);
-    process.stdout.write(`Warming model ${model}...\n`);
+    process.stdout.write(`Warming model ${mappedModel}...\n`);
     const warmup = await warmupLlmModel({
       llm,
-      model,
+      model: mappedModel,
     });
     process.stdout.write(`Warmup: ${warmup.ok ? "ok" : "incomplete"}\n`);
     if (warmup.message) {
@@ -877,9 +904,13 @@ async function handleConfig(args) {
   }
 
   if (mode === "set-llm-provider") {
-    const provider = normalizeProvider(args[1]);
+    const machine = getCurrentMachineProfile();
+    const provider = normalizeProvider(args[1], machine);
     if (!["mlx", "vllm", "llamacpp"].includes(provider)) {
       throw new Error("Usage: lexis config set-llm-provider <mlx|vllm|llamacpp>");
+    }
+    if (!isProviderSupported(provider, machine)) {
+      throw new Error(getProviderSupportError(provider, machine));
     }
 
     const config = await loadConfig();
@@ -889,16 +920,17 @@ async function handleConfig(args) {
         : typeof config.model === "string" && config.model.trim()
           ? config.model.trim()
           : defaultModelForProvider(provider);
-    const mappedModel = mapModelIdForProvider(currentModel, provider) || defaultModelForProvider(provider);
+    const mappedModel = mapModelIdForProvider(currentModel, provider, machine) || defaultModelForProvider(provider, machine);
 
     config.model = mappedModel;
     config.llm = {
       ...(config.llm || {}),
       provider,
       model: mappedModel,
-      start: rewriteStartArgsForModel(config.llm?.start, provider, mappedModel, config.llm?.baseUrl),
+      start: rewriteStartArgsForModel(config.llm?.start, provider, mappedModel, config.llm?.baseUrl, machine),
     };
     const filePath = await saveConfig(config);
+    await recordModelUsage({ provider, models: [mappedModel] });
     process.stdout.write(`Updated ${filePath}\n`);
     return;
   }
@@ -910,14 +942,16 @@ async function handleConfig(args) {
     }
 
     const config = await loadConfig();
+    const machine = getCurrentMachineProfile();
     config.llm = {
       ...(config.llm || {}),
       baseUrl: value.replace(/\/+$/, ""),
       start: rewriteStartArgsForModel(
         config.llm?.start,
-        normalizeProvider(config.llm?.provider),
+        normalizeProvider(config.llm?.provider, machine),
         config.llm?.model || config.model,
-        value
+        value,
+        machine
       ),
     };
     const filePath = await saveConfig(config);
@@ -1123,8 +1157,17 @@ function parseFlags(args) {
 }
 
 function detectShell() {
+  if (typeof process.env.LEXIS_SHELL === "string" && process.env.LEXIS_SHELL.trim()) {
+    return process.env.LEXIS_SHELL.trim();
+  }
+
   if (process.platform === "win32") {
-    return process.env.ComSpec || "powershell";
+    const comSpec = String(process.env.ComSpec || "").trim();
+    const comSpecBase = comSpec ? path.win32.basename(comSpec).toLowerCase() : "";
+    if (comSpecBase === "powershell.exe" || comSpecBase === "pwsh.exe") {
+      return "powershell";
+    }
+    return "cmd";
   }
   const shell = process.env.SHELL;
   return shell ? path.basename(shell) : "sh";
@@ -1319,7 +1362,7 @@ function isLlmConnectionError(error) {
 }
 
 async function ensureLlmServerReadyForRun(llm) {
-  if (await isLlmServerReady(llm.baseUrl)) {
+  if (await isLlmServerReady(llm.provider, llm.baseUrl)) {
     return true;
   }
 
@@ -1329,14 +1372,14 @@ async function ensureLlmServerReadyForRun(llm) {
 
   while (Date.now() - startedAt < maxWaitMs) {
     await sleep(1000);
-    if (await isLlmServerReady(llm.baseUrl)) {
+    if (await isLlmServerReady(llm.provider, llm.baseUrl)) {
       server?.detach?.();
       return true;
     }
 
     if (server?.hasExited?.()) {
       if (isPortConflictError(server.getRecentLogs())) {
-        const existing = await waitForExistingLlmServer(llm.baseUrl, 10_000);
+        const existing = await waitForExistingLlmServer(llm.provider, llm.baseUrl, 10_000);
         if (existing) {
           server.detach();
           return true;
@@ -1365,16 +1408,30 @@ async function ensureLlmServerReadyForRun(llm) {
   );
 }
 
-async function isLlmServerReady(baseUrl) {
-  try {
-    const response = await fetch(`${String(baseUrl || "").replace(/\/+$/, "")}/v1/models`, {
-      method: "GET",
-      signal: AbortSignal.timeout(2500),
-    });
-    return response.ok;
-  } catch {
-    return false;
+async function isLlmServerReady(provider, baseUrl) {
+  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+
+  for (const endpoint of getProviderReadinessEndpoints(provider)) {
+    try {
+      const response = await fetch(`${normalizedBaseUrl}${endpoint}`, {
+        method: "GET",
+        signal: AbortSignal.timeout(2500),
+      });
+      if (!response.ok) {
+        return false;
+      }
+      if (endpoint === "/v1/models") {
+        const payload = await response.json().catch(() => null);
+        if (payload && Array.isArray(payload.data) && payload.data.length === 0) {
+          return false;
+        }
+      }
+    } catch {
+      return false;
+    }
   }
+
+  return true;
 }
 
 function startLlmServerInBackground(llm) {
@@ -1475,10 +1532,10 @@ function buildBackgroundStartupError({ baseUrl, provider, summary, recentLogs })
   return message;
 }
 
-async function waitForExistingLlmServer(baseUrl, timeoutMs) {
+async function waitForExistingLlmServer(provider, baseUrl, timeoutMs) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    if (await isLlmServerReady(baseUrl)) {
+    if (await isLlmServerReady(provider, baseUrl)) {
       return true;
     }
     await sleep(1000);
@@ -1500,8 +1557,9 @@ function sleep(ms) {
 }
 
 async function warmupLlmModel({ llm, model }) {
-  const baseUrl = String(llm?.baseUrl || "http://127.0.0.1:8000").replace(/\/+$/, "");
+  const baseUrl = normalizeBaseUrl(llm?.baseUrl || "http://127.0.0.1:8000");
   const timeoutMs = estimateModelTimeoutMs(model) + 60_000;
+  const request = buildWarmupRequest(llm?.provider, model);
   const headers = {
     "content-type": "application/json",
   };
@@ -1511,27 +1569,11 @@ async function warmupLlmModel({ llm, model }) {
   }
 
   try {
-    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+    const response = await fetch(`${baseUrl}${request.path}`, {
       method: "POST",
       headers,
       signal: AbortSignal.timeout(timeoutMs),
-      body: JSON.stringify({
-        model,
-        stream: false,
-        temperature: 0,
-        max_tokens: 24,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content: "Return JSON only.",
-          },
-          {
-            role: "user",
-            content: "Return {'ok':true} as valid JSON.",
-          },
-        ],
-      }),
+      body: JSON.stringify(request.body),
     });
 
     if (!response.ok) {
@@ -1539,6 +1581,16 @@ async function warmupLlmModel({ llm, model }) {
       return {
         ok: false,
         message: `Warmup request failed (${response.status}): ${body.slice(0, 180)}`,
+      };
+    }
+
+    const payload = await response.json().catch(() => null);
+    const content = payload?.choices?.[0]?.message?.content;
+    const text = typeof content === "string" ? content.trim() : "";
+    if (!text) {
+      return {
+        ok: false,
+        message: "Warmup completed without any assistant content.",
       };
     }
 
@@ -1593,183 +1645,6 @@ function resolveLlmConfig(rawLlmConfig) {
       args: Array.isArray(llm.start?.args) ? llm.start.args.map((item) => String(item)) : [],
     },
   };
-}
-
-function defaultModelForProvider(provider) {
-  if (provider === "mlx") {
-    return "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit";
-  }
-
-  if (provider === "llamacpp") {
-    return "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF";
-  }
-
-  if (provider === "vllm") {
-    return "Qwen/Qwen2.5-Coder-7B-Instruct-AWQ";
-  }
-
-  return "Qwen/Qwen2.5-Coder-7B-Instruct";
-}
-
-function mapModelIdForProvider(value, provider) {
-  const model = String(value || "").trim();
-  if (!model) {
-    return model;
-  }
-
-  const resolvedProvider = normalizeProvider(provider);
-  const normalized = model.toLowerCase();
-  const sizeMatch = normalized.match(/(\d+(?:\.\d+)?)b/);
-  const sizeInBillions = sizeMatch ? Number.parseFloat(sizeMatch[1]) : Number.NaN;
-  const hasQwenCoder = normalized.includes("qwen2.5-coder") || normalized.includes("qwen3");
-
-  const isSmall = hasQwenCoder && Number.isFinite(sizeInBillions) && sizeInBillions <= 3;
-  const isMedium = hasQwenCoder && Number.isFinite(sizeInBillions) && sizeInBillions > 3 && sizeInBillions < 14;
-  const isLarge = hasQwenCoder && Number.isFinite(sizeInBillions) && sizeInBillions >= 14;
-
-  if (!isSmall && !isMedium && !isLarge) {
-    return model;
-  }
-
-  if (resolvedProvider === "llamacpp") {
-    if (isSmall) {
-      return "bartowski/Qwen2.5-Coder-3B-Instruct-GGUF";
-    }
-    if (isMedium) {
-      return "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF";
-    }
-    return "bartowski/Qwen2.5-Coder-14B-Instruct-GGUF";
-  }
-
-  if (resolvedProvider === "mlx") {
-    if (isSmall) {
-      return "mlx-community/Qwen2.5-Coder-3B-Instruct-4bit";
-    }
-    if (isMedium) {
-      return "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit";
-    }
-    return "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit";
-  }
-
-  if (resolvedProvider === "vllm") {
-    if (isSmall) {
-      return "Qwen/Qwen2.5-Coder-3B-Instruct-AWQ";
-    }
-    if (isMedium) {
-      return "Qwen/Qwen2.5-Coder-7B-Instruct-AWQ";
-    }
-    return "Qwen/Qwen2.5-Coder-14B-Instruct-AWQ";
-  }
-
-  return model;
-}
-
-function normalizeProvider(provider) {
-  const normalized = String(provider || "")
-    .trim()
-    .toLowerCase();
-  if (normalized === "mlx" || normalized === "vllm" || normalized === "llamacpp") {
-    return normalized;
-  }
-
-  if (process.platform === "darwin") {
-    return "mlx";
-  }
-  if (process.platform === "linux") {
-    return "llamacpp";
-  }
-  return "llamacpp";
-}
-
-function rewriteStartArgsForModel(start, provider, model, baseUrl) {
-  const current = {
-    command:
-      typeof start?.command === "string" && start.command.trim() ? start.command.trim() : "",
-    args: Array.isArray(start?.args) ? [...start.args.map((item) => String(item))] : [],
-  };
-
-  const prefix = extractPythonPrefix(current.args);
-  const { hostname, port } = parseHostPort(baseUrl);
-
-  if (provider === "mlx") {
-    current.args = [...prefix, "-m", "mlx_lm", "server", "--model", model, "--host", hostname, "--port", String(port)];
-    return current;
-  }
-
-  if (provider === "vllm") {
-    current.args = [
-      ...prefix,
-      "-m",
-      "vllm.entrypoints.openai.api_server",
-      "--model",
-      model,
-      "--host",
-      hostname,
-      "--port",
-      String(port),
-      "--served-model-name",
-      model,
-    ];
-    return current;
-  }
-
-  const modelFile = resolveLlamaCppModelFile(model);
-  current.args = [
-    ...prefix,
-    "-m",
-    "llama_cpp.server",
-    ...(modelFile ? ["--model", modelFile] : []),
-    "--hf_model_repo_id",
-    model,
-    "--host",
-    hostname,
-    "--port",
-    String(port),
-    "--n_ctx",
-    "4096",
-  ];
-
-  return current;
-}
-
-function extractPythonPrefix(args) {
-  const items = Array.isArray(args) ? args : [];
-  const moduleIndex = items.indexOf("-m");
-  if (moduleIndex > 0) {
-    return items.slice(0, moduleIndex);
-  }
-  return [];
-}
-
-function parseHostPort(baseUrl) {
-  try {
-    const parsed = new URL(normalizeBaseUrl(baseUrl));
-    return {
-      hostname: parsed.hostname || "127.0.0.1",
-      port: parsed.port ? Number(parsed.port) : 8000,
-    };
-  } catch {
-    return { hostname: "127.0.0.1", port: 8000 };
-  }
-}
-
-function normalizeBaseUrl(baseUrl) {
-  const value = typeof baseUrl === "string" && baseUrl.trim() ? baseUrl.trim() : "http://127.0.0.1:8000";
-  return value.replace(/\/+$/, "");
-}
-
-function resolveLlamaCppModelFile(repoId) {
-  const model = String(repoId || "");
-  if (model.includes("Qwen2.5-Coder-3B-Instruct-GGUF")) {
-    return "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf";
-  }
-  if (model.includes("Qwen2.5-Coder-7B-Instruct-GGUF")) {
-    return "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf";
-  }
-  if (model.includes("Qwen2.5-Coder-14B-Instruct-GGUF")) {
-    return "Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf";
-  }
-  return "";
 }
 
 function isPlanCritical(plan) {
@@ -1946,23 +1821,4 @@ function parseEnvCsv(value) {
   }
 
   return env;
-}
-
-function uniqueStrings(values) {
-  const seen = new Set();
-  const output = [];
-
-  for (const value of values) {
-    if (typeof value !== "string") {
-      continue;
-    }
-    const trimmed = value.trim();
-    if (!trimmed || seen.has(trimmed)) {
-      continue;
-    }
-    seen.add(trimmed);
-    output.push(trimmed);
-  }
-
-  return output;
 }

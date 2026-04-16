@@ -19,7 +19,8 @@ lx doctor
 
 Runtime backend is selected automatically during setup:
 
-- macOS: MLX
+- macOS (Apple Silicon): MLX
+- macOS (Intel): llama.cpp
 - Linux + NVIDIA: vLLM
 - Linux CPU-only: llama.cpp
 - Windows: llama.cpp

@@ -1,3 +1,5 @@
+import { defaultModelForProvider, getDefaultProvider } from "./providers.mjs";
+
 export const RISK_LEVELS = ["low", "moderate", "high", "critical"];
 
 export const RISK_SCORE = {
@@ -7,15 +9,13 @@ export const RISK_SCORE = {
   critical: 3,
 };
 
-const DEFAULT_MODEL_BY_PLATFORM =
-  process.platform === "darwin"
-    ? "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"
-    : "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF";
+const DEFAULT_PROVIDER = getDefaultProvider();
+const DEFAULT_MODEL_BY_PLATFORM = defaultModelForProvider(DEFAULT_PROVIDER);
 
 export const DEFAULT_CONFIG = {
   model: DEFAULT_MODEL_BY_PLATFORM,
   llm: {
-    provider: process.platform === "darwin" ? "mlx" : process.platform === "win32" ? "llamacpp" : "llamacpp",
+    provider: DEFAULT_PROVIDER,
     baseUrl: "http://127.0.0.1:8000",
     apiKey: "",
     model: DEFAULT_MODEL_BY_PLATFORM,

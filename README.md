@@ -30,7 +30,8 @@ If you self-host the website, these endpoints are served directly by the app:
 The installer sets up local inference runtime, writes config, and installs shell hooks.
 Runtime selection is automatic:
 
-- macOS: MLX
+- macOS (Apple Silicon): MLX
+- macOS (Intel): llama.cpp
 - Linux + NVIDIA: vLLM
 - Linux CPU-only: llama.cpp
 - Windows: llama.cpp

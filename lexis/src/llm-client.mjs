@@ -78,7 +78,7 @@ async function requestLLMPlan({
       stream: false,
       temperature: options.temperature,
       max_tokens: options.max_tokens,
-      response_format: { type: "json_object" },
+      ...(String(llm?.provider || "").toLowerCase() === "mlx" ? {} : { response_format: { type: "json_object" } }),
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: enhancedPrompt },

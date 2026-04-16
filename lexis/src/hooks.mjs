@@ -398,6 +398,29 @@ end
 ${MARKERS.fishEnd}`;
 
 const POWERSHELL_SNIPPET_AUTO = `${MARKERS.psStart}
+function __LexisInvoke {
+  param(
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$LexisArgs
+  )
+
+  $previousShell = $env:LEXIS_SHELL
+  $env:LEXIS_SHELL = 'powershell'
+
+  try {
+    lexis @LexisArgs
+    return $LASTEXITCODE
+  }
+  finally {
+    if ($null -eq $previousShell) {
+      Remove-Item env:LEXIS_SHELL -ErrorAction SilentlyContinue
+    }
+    else {
+      $env:LEXIS_SHELL = $previousShell
+    }
+  }
+}
+
 function __LexisRun {
   param(
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -408,11 +431,92 @@ function __LexisRun {
     return 127
   }
 
-  lexis run --quiet ($LexisArgs -join ' ')
-  return $LASTEXITCODE
+  return (__LexisInvoke run --quiet ($LexisArgs -join ' '))
+}
+
+function __LexisShouldAutoRun {
+  param([string]$Line)
+
+  $trimmed = ($Line | Out-String).Trim()
+  if ([string]::IsNullOrWhiteSpace($trimmed)) {
+    return $false
+  }
+
+  if ($trimmed.StartsWith('#')) {
+    return $false
+  }
+
+  if ($trimmed -match '[|><;&\`]') {
+    return $false
+  }
+
+  if ($trimmed -match '\$\(') {
+    return $false
+  }
+
+  $first = ($trimmed -split '\s+', 2)[0]
+  if (-not $first) {
+    return $false
+  }
+
+  if ($first -match '^[./\\]') {
+    return $false
+  }
+
+  if ($first -match '^[A-Za-z]:[\\/]') {
+    return $false
+  }
+
+  if ($first -match '\.(exe|cmd|bat|ps1|psm1|sh)$') {
+    return $false
+  }
+
+  if (Get-Command $first -ErrorAction SilentlyContinue) {
+    return $false
+  }
+
+  return $true
+}
+
+function __LexisHandleEnter {
+  param($Key, $Arg)
+
+  $line = ''
+  $cursor = 0
+  [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
+
+  if (-not (__LexisShouldAutoRun $line)) {
+    [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+    return
+  }
+
+  [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory($line)
+  [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
+
+  try {
+    __LexisRun $line | Out-Null
+  }
+  finally {
+    [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+  }
 }
 
 function __LexisDeactivate {
+  if (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
+    if ($script:__LexisEnterHandlerScriptBlock) {
+      Set-PSReadLineKeyHandler -Key Enter -ScriptBlock $script:__LexisEnterHandlerScriptBlock -BriefDescription 'LexisRestoredEnter' -LongDescription 'Restored Enter binding before Lexis'
+    }
+    elseif ($script:__LexisEnterHandlerFunction) {
+      Set-PSReadLineKeyHandler -Key Enter -Function $script:__LexisEnterHandlerFunction
+    }
+    else {
+      Set-PSReadLineKeyHandler -Key Enter -Function AcceptLine
+    }
+  }
+
+  Remove-Variable __LexisEnterHandlerFunction -Scope Script -ErrorAction SilentlyContinue
+  Remove-Variable __LexisEnterHandlerScriptBlock -Scope Script -ErrorAction SilentlyContinue
+
   Remove-Item function:\\command_not_found_handler -ErrorAction SilentlyContinue
   Remove-Item function:\\lx -ErrorAction SilentlyContinue
   Remove-Item function:\\kill -ErrorAction SilentlyContinue
@@ -421,7 +525,32 @@ function __LexisDeactivate {
   Remove-Item function:\\exit -ErrorAction SilentlyContinue
   Remove-Item function:\\__LexisRun -ErrorAction SilentlyContinue
   Remove-Item function:\\__LexisDeactivate -ErrorAction SilentlyContinue
+  Remove-Item function:\__LexisInvoke -ErrorAction SilentlyContinue
+  Remove-Item function:\__LexisShouldAutoRun -ErrorAction SilentlyContinue
+  Remove-Item function:\__LexisHandleEnter -ErrorAction SilentlyContinue
   Write-Host 'Lexis disabled for this terminal.'
+}
+
+if (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
+  $script:__LexisEnterHandlerFunction = $null
+  $script:__LexisEnterHandlerScriptBlock = $null
+
+  if (Get-Command Get-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
+    $existingLexisEnterHandler = Get-PSReadLineKeyHandler -Key Enter -ErrorAction SilentlyContinue
+    if ($existingLexisEnterHandler) {
+      if ($existingLexisEnterHandler.ScriptBlock) {
+        $script:__LexisEnterHandlerScriptBlock = $existingLexisEnterHandler.ScriptBlock
+      }
+      elseif ($existingLexisEnterHandler.Function) {
+        $script:__LexisEnterHandlerFunction = [string]$existingLexisEnterHandler.Function
+      }
+    }
+  }
+
+  Set-PSReadLineKeyHandler -Key Enter -BriefDescription LexisEnter -LongDescription 'Lexis auto mode' -ScriptBlock {
+    param($key, $arg)
+    __LexisHandleEnter $key $arg
+  }
 }
 
 function lx {
@@ -431,14 +560,12 @@ function lx {
   )
 
   if ($LexisArgs.Count -eq 0) {
-    lexis --help
-    return $LASTEXITCODE
+    return (__LexisInvoke --help)
   }
 
   $first = $LexisArgs[0]
   if (@('run', 'setup', 'hooks', 'uninstall', 'config', 'web-search', 'mcp', 'doctor', 'help', '--help', '-h') -contains $first) {
-    lexis @LexisArgs
-    return $LASTEXITCODE
+    return (__LexisInvoke @LexisArgs)
   }
 
   __LexisRun @LexisArgs
@@ -474,7 +601,7 @@ function uninstall {
     return 127
   }
 
-  lexis uninstall --yes | Out-Null
+  __LexisInvoke uninstall --yes | Out-Null
   __LexisDeactivate
   return 0
 }

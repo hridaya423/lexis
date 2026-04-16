@@ -4,26 +4,18 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { loadConfig, saveConfig } from "./config.mjs";
 import { installHooks, normalizeHookMode } from "./hooks.mjs";
-
-const DEFAULT_BASE_URL = "http://127.0.0.1:8000";
-
-const MODEL_PROFILES = {
-  mlx: {
-    light: ["mlx-community/Qwen2.5-Coder-3B-Instruct-4bit"],
-    balanced: ["mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"],
-    heavy: ["mlx-community/Qwen2.5-Coder-14B-Instruct-4bit"],
-  },
-  vllm: {
-    light: ["Qwen/Qwen2.5-Coder-3B-Instruct-AWQ"],
-    balanced: ["Qwen/Qwen2.5-Coder-7B-Instruct-AWQ"],
-    heavy: ["Qwen/Qwen2.5-Coder-14B-Instruct-AWQ"],
-  },
-  llamacpp: {
-    light: ["bartowski/Qwen2.5-Coder-3B-Instruct-GGUF"],
-    balanced: ["bartowski/Qwen2.5-Coder-7B-Instruct-GGUF"],
-    heavy: ["bartowski/Qwen2.5-Coder-14B-Instruct-GGUF"],
-  },
-};
+import { recordModelUsage } from "./model-history.mjs";
+import {
+  DEFAULT_BASE_URL,
+  buildStartCommand,
+  buildWarmupRequest,
+  detectRuntimeProvider,
+  getCurrentMachineProfile,
+  getProviderReadinessEndpoints,
+  hasNvidiaGpu,
+  normalizeBaseUrl,
+  resolveModelList,
+} from "./providers.mjs";
 
 export async function runSetup({
   models,
@@ -40,11 +32,13 @@ export async function runSetup({
   const config = await loadConfig();
   const provider = await detectRuntimeProvider();
 
+  const machine = getCurrentMachineProfile();
   const modelList = resolveModelList({
     provider,
     models,
     modelProfile,
     currentDefaultModel: config.model,
+    machine,
   });
 
   const chosenDefaultModel =
@@ -56,6 +50,7 @@ export async function runSetup({
     provider,
     model: chosenDefaultModel,
     baseUrl: config.llm?.baseUrl || DEFAULT_BASE_URL,
+    machine,
   });
 
   config.model = chosenDefaultModel;
@@ -69,6 +64,10 @@ export async function runSetup({
   };
 
   await saveConfig(config);
+  await recordModelUsage({
+    provider,
+    models: [chosenDefaultModel, ...modelList],
+  });
 
   const warmup = await warmupModel({
     provider,
@@ -151,41 +150,7 @@ export async function runSetup({
   };
 }
 
-function resolveModelList({ provider, models, modelProfile, currentDefaultModel }) {
-  if (Array.isArray(models) && models.length > 0) {
-    return unique(models);
-  }
-
-  const profileTable = MODEL_PROFILES[provider] || MODEL_PROFILES.llamacpp;
-  if (typeof modelProfile === "string" && profileTable[modelProfile]) {
-    return [...profileTable[modelProfile]];
-  }
-
-  return unique([...profileTable.balanced, currentDefaultModel]);
-}
-
-async function detectRuntimeProvider() {
-  if (process.platform === "darwin") {
-    return "mlx";
-  }
-
-  if (process.platform === "win32") {
-    return "llamacpp";
-  }
-
-  if (process.platform === "linux" && (await hasNvidiaGpu())) {
-    return "vllm";
-  }
-
-  return "llamacpp";
-}
-
-async function hasNvidiaGpu() {
-  const result = await run("nvidia-smi", ["-L"], { stdio: "pipe" });
-  return result.exitCode === 0;
-}
-
-async function ensureRuntimeAvailable({ provider, model, baseUrl }) {
+async function ensureRuntimeAvailable({ provider, model, baseUrl, machine }) {
   const systemPython = await ensurePythonAvailable();
   const python = await ensureRuntimePython(systemPython);
   await ensurePipAvailable(python);
@@ -193,8 +158,8 @@ async function ensureRuntimeAvailable({ provider, model, baseUrl }) {
   await installProviderDependencies(provider, python);
 
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
-  const start = buildStartCommand({ provider, python, model, baseUrl: normalizedBaseUrl });
-  const server = await ensureServerReady({ baseUrl: normalizedBaseUrl, start });
+  const start = buildStartCommand({ provider, python, model, baseUrl: normalizedBaseUrl, machine });
+  const server = await ensureServerReady({ provider, baseUrl: normalizedBaseUrl, start });
 
   return {
     baseUrl: normalizedBaseUrl,
@@ -778,72 +743,8 @@ function isLikelyVirtualEnvironment(python) {
   );
 }
 
-function buildStartCommand({ provider, python, model, baseUrl }) {
-  const { hostname, port } = parseHostPort(baseUrl);
-
-  if (provider === "mlx") {
-    return {
-      command: python.command,
-      args: [...python.prefix, "-m", "mlx_lm", "server", "--model", model, "--host", hostname, "--port", String(port)],
-    };
-  }
-
-  if (provider === "vllm") {
-    return {
-      command: python.command,
-      args: [
-        ...python.prefix,
-        "-m",
-        "vllm.entrypoints.openai.api_server",
-        "--model",
-        model,
-        "--host",
-        hostname,
-        "--port",
-        String(port),
-        "--served-model-name",
-        model,
-      ],
-    };
-  }
-
-  const modelFile = resolveLlamaCppModelFile(model);
-  return {
-    command: python.command,
-    args: [
-      ...python.prefix,
-      "-m",
-      "llama_cpp.server",
-      ...(modelFile ? ["--model", modelFile] : []),
-      "--hf_model_repo_id",
-      model,
-      ...(process.platform === "win32" ? ["--n_gpu_layers", "-1"] : []),
-      "--host",
-      hostname,
-      "--port",
-      String(port),
-      "--n_ctx",
-      "4096",
-    ],
-  };
-}
-
-function resolveLlamaCppModelFile(repoId) {
-  const model = String(repoId || "");
-  if (model.includes("Qwen2.5-Coder-3B-Instruct-GGUF")) {
-    return "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf";
-  }
-  if (model.includes("Qwen2.5-Coder-7B-Instruct-GGUF")) {
-    return "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf";
-  }
-  if (model.includes("Qwen2.5-Coder-14B-Instruct-GGUF")) {
-    return "Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf";
-  }
-  return "";
-}
-
-async function ensureServerReady({ baseUrl, start }) {
-  if (await isServerReady(baseUrl)) {
+async function ensureServerReady({ provider, baseUrl, start }) {
+  if (await isServerReady(provider, baseUrl)) {
     return null;
   }
 
@@ -854,15 +755,15 @@ async function ensureServerReady({ baseUrl, start }) {
 
   for (let attempt = 0; attempt < 600; attempt += 1) {
     await sleep(1000);
-    if (await isServerReady(baseUrl)) {
+    if (await isServerReady(provider, baseUrl)) {
       return server;
     }
 
     if (server.hasExited()) {
       if (isPortConflictError(server.getRecentLogs())) {
-        const existing = await waitForExistingServer(baseUrl, 10_000);
+        const existing = await waitForExistingServer(provider, baseUrl, 10_000);
         if (existing) {
-          return;
+          return null;
         }
       }
 
@@ -888,7 +789,8 @@ async function ensureServerReady({ baseUrl, start }) {
 
 async function warmupModel({ provider, baseUrl, model, server }) {
   const timeoutSeconds = estimateWarmupTimeoutSeconds({ provider, model });
-  const endpoint = `${normalizeBaseUrl(baseUrl)}/v1/chat/completions`;
+  const request = buildWarmupRequest(provider, model);
+  const endpoint = `${normalizeBaseUrl(baseUrl)}${request.path}`;
 
   process.stdout.write(
     `[lexis-setup] Warming ${provider} model ${model} (this can take a while on first download)...\n`
@@ -901,23 +803,7 @@ async function warmupModel({ provider, baseUrl, model, server }) {
         "content-type": "application/json",
       },
       signal: AbortSignal.timeout(timeoutSeconds * 1000),
-      body: JSON.stringify({
-        model,
-        stream: false,
-        temperature: 0,
-        max_tokens: 24,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content: "Return JSON only.",
-          },
-          {
-            role: "user",
-            content: "Return {'ok':true} as valid JSON.",
-          },
-        ],
-      }),
+      body: JSON.stringify(request.body),
     });
 
     if (!response.ok) {
@@ -925,6 +811,16 @@ async function warmupModel({ provider, baseUrl, model, server }) {
       return {
         ok: false,
         message: `Warmup request failed (${response.status}): ${body.slice(0, 160)}`,
+      };
+    }
+
+    const payload = await response.json().catch(() => null);
+    const content = payload?.choices?.[0]?.message?.content;
+    const text = typeof content === "string" ? content.trim() : "";
+    if (!text) {
+      return {
+        ok: false,
+        message: "Warmup completed without any assistant content.",
       };
     }
 
@@ -1052,16 +948,30 @@ function prependHomebrewToPath() {
   process.env.PATH = entries.join(":");
 }
 
-async function isServerReady(baseUrl) {
-  try {
-    const response = await fetch(`${normalizeBaseUrl(baseUrl)}/v1/models`, {
-      method: "GET",
-      signal: AbortSignal.timeout(3000),
-    });
-    return response.ok;
-  } catch {
-    return false;
+async function isServerReady(provider, baseUrl) {
+  const base = normalizeBaseUrl(baseUrl);
+
+  for (const endpoint of getProviderReadinessEndpoints(provider)) {
+    try {
+      const response = await fetch(`${base}${endpoint}`, {
+        method: "GET",
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!response.ok) {
+        return false;
+      }
+      if (endpoint === "/v1/models") {
+        const payload = await response.json().catch(() => null);
+        if (payload && Array.isArray(payload.data) && payload.data.length === 0) {
+          return false;
+        }
+      }
+    } catch {
+      return false;
+    }
   }
+
+  return true;
 }
 
 function startServer(start) {
@@ -1155,10 +1065,10 @@ function buildServerStartupError({ baseUrl, summary, recentLogs }) {
   return message;
 }
 
-async function waitForExistingServer(baseUrl, timeoutMs) {
+async function waitForExistingServer(provider, baseUrl, timeoutMs) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    if (await isServerReady(baseUrl)) {
+    if (await isServerReady(provider, baseUrl)) {
       return true;
     }
     await sleep(1000);
@@ -1175,40 +1085,8 @@ function isPortConflictError(text) {
   );
 }
 
-function parseHostPort(baseUrl) {
-  const parsed = new URL(normalizeBaseUrl(baseUrl));
-  return {
-    hostname: parsed.hostname || "127.0.0.1",
-    port: parsed.port ? Number(parsed.port) : 8000,
-  };
-}
-
-function normalizeBaseUrl(baseUrl) {
-  const value = typeof baseUrl === "string" && baseUrl.trim() ? baseUrl.trim() : DEFAULT_BASE_URL;
-  return value.replace(/\/+$/, "");
-}
-
 function formatPythonForDisplay(python) {
   return [python.command, ...python.prefix].join(" ").trim();
-}
-
-function unique(items) {
-  const seen = new Set();
-  const output = [];
-
-  for (const item of items) {
-    if (typeof item !== "string") {
-      continue;
-    }
-    const value = item.trim();
-    if (!value || seen.has(value)) {
-      continue;
-    }
-    seen.add(value);
-    output.push(value);
-  }
-
-  return output;
 }
 
 function mergeCmakeArgs(existing, extra) {

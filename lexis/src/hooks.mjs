@@ -450,7 +450,7 @@ function __LexisShouldAutoRun {
     return $false
   }
 
-  if ($trimmed -match '\$\(') {
+  if ($trimmed.Contains('$(')) {
     return $false
   }
 
@@ -485,7 +485,16 @@ function __LexisHandleEnter {
   $cursor = 0
   [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
 
-  if (-not (__LexisShouldAutoRun $line)) {
+  $shouldAutoRun = $false
+  try {
+    $shouldAutoRun = __LexisShouldAutoRun $line
+  }
+  catch {
+    [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+    return
+  }
+
+  if (-not $shouldAutoRun) {
     [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
     return
   }
@@ -507,19 +516,8 @@ function __LexisDeactivate {
   }
 
   if (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
-    if ($script:__LexisEnterHandlerScriptBlock) {
-      Set-PSReadLineKeyHandler -Key Enter -ScriptBlock $script:__LexisEnterHandlerScriptBlock -BriefDescription 'LexisRestoredEnter' -LongDescription 'Restored Enter binding before Lexis'
-    }
-    elseif ($script:__LexisEnterHandlerFunction) {
-      Set-PSReadLineKeyHandler -Key Enter -Function $script:__LexisEnterHandlerFunction
-    }
-    else {
-      Set-PSReadLineKeyHandler -Key Enter -Function AcceptLine
-    }
+    Set-PSReadLineKeyHandler -Key Enter -Function AcceptLine
   }
-
-  Remove-Variable __LexisEnterHandlerFunction -Scope Script -ErrorAction SilentlyContinue
-  Remove-Variable __LexisEnterHandlerScriptBlock -Scope Script -ErrorAction SilentlyContinue
 
   Remove-Item function:\\command_not_found_handler -ErrorAction SilentlyContinue
   Remove-Item function:\\lx -ErrorAction SilentlyContinue
@@ -540,25 +538,6 @@ if (-not (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue)) {
 }
 
 if (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
-  $script:__LexisEnterHandlerFunction = $null
-  $script:__LexisEnterHandlerScriptBlock = $null
-
-  if (-not (Get-Command Get-PSReadLineKeyHandler -ErrorAction SilentlyContinue)) {
-    Import-Module PSReadLine -ErrorAction SilentlyContinue | Out-Null
-  }
-
-  if (Get-Command Get-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
-    $existingLexisEnterHandler = Get-PSReadLineKeyHandler -Key Enter -ErrorAction SilentlyContinue
-    if ($existingLexisEnterHandler) {
-      if ($existingLexisEnterHandler.ScriptBlock) {
-        $script:__LexisEnterHandlerScriptBlock = $existingLexisEnterHandler.ScriptBlock
-      }
-      elseif ($existingLexisEnterHandler.Function) {
-        $script:__LexisEnterHandlerFunction = [string]$existingLexisEnterHandler.Function
-      }
-    }
-  }
-
   Set-PSReadLineKeyHandler -Key Enter -BriefDescription LexisEnter -LongDescription 'Lexis auto mode' -ScriptBlock {
     param($key, $arg)
     __LexisHandleEnter $key $arg

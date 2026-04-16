@@ -310,6 +310,9 @@ async function handleSetup(args) {
   }
   if (process.platform === "win32") {
     process.stdout.write("- windows note: PowerShell supports hook mode; cmd.exe supports explicit lx/lexis commands only.\n");
+    if (result.runtime.provider === "llamacpp") {
+      process.stdout.write("- gpu note: GTX 10xx-class cards cannot use vLLM here; Lexis will try CUDA-enabled llama.cpp and otherwise fall back to CPU.\n");
+    }
   }
 
   if (result.webSearch) {
@@ -448,12 +451,17 @@ async function cleanupLexisRuntimeArtifacts(config) {
 
   const configuredModels = collectConfiguredModels(config);
   const modelCacheTargets = buildModelCacheTargets(configuredModels);
+  const providerCacheTargets = buildProviderCacheTargets(config);
 
   for (const target of modelCacheTargets) {
     cleanupTargets.push({
       label: `model cache (${target.model})`,
       path: target.path,
     });
+  }
+
+  for (const target of providerCacheTargets) {
+    cleanupTargets.push(target);
   }
 
   const uniqueTargets = dedupeCleanupTargets(cleanupTargets);
@@ -571,6 +579,10 @@ function buildModelCacheTargets(models) {
 function getHuggingFaceHubRoots() {
   const roots = [];
 
+  if (typeof process.env.HF_HUB_CACHE === "string" && process.env.HF_HUB_CACHE.trim()) {
+    roots.push(process.env.HF_HUB_CACHE.trim());
+  }
+
   if (typeof process.env.HUGGINGFACE_HUB_CACHE === "string" && process.env.HUGGINGFACE_HUB_CACHE.trim()) {
     roots.push(process.env.HUGGINGFACE_HUB_CACHE.trim());
   }
@@ -583,19 +595,62 @@ function getHuggingFaceHubRoots() {
     roots.push(process.env.TRANSFORMERS_CACHE.trim());
   }
 
+  const homeCacheRoot = path.join(os.homedir(), ".cache", "huggingface", "hub");
+  roots.push(homeCacheRoot);
+
+  const xdgCacheHome =
+    typeof process.env.XDG_CACHE_HOME === "string" && process.env.XDG_CACHE_HOME.trim()
+      ? process.env.XDG_CACHE_HOME.trim()
+      : path.join(os.homedir(), ".cache");
+  roots.push(path.join(xdgCacheHome, "huggingface", "hub"));
+
   if (process.platform === "win32") {
     const localAppData =
       typeof process.env.LOCALAPPDATA === "string" && process.env.LOCALAPPDATA.trim()
         ? process.env.LOCALAPPDATA.trim()
         : path.join(os.homedir(), "AppData", "Local");
     roots.push(path.join(localAppData, "huggingface", "hub"));
-  } else {
-    const xdgCacheHome =
-      typeof process.env.XDG_CACHE_HOME === "string" && process.env.XDG_CACHE_HOME.trim()
-        ? process.env.XDG_CACHE_HOME.trim()
-        : path.join(os.homedir(), ".cache");
-    roots.push(path.join(xdgCacheHome, "huggingface", "hub"));
+
+    const appData =
+      typeof process.env.APPDATA === "string" && process.env.APPDATA.trim()
+        ? process.env.APPDATA.trim()
+        : path.join(os.homedir(), "AppData", "Roaming");
+    roots.push(path.join(appData, "huggingface", "hub"));
   }
+
+  return uniqueStrings(roots);
+}
+
+function buildProviderCacheTargets(config) {
+  const provider = String(config?.llm?.provider || "").trim().toLowerCase();
+  const targets = [];
+
+  if (provider === "vllm") {
+    for (const cacheRoot of getVllmCacheRoots()) {
+      targets.push({
+        label: "vllm cache",
+        path: cacheRoot,
+      });
+    }
+  }
+
+  return dedupeCleanupTargets(targets);
+}
+
+function getVllmCacheRoots() {
+  const roots = [];
+
+  if (typeof process.env.VLLM_CACHE_ROOT === "string" && process.env.VLLM_CACHE_ROOT.trim()) {
+    roots.push(process.env.VLLM_CACHE_ROOT.trim());
+  }
+
+  const xdgCacheHome =
+    typeof process.env.XDG_CACHE_HOME === "string" && process.env.XDG_CACHE_HOME.trim()
+      ? process.env.XDG_CACHE_HOME.trim()
+      : path.join(os.homedir(), ".cache");
+
+  roots.push(path.join(xdgCacheHome, "vllm"));
+  roots.push(path.join(os.homedir(), ".cache", "vllm"));
 
   return uniqueStrings(roots);
 }

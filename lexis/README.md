@@ -59,4 +59,4 @@ lx hooks uninstall
 lx uninstall --yes
 ```
 
-This removes Lexis hooks, global package, runtime venv, and the configured model cache.
+This removes Lexis hooks, global package, runtime venv, configured Hugging Face model cache, and vLLM cache when applicable.

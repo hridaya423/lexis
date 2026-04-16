@@ -468,6 +468,28 @@ async function installProviderDependencies(provider, python) {
   const installUserArgs = [...python.prefix, "-m", "pip", "install", "--upgrade", "--user", ...packages];
   const preferUserInstall = !isLikelyVirtualEnvironment(python);
 
+  if (provider === "llamacpp" && process.platform === "win32" && (await hasNvidiaGpu())) {
+    const cudaEnv = {
+      ...process.env,
+      CMAKE_ARGS: mergeCmakeArgs(process.env.CMAKE_ARGS, "-DGGML_CUDA=on"),
+      FORCE_CMAKE: "1",
+    };
+
+    process.stdout.write("[lexis-setup] NVIDIA GPU detected on Windows. Attempting CUDA-enabled llama.cpp install...\n");
+
+    const cudaAttempt = await run(
+      python.command,
+      preferUserInstall ? installArgs : installArgs,
+      { stdio: "inherit", env: cudaEnv }
+    );
+
+    if (cudaAttempt.exitCode === 0) {
+      return;
+    }
+
+    process.stdout.write("[lexis-setup] CUDA-enabled llama.cpp install failed. Falling back to CPU build.\n");
+  }
+
   const firstAttempt = await run(
     python.command,
     preferUserInstall ? installUserArgs : installArgs,
@@ -795,6 +817,7 @@ function buildStartCommand({ provider, python, model, baseUrl }) {
       ...(modelFile ? ["--model", modelFile] : []),
       "--hf_model_repo_id",
       model,
+      ...(process.platform === "win32" ? ["--n_gpu_layers", "-1"] : []),
       "--host",
       hostname,
       "--port",
@@ -1186,6 +1209,18 @@ function unique(items) {
   }
 
   return output;
+}
+
+function mergeCmakeArgs(existing, extra) {
+  const left = String(existing || "").trim();
+  const right = String(extra || "").trim();
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+  return `${left} ${right}`;
 }
 
 async function canRun(command) {

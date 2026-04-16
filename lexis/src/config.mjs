@@ -73,7 +73,7 @@ function migrateConfig(config) {
   }
 
   if (typeof migrated.ollamaBaseUrl === "string" && migrated.ollamaBaseUrl.trim()) {
-    migrated.llm.baseUrl = migrated.llm.baseUrl || "http://127.0.0.1:8000";
+    migrated.llm.baseUrl = migrated.llm.baseUrl || migrated.ollamaBaseUrl.trim();
     if (!migrated.llm.provider) {
       migrated.llm.provider = process.platform === "darwin" ? "mlx" : process.platform === "win32" ? "llamacpp" : "llamacpp";
     }
@@ -102,7 +102,8 @@ function migrateConfig(config) {
     migrated.llm.start = rewriteStartArgsForModel(
       migrated.llm.start,
       normalizeProvider(migrated.llm.provider),
-      migrated.llm.model
+      migrated.llm.model,
+      migrated.llm.baseUrl
     );
   }
 
@@ -114,10 +115,6 @@ function migrateConfig(config) {
 function mapLegacyModelId(value, provider) {
   const model = String(value || "").trim();
   if (!model) {
-    return model;
-  }
-
-  if (/^mlx-community\//i.test(model) || /^bartowski\//i.test(model)) {
     return model;
   }
 
@@ -192,7 +189,7 @@ function normalizeProvider(provider) {
   return "llamacpp";
 }
 
-function rewriteStartArgsForModel(start, provider, model) {
+function rewriteStartArgsForModel(start, provider, model, baseUrl) {
   const output = {
     command:
       typeof start?.command === "string" && start.command.trim() ? start.command.trim() : "",
@@ -203,30 +200,74 @@ function rewriteStartArgsForModel(start, provider, model) {
     return output;
   }
 
-  const replaceOrAppend = (flag, value) => {
-    const index = output.args.indexOf(flag);
-    if (index >= 0 && index + 1 < output.args.length) {
-      output.args[index + 1] = value;
-      return;
-    }
-    output.args.push(flag, value);
-  };
+  const prefix = extractPythonPrefix(output.args);
+  const { hostname, port } = parseHostPort(baseUrl);
 
-  if (provider === "llamacpp") {
-    replaceOrAppend("--hf_model_repo_id", model);
-    const modelFile = resolveLlamaCppModelFile(model);
-    if (modelFile) {
-      replaceOrAppend("--hf_model_file", modelFile);
-    }
+  if (provider === "mlx") {
+    output.args = [...prefix, "-m", "mlx_lm", "server", "--model", model, "--host", hostname, "--port", String(port)];
     return output;
   }
 
-  replaceOrAppend("--model", model);
   if (provider === "vllm") {
-    replaceOrAppend("--served-model-name", model);
+    output.args = [
+      ...prefix,
+      "-m",
+      "vllm.entrypoints.openai.api_server",
+      "--model",
+      model,
+      "--host",
+      hostname,
+      "--port",
+      String(port),
+      "--served-model-name",
+      model,
+    ];
+    return output;
   }
 
+  const modelFile = resolveLlamaCppModelFile(model);
+  output.args = [
+    ...prefix,
+    "-m",
+    "llama_cpp.server",
+    ...(modelFile ? ["--model", modelFile] : []),
+    "--hf_model_repo_id",
+    model,
+    "--host",
+    hostname,
+    "--port",
+    String(port),
+    "--n_ctx",
+    "4096",
+  ];
   return output;
+}
+
+function extractPythonPrefix(args) {
+  const items = Array.isArray(args) ? args : [];
+  const moduleIndex = items.indexOf("-m");
+  if (moduleIndex > 0) {
+    return items.slice(0, moduleIndex);
+  }
+  return [];
+}
+
+function parseHostPort(baseUrl) {
+  try {
+    const parsed = new URL(normalizeBaseUrl(baseUrl));
+    return {
+      hostname: parsed.hostname || "127.0.0.1",
+      port: parsed.port ? Number(parsed.port) : 8000,
+    };
+  } catch {
+    return { hostname: "127.0.0.1", port: 8000 };
+  }
+}
+
+function normalizeBaseUrl(baseUrl) {
+  const fallback = DEFAULT_CONFIG?.llm?.baseUrl || "http://127.0.0.1:8000";
+  const value = typeof baseUrl === "string" && baseUrl.trim() ? baseUrl.trim() : fallback;
+  return value.replace(/\/+$/, "");
 }
 
 function resolveLlamaCppModelFile(repoId) {

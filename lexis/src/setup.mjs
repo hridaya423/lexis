@@ -58,12 +58,6 @@ export async function runSetup({
     baseUrl: config.llm?.baseUrl || DEFAULT_BASE_URL,
   });
 
-  const warmup = await warmupModel({
-    provider,
-    baseUrl: runtime.baseUrl,
-    model: chosenDefaultModel,
-  });
-
   config.model = chosenDefaultModel;
   config.llm = {
     ...(config.llm || {}),
@@ -73,6 +67,18 @@ export async function runSetup({
     start: runtime.start,
     apiKey: typeof config.llm?.apiKey === "string" ? config.llm.apiKey : "",
   };
+
+  await saveConfig(config);
+
+  const warmup = await warmupModel({
+    provider,
+    baseUrl: runtime.baseUrl,
+    model: chosenDefaultModel,
+  });
+
+  if (!warmup.ok) {
+    throw new Error(warmup.message || `Runtime warmup failed for ${chosenDefaultModel}`);
+  }
 
   if (enableWebSearch) {
     config.webSearch.enabled = true;
@@ -752,7 +758,7 @@ function buildStartCommand({ provider, python, model, baseUrl }) {
   if (provider === "mlx") {
     return {
       command: python.command,
-      args: [...python.prefix, "-m", "mlx_lm.server", "--model", model, "--host", hostname, "--port", String(port)],
+      args: [...python.prefix, "-m", "mlx_lm", "server", "--model", model, "--host", hostname, "--port", String(port)],
     };
   }
 
@@ -782,9 +788,9 @@ function buildStartCommand({ provider, python, model, baseUrl }) {
       ...python.prefix,
       "-m",
       "llama_cpp.server",
+      ...(modelFile ? ["--model", modelFile] : []),
       "--hf_model_repo_id",
       model,
-      ...(modelFile ? ["--hf_model_file", modelFile] : []),
       "--host",
       hostname,
       "--port",

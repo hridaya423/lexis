@@ -800,7 +800,7 @@ async function handleConfig(args) {
     config.llm = {
       ...(config.llm || {}),
       model,
-      start: rewriteStartArgsForModel(config.llm?.start, provider, model),
+      start: rewriteStartArgsForModel(config.llm?.start, provider, model, config.llm?.baseUrl),
     };
     const filePath = await saveConfig(config);
     process.stdout.write(`Updated ${filePath}\n`);
@@ -825,9 +825,20 @@ async function handleConfig(args) {
     }
 
     const config = await loadConfig();
+    const currentModel =
+      typeof config.llm?.model === "string" && config.llm.model.trim()
+        ? config.llm.model.trim()
+        : typeof config.model === "string" && config.model.trim()
+          ? config.model.trim()
+          : defaultModelForProvider(provider);
+    const mappedModel = mapModelIdForProvider(currentModel, provider) || defaultModelForProvider(provider);
+
+    config.model = mappedModel;
     config.llm = {
       ...(config.llm || {}),
       provider,
+      model: mappedModel,
+      start: rewriteStartArgsForModel(config.llm?.start, provider, mappedModel, config.llm?.baseUrl),
     };
     const filePath = await saveConfig(config);
     process.stdout.write(`Updated ${filePath}\n`);
@@ -844,6 +855,12 @@ async function handleConfig(args) {
     config.llm = {
       ...(config.llm || {}),
       baseUrl: value.replace(/\/+$/, ""),
+      start: rewriteStartArgsForModel(
+        config.llm?.start,
+        normalizeProvider(config.llm?.provider),
+        config.llm?.model || config.model,
+        value
+      ),
     };
     const filePath = await saveConfig(config);
     process.stdout.write(`Updated ${filePath}\n`);
@@ -1215,12 +1232,7 @@ async function generatePlanWithRecovery({
       throw error;
     }
 
-    const recovered = await ensureLlmServerReadyForRun(llm);
-    if (!recovered) {
-      throw new Error(
-        `Cannot connect to LLM server at ${llm.baseUrl}. Start your ${llm.provider} server and retry.`
-      );
-    }
+    await ensureLlmServerReadyForRun(llm);
 
     return generatePlanWithLLM({
       llm,
@@ -1253,16 +1265,38 @@ async function ensureLlmServerReadyForRun(llm) {
     return true;
   }
 
-  startLlmServerInBackground(llm);
+  const server = startLlmServerInBackground(llm);
+  const maxWaitMs = Math.min(180_000, estimateModelTimeoutMs(llm?.model) + 30_000);
+  const startedAt = Date.now();
 
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    await sleep(400);
+  while (Date.now() - startedAt < maxWaitMs) {
+    await sleep(1000);
     if (await isLlmServerReady(llm.baseUrl)) {
+      server?.detach?.();
       return true;
+    }
+
+    if (server?.hasExited?.()) {
+      throw new Error(
+        buildBackgroundStartupError({
+          baseUrl: llm.baseUrl,
+          provider: llm.provider,
+          summary: server.getExitSummary(),
+          recentLogs: server.getRecentLogs(),
+        })
+      );
     }
   }
 
-  return false;
+  server?.terminate?.();
+  throw new Error(
+    buildBackgroundStartupError({
+      baseUrl: llm.baseUrl,
+      provider: llm.provider,
+      summary: `timed out after ${Math.ceil(maxWaitMs / 1000)}s`,
+      recentLogs: server?.getRecentLogs?.() || "",
+    })
+  );
 }
 
 async function isLlmServerReady(baseUrl) {
@@ -1281,20 +1315,98 @@ function startLlmServerInBackground(llm) {
   const command = llm?.start?.command;
   const args = Array.isArray(llm?.start?.args) ? llm.start.args : [];
   if (!command) {
-    return;
+    return null;
   }
+
+  const logChunks = [];
+  let exited = false;
+  let exitCode = null;
+  let signalCode = null;
 
   try {
     const child = spawn(command, args, {
       detached: true,
-      stdio: "ignore",
+      stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
       env: process.env,
     });
-    child.unref();
-  } catch {
-    // Ignore and let caller surface recovery error.
+
+    const appendLogs = (streamName, chunk) => {
+      const text = String(chunk || "").replace(/\0/g, "");
+      if (!text) {
+        return;
+      }
+
+      logChunks.push(`[${streamName}] ${text}`);
+      while (logChunks.join("").length > 12000) {
+        logChunks.shift();
+      }
+    };
+
+    child.stdout?.on("data", (chunk) => appendLogs("stdout", chunk));
+    child.stderr?.on("data", (chunk) => appendLogs("stderr", chunk));
+    child.once("exit", (code, signal) => {
+      exited = true;
+      exitCode = code;
+      signalCode = signal;
+    });
+
+    return {
+      hasExited() {
+        return exited;
+      },
+      getExitSummary() {
+        if (!exited) {
+          return "process exited before readiness";
+        }
+        if (signalCode) {
+          return `process exited with signal ${signalCode}`;
+        }
+        return `process exited with code ${exitCode ?? "unknown"}`;
+      },
+      getRecentLogs() {
+        return logChunks
+          .join("")
+          .trim()
+          .split(/\r?\n/)
+          .filter(Boolean)
+          .slice(-24)
+          .join("\n");
+      },
+      detach() {
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+        child.unref();
+      },
+      terminate() {
+        if (!exited) {
+          child.kill();
+        }
+      },
+    };
+  } catch (error) {
+    return {
+      hasExited() {
+        return true;
+      },
+      getExitSummary() {
+        return `failed to spawn process: ${error?.message || "unknown error"}`;
+      },
+      getRecentLogs() {
+        return "";
+      },
+      detach() {},
+      terminate() {},
+    };
   }
+}
+
+function buildBackgroundStartupError({ baseUrl, provider, summary, recentLogs }) {
+  let message = `Cannot connect to LLM server at ${baseUrl} for provider ${provider} (${summary}).`;
+  if (recentLogs) {
+    message += `\nRecent server output:\n${recentLogs}`;
+  }
+  return message;
 }
 
 function sleep(ms) {
@@ -1413,6 +1525,59 @@ function defaultModelForProvider(provider) {
   return "Qwen/Qwen2.5-Coder-7B-Instruct";
 }
 
+function mapModelIdForProvider(value, provider) {
+  const model = String(value || "").trim();
+  if (!model) {
+    return model;
+  }
+
+  const resolvedProvider = normalizeProvider(provider);
+  const normalized = model.toLowerCase();
+  const sizeMatch = normalized.match(/(\d+(?:\.\d+)?)b/);
+  const sizeInBillions = sizeMatch ? Number.parseFloat(sizeMatch[1]) : Number.NaN;
+  const hasQwenCoder = normalized.includes("qwen2.5-coder") || normalized.includes("qwen3");
+
+  const isSmall = hasQwenCoder && Number.isFinite(sizeInBillions) && sizeInBillions <= 3;
+  const isMedium = hasQwenCoder && Number.isFinite(sizeInBillions) && sizeInBillions > 3 && sizeInBillions < 14;
+  const isLarge = hasQwenCoder && Number.isFinite(sizeInBillions) && sizeInBillions >= 14;
+
+  if (!isSmall && !isMedium && !isLarge) {
+    return model;
+  }
+
+  if (resolvedProvider === "llamacpp") {
+    if (isSmall) {
+      return "bartowski/Qwen2.5-Coder-3B-Instruct-GGUF";
+    }
+    if (isMedium) {
+      return "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF";
+    }
+    return "bartowski/Qwen2.5-Coder-14B-Instruct-GGUF";
+  }
+
+  if (resolvedProvider === "mlx") {
+    if (isSmall) {
+      return "mlx-community/Qwen2.5-Coder-3B-Instruct-4bit";
+    }
+    if (isMedium) {
+      return "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit";
+    }
+    return "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit";
+  }
+
+  if (resolvedProvider === "vllm") {
+    if (isSmall) {
+      return "Qwen/Qwen2.5-Coder-3B-Instruct-AWQ";
+    }
+    if (isMedium) {
+      return "Qwen/Qwen2.5-Coder-7B-Instruct-AWQ";
+    }
+    return "Qwen/Qwen2.5-Coder-14B-Instruct-AWQ";
+  }
+
+  return model;
+}
+
 function normalizeProvider(provider) {
   const normalized = String(provider || "")
     .trim()
@@ -1430,37 +1595,81 @@ function normalizeProvider(provider) {
   return "llamacpp";
 }
 
-function rewriteStartArgsForModel(start, provider, model) {
+function rewriteStartArgsForModel(start, provider, model, baseUrl) {
   const current = {
     command:
       typeof start?.command === "string" && start.command.trim() ? start.command.trim() : "",
     args: Array.isArray(start?.args) ? [...start.args.map((item) => String(item))] : [],
   };
 
-  const replaceOrAppend = (flag, value) => {
-    const index = current.args.indexOf(flag);
-    if (index >= 0 && index + 1 < current.args.length) {
-      current.args[index + 1] = value;
-      return;
-    }
-    current.args.push(flag, value);
-  };
+  const prefix = extractPythonPrefix(current.args);
+  const { hostname, port } = parseHostPort(baseUrl);
 
-  if (provider === "llamacpp") {
-    replaceOrAppend("--hf_model_repo_id", model);
-    const modelFile = resolveLlamaCppModelFile(model);
-    if (modelFile) {
-      replaceOrAppend("--hf_model_file", modelFile);
-    }
+  if (provider === "mlx") {
+    current.args = [...prefix, "-m", "mlx_lm", "server", "--model", model, "--host", hostname, "--port", String(port)];
     return current;
   }
 
-  replaceOrAppend("--model", model);
   if (provider === "vllm") {
-    replaceOrAppend("--served-model-name", model);
+    current.args = [
+      ...prefix,
+      "-m",
+      "vllm.entrypoints.openai.api_server",
+      "--model",
+      model,
+      "--host",
+      hostname,
+      "--port",
+      String(port),
+      "--served-model-name",
+      model,
+    ];
+    return current;
   }
 
+  const modelFile = resolveLlamaCppModelFile(model);
+  current.args = [
+    ...prefix,
+    "-m",
+    "llama_cpp.server",
+    ...(modelFile ? ["--model", modelFile] : []),
+    "--hf_model_repo_id",
+    model,
+    "--host",
+    hostname,
+    "--port",
+    String(port),
+    "--n_ctx",
+    "4096",
+  ];
+
   return current;
+}
+
+function extractPythonPrefix(args) {
+  const items = Array.isArray(args) ? args : [];
+  const moduleIndex = items.indexOf("-m");
+  if (moduleIndex > 0) {
+    return items.slice(0, moduleIndex);
+  }
+  return [];
+}
+
+function parseHostPort(baseUrl) {
+  try {
+    const parsed = new URL(normalizeBaseUrl(baseUrl));
+    return {
+      hostname: parsed.hostname || "127.0.0.1",
+      port: parsed.port ? Number(parsed.port) : 8000,
+    };
+  } catch {
+    return { hostname: "127.0.0.1", port: 8000 };
+  }
+}
+
+function normalizeBaseUrl(baseUrl) {
+  const value = typeof baseUrl === "string" && baseUrl.trim() ? baseUrl.trim() : "http://127.0.0.1:8000";
+  return value.replace(/\/+$/, "");
 }
 
 function resolveLlamaCppModelFile(repoId) {

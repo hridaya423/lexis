@@ -447,11 +447,15 @@ async function ensurePackagingToolsAvailable(python) {
 }
 
 async function installProviderDependencies(provider, python) {
-  const pkg =
-    provider === "mlx" ? "mlx-lm" : provider === "vllm" ? "vllm" : "llama-cpp-python[server]";
+  const packages =
+    provider === "mlx"
+      ? ["mlx-lm"]
+      : provider === "vllm"
+        ? ["vllm"]
+        : ["llama-cpp-python[server]", "huggingface-hub>=0.23.0"];
 
-  const installArgs = [...python.prefix, "-m", "pip", "install", "--upgrade", pkg];
-  const installUserArgs = [...python.prefix, "-m", "pip", "install", "--upgrade", "--user", pkg];
+  const installArgs = [...python.prefix, "-m", "pip", "install", "--upgrade", ...packages];
+  const installUserArgs = [...python.prefix, "-m", "pip", "install", "--upgrade", "--user", ...packages];
   const preferUserInstall = !isLikelyVirtualEnvironment(python);
 
   const firstAttempt = await run(
@@ -810,7 +814,7 @@ async function ensureServerReady({ baseUrl, start }) {
     return;
   }
 
-  startServer(start);
+  const server = startServer(start);
 
   process.stdout.write(`[lexis-setup] Starting ${start.command} ${start.args.join(" ")}\n`);
   process.stdout.write("[lexis-setup] Waiting for local LLM server (first run may take several minutes for model download)...\n");
@@ -818,7 +822,16 @@ async function ensureServerReady({ baseUrl, start }) {
   for (let attempt = 0; attempt < 600; attempt += 1) {
     await sleep(1000);
     if (await isServerReady(baseUrl)) {
+      server.detach();
       return;
+    }
+
+    if (server.hasExited()) {
+      throw new Error(buildServerStartupError({
+        baseUrl,
+        summary: server.getExitSummary(),
+        recentLogs: server.getRecentLogs(),
+      }));
     }
 
     if ((attempt + 1) % 30 === 0) {
@@ -826,7 +839,12 @@ async function ensureServerReady({ baseUrl, start }) {
     }
   }
 
-  throw new Error(`LLM server did not become ready at ${baseUrl}.`);
+  server.terminate();
+  throw new Error(buildServerStartupError({
+    baseUrl,
+    summary: "timed out while waiting for readiness",
+    recentLogs: server.getRecentLogs(),
+  }));
 }
 
 async function warmupModel({ provider, baseUrl, model }) {
@@ -997,17 +1015,94 @@ async function isServerReady(baseUrl) {
 }
 
 function startServer(start) {
+  const logChunks = [];
+  let exited = false;
+  let exitCode = null;
+  let signalCode = null;
+
   try {
     const child = spawn(start.command, start.args, {
       detached: true,
-      stdio: "ignore",
+      stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
       env: process.env,
     });
-    child.unref();
-  } catch {
-    // If process start fails, readiness check will fail with a clear error.
+
+    const appendLogs = (streamName, chunk) => {
+      const text = String(chunk || "").replace(/\0/g, "");
+      if (!text) {
+        return;
+      }
+      logChunks.push(`[${streamName}] ${text}`);
+      while (logChunks.join("").length > 12000) {
+        logChunks.shift();
+      }
+    };
+
+    child.stdout?.on("data", (chunk) => appendLogs("stdout", chunk));
+    child.stderr?.on("data", (chunk) => appendLogs("stderr", chunk));
+    child.once("exit", (code, signal) => {
+      exited = true;
+      exitCode = code;
+      signalCode = signal;
+    });
+
+    return {
+      hasExited() {
+        return exited;
+      },
+      getExitSummary() {
+        if (!exited) {
+          return "process exited before readiness";
+        }
+        if (signalCode) {
+          return `process exited with signal ${signalCode}`;
+        }
+        return `process exited with code ${exitCode ?? "unknown"}`;
+      },
+      getRecentLogs() {
+        return logChunks
+          .join("")
+          .trim()
+          .split(/\r?\n/)
+          .filter(Boolean)
+          .slice(-24)
+          .join("\n");
+      },
+      detach() {
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+        child.unref();
+      },
+      terminate() {
+        if (!exited) {
+          child.kill();
+        }
+      },
+    };
+  } catch (error) {
+    return {
+      hasExited() {
+        return true;
+      },
+      getExitSummary() {
+        return `failed to spawn process: ${error?.message || "unknown error"}`;
+      },
+      getRecentLogs() {
+        return "";
+      },
+      detach() {},
+      terminate() {},
+    };
   }
+}
+
+function buildServerStartupError({ baseUrl, summary, recentLogs }) {
+  let message = `LLM server did not become ready at ${baseUrl} (${summary}).`;
+  if (recentLogs) {
+    message += `\nRecent server output:\n${recentLogs}`;
+  }
+  return message;
 }
 
 function parseHostPort(baseUrl) {

@@ -1,9 +1,10 @@
 {
   "name": "@hridyacodes/lexis",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "type": "module",
   "bin": {
-    "lexis": "src/index.mjs"
+    "lexis": "src/index.mjs",
+    "lx": "src/index.mjs"
   },
   "files": [
     "src",

@@ -28,6 +28,12 @@ In `auto` hook mode, type natural language directly in your shell.
 
 In `lx` mode, prefix commands with `lx`.
 
+On Windows:
+
+- PowerShell supports the full hook experience.
+- Command Prompt supports explicit `lx ...` and `lexis ...` commands after install.
+- Bare natural-language commands like `say hi` require the PowerShell hook, not `cmd.exe`.
+
 Examples:
 
 ```bash

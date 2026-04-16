@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import { MARKERS } from "./constants.mjs";
@@ -794,8 +795,63 @@ async function readMaybe(filePath) {
 
 function getPowerShellProfilePaths() {
   const userProfile = process.env.USERPROFILE || os.homedir();
-  return [
+  const fallbacks = [
     path.join(userProfile, "Documents", "PowerShell", "Microsoft.PowerShell_profile.ps1"),
+    path.join(userProfile, "Documents", "PowerShell", "profile.ps1"),
     path.join(userProfile, "Documents", "WindowsPowerShell", "Microsoft.PowerShell_profile.ps1"),
+    path.join(userProfile, "Documents", "WindowsPowerShell", "profile.ps1"),
   ];
+
+  if (typeof process.env.OneDrive === "string" && process.env.OneDrive.trim()) {
+    const oneDriveDocs = path.join(process.env.OneDrive.trim(), "Documents");
+    fallbacks.push(
+      path.join(oneDriveDocs, "PowerShell", "Microsoft.PowerShell_profile.ps1"),
+      path.join(oneDriveDocs, "PowerShell", "profile.ps1"),
+      path.join(oneDriveDocs, "WindowsPowerShell", "Microsoft.PowerShell_profile.ps1"),
+      path.join(oneDriveDocs, "WindowsPowerShell", "profile.ps1")
+    );
+  }
+
+  return uniqueStrings([...resolveProfilePathsFromShell("pwsh"), ...resolveProfilePathsFromShell("powershell"), ...fallbacks]);
+}
+
+function resolveProfilePathsFromShell(shellCommand) {
+  try {
+    const result = spawnSync(
+      shellCommand,
+      [
+        "-NoProfile",
+        "-Command",
+        "$PROFILE.CurrentUserCurrentHost; $PROFILE.CurrentUserAllHosts",
+      ],
+      {
+        encoding: "utf8",
+        windowsHide: true,
+      }
+    );
+
+    if (result.status !== 0) {
+      return [];
+    }
+
+    return uniqueStrings(String(result.stdout || "").split(/\r?\n/));
+  } catch {
+    return [];
+  }
+}
+
+function uniqueStrings(values) {
+  const seen = new Set();
+  const output = [];
+
+  for (const value of values) {
+    const item = String(value || "").trim();
+    if (!item || seen.has(item)) {
+      continue;
+    }
+    seen.add(item);
+    output.push(item);
+  }
+
+  return output;
 }

@@ -308,6 +308,9 @@ async function handleSetup(args) {
   if (result.runtime.warmupMessage) {
     process.stdout.write(`- warmup note: ${result.runtime.warmupMessage}\n`);
   }
+  if (process.platform === "win32") {
+    process.stdout.write("- windows note: PowerShell supports hook mode; cmd.exe supports explicit lx/lexis commands only.\n");
+  }
 
   if (result.webSearch) {
     process.stdout.write(`- web provider: ${result.webSearch.provider}\n`);

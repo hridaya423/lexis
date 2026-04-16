@@ -1277,6 +1277,14 @@ async function ensureLlmServerReadyForRun(llm) {
     }
 
     if (server?.hasExited?.()) {
+      if (isPortConflictError(server.getRecentLogs())) {
+        const existing = await waitForExistingLlmServer(llm.baseUrl, 10_000);
+        if (existing) {
+          server.detach();
+          return true;
+        }
+      }
+
       throw new Error(
         buildBackgroundStartupError({
           baseUrl: llm.baseUrl,
@@ -1407,6 +1415,26 @@ function buildBackgroundStartupError({ baseUrl, provider, summary, recentLogs })
     message += `\nRecent server output:\n${recentLogs}`;
   }
   return message;
+}
+
+async function waitForExistingLlmServer(baseUrl, timeoutMs) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await isLlmServerReady(baseUrl)) {
+      return true;
+    }
+    await sleep(1000);
+  }
+  return false;
+}
+
+function isPortConflictError(text) {
+  const message = String(text || "").toLowerCase();
+  return (
+    message.includes("address already in use") ||
+    message.includes("eaddrinuse") ||
+    message.includes("errno 48")
+  );
 }
 
 function sleep(ms) {

@@ -688,7 +688,9 @@ export async function installHooks({ mode } = {}) {
   const snippets = getHookSnippets(mode);
 
   if (process.platform === "win32") {
-    tasks.push(addSnippet(getPowerShellProfilePath(), snippets.powershell));
+    for (const profilePath of getPowerShellProfilePaths()) {
+      tasks.push(addSnippet(profilePath, snippets.powershell));
+    }
   } else {
     tasks.push(addSnippet(path.join(os.homedir(), ".bashrc"), snippets.bash));
     tasks.push(addSnippet(path.join(os.homedir(), ".zshrc"), snippets.zsh));
@@ -703,7 +705,9 @@ export async function uninstallHooks() {
   const tasks = [];
 
   if (process.platform === "win32") {
-    tasks.push(removeSnippet(getPowerShellProfilePath(), MARKERS.psStart, MARKERS.psEnd));
+    for (const profilePath of getPowerShellProfilePaths()) {
+      tasks.push(removeSnippet(profilePath, MARKERS.psStart, MARKERS.psEnd));
+    }
   } else {
     tasks.push(removeSnippet(path.join(os.homedir(), ".bashrc"), MARKERS.shellStart, MARKERS.shellEnd));
     tasks.push(removeSnippet(path.join(os.homedir(), ".zshrc"), MARKERS.shellStart, MARKERS.shellEnd));
@@ -788,7 +792,10 @@ async function readMaybe(filePath) {
   }
 }
 
-function getPowerShellProfilePath() {
+function getPowerShellProfilePaths() {
   const userProfile = process.env.USERPROFILE || os.homedir();
-  return path.join(userProfile, "Documents", "PowerShell", "Microsoft.PowerShell_profile.ps1");
+  return [
+    path.join(userProfile, "Documents", "PowerShell", "Microsoft.PowerShell_profile.ps1"),
+    path.join(userProfile, "Documents", "WindowsPowerShell", "Microsoft.PowerShell_profile.ps1"),
+  ];
 }

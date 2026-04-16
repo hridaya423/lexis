@@ -74,7 +74,10 @@ export async function runSetup({
     provider,
     baseUrl: runtime.baseUrl,
     model: chosenDefaultModel,
+    server: runtime.server,
   });
+
+  runtime.server?.detach?.();
 
   if (!warmup.ok) {
     throw new Error(warmup.message || `Runtime warmup failed for ${chosenDefaultModel}`);
@@ -191,12 +194,13 @@ async function ensureRuntimeAvailable({ provider, model, baseUrl }) {
 
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
   const start = buildStartCommand({ provider, python, model, baseUrl: normalizedBaseUrl });
-  await ensureServerReady({ baseUrl: normalizedBaseUrl, start });
+  const server = await ensureServerReady({ baseUrl: normalizedBaseUrl, start });
 
   return {
     baseUrl: normalizedBaseUrl,
     start,
     python: formatPythonForDisplay(python),
+    server,
   };
 }
 
@@ -817,7 +821,7 @@ function resolveLlamaCppModelFile(repoId) {
 
 async function ensureServerReady({ baseUrl, start }) {
   if (await isServerReady(baseUrl)) {
-    return;
+    return null;
   }
 
   const server = startServer(start);
@@ -828,11 +832,17 @@ async function ensureServerReady({ baseUrl, start }) {
   for (let attempt = 0; attempt < 600; attempt += 1) {
     await sleep(1000);
     if (await isServerReady(baseUrl)) {
-      server.detach();
-      return;
+      return server;
     }
 
     if (server.hasExited()) {
+      if (isPortConflictError(server.getRecentLogs())) {
+        const existing = await waitForExistingServer(baseUrl, 10_000);
+        if (existing) {
+          return;
+        }
+      }
+
       throw new Error(buildServerStartupError({
         baseUrl,
         summary: server.getExitSummary(),
@@ -853,7 +863,7 @@ async function ensureServerReady({ baseUrl, start }) {
   }));
 }
 
-async function warmupModel({ provider, baseUrl, model }) {
+async function warmupModel({ provider, baseUrl, model, server }) {
   const timeoutSeconds = estimateWarmupTimeoutSeconds({ provider, model });
   const endpoint = `${normalizeBaseUrl(baseUrl)}/v1/chat/completions`;
 
@@ -900,9 +910,20 @@ async function warmupModel({ provider, baseUrl, model }) {
       message: "Model warmup completed.",
     };
   } catch (error) {
+    const details = [];
+
+    if (server?.hasExited?.()) {
+      details.push(server.getExitSummary());
+    }
+
+    const recentLogs = server?.getRecentLogs?.();
+    if (recentLogs) {
+      details.push(`Recent server output:\n${recentLogs}`);
+    }
+
     return {
       ok: false,
-      message: `Warmup did not complete: ${error.message}`,
+      message: `Warmup did not complete: ${error.message}${details.length ? `\n${details.join("\n")}` : ""}`,
     };
   }
 }
@@ -1109,6 +1130,26 @@ function buildServerStartupError({ baseUrl, summary, recentLogs }) {
     message += `\nRecent server output:\n${recentLogs}`;
   }
   return message;
+}
+
+async function waitForExistingServer(baseUrl, timeoutMs) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await isServerReady(baseUrl)) {
+      return true;
+    }
+    await sleep(1000);
+  }
+  return false;
+}
+
+function isPortConflictError(text) {
+  const message = String(text || "").toLowerCase();
+  return (
+    message.includes("address already in use") ||
+    message.includes("eaddrinuse") ||
+    message.includes("errno 48")
+  );
 }
 
 function parseHostPort(baseUrl) {

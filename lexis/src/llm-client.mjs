@@ -69,6 +69,9 @@ async function requestLLMPlan({
     headers.authorization = `Bearer ${llm.apiKey.trim()}`;
   }
 
+  const provider = String(llm?.provider || "").toLowerCase();
+  const supportsJsonResponseFormat = provider === "vllm";
+
   const response = await fetch(`${baseUrl}/v1/chat/completions`, {
     method: "POST",
     headers,
@@ -78,7 +81,7 @@ async function requestLLMPlan({
       stream: false,
       temperature: options.temperature,
       max_tokens: options.max_tokens,
-      ...(String(llm?.provider || "").toLowerCase() === "mlx" ? {} : { response_format: { type: "json_object" } }),
+      ...(supportsJsonResponseFormat ? { response_format: { type: "json_object" } } : {}),
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: enhancedPrompt },

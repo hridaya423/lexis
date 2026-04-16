@@ -502,6 +502,10 @@ function __LexisHandleEnter {
 }
 
 function __LexisDeactivate {
+  if (-not (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue)) {
+    Import-Module PSReadLine -ErrorAction SilentlyContinue | Out-Null
+  }
+
   if (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
     if ($script:__LexisEnterHandlerScriptBlock) {
       Set-PSReadLineKeyHandler -Key Enter -ScriptBlock $script:__LexisEnterHandlerScriptBlock -BriefDescription 'LexisRestoredEnter' -LongDescription 'Restored Enter binding before Lexis'
@@ -531,9 +535,17 @@ function __LexisDeactivate {
   Write-Host 'Lexis disabled for this terminal.'
 }
 
+if (-not (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue)) {
+  Import-Module PSReadLine -ErrorAction SilentlyContinue | Out-Null
+}
+
 if (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
   $script:__LexisEnterHandlerFunction = $null
   $script:__LexisEnterHandlerScriptBlock = $null
+
+  if (-not (Get-Command Get-PSReadLineKeyHandler -ErrorAction SilentlyContinue)) {
+    Import-Module PSReadLine -ErrorAction SilentlyContinue | Out-Null
+  }
 
   if (Get-Command Get-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
     $existingLexisEnterHandler = Get-PSReadLineKeyHandler -Key Enter -ErrorAction SilentlyContinue
@@ -738,6 +750,29 @@ end
 ${MARKERS.fishEnd}`;
 
 const POWERSHELL_SNIPPET_LX = `${MARKERS.psStart}
+function __LexisInvoke {
+  param(
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$LexisArgs
+  )
+
+  $previousShell = $env:LEXIS_SHELL
+  $env:LEXIS_SHELL = 'powershell'
+
+  try {
+    lexis @LexisArgs
+    return $LASTEXITCODE
+  }
+  finally {
+    if ($null -eq $previousShell) {
+      Remove-Item env:LEXIS_SHELL -ErrorAction SilentlyContinue
+    }
+    else {
+      $env:LEXIS_SHELL = $previousShell
+    }
+  }
+}
+
 function __LexisRun {
   param(
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -748,8 +783,7 @@ function __LexisRun {
     return 127
   }
 
-  lexis run --quiet ($LexisArgs -join ' ')
-  return $LASTEXITCODE
+  return (__LexisInvoke run --quiet ($LexisArgs -join ' '))
 }
 
 function lx {
@@ -759,14 +793,12 @@ function lx {
   )
 
   if ($LexisArgs.Count -eq 0) {
-    lexis --help
-    return $LASTEXITCODE
+    return (__LexisInvoke --help)
   }
 
   $first = $LexisArgs[0]
   if (@('run', 'setup', 'hooks', 'uninstall', 'config', 'web-search', 'mcp', 'doctor', 'help', '--help', '-h') -contains $first) {
-    lexis @LexisArgs
-    return $LASTEXITCODE
+    return (__LexisInvoke @LexisArgs)
   }
 
   __LexisRun @LexisArgs

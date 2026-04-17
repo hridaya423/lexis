@@ -1,6 +1,6 @@
 {
   "name": "@hridyacodes/lexis",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "type": "module",
   "bin": {
     "lexis": "src/index.mjs",

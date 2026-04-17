@@ -81,7 +81,7 @@ function migrateConfig(config) {
   if (typeof migrated.ollamaBaseUrl === "string" && migrated.ollamaBaseUrl.trim()) {
     migrated.llm.baseUrl = migrated.llm.baseUrl || migrated.ollamaBaseUrl.trim();
     if (!migrated.llm.provider) {
-      migrated.llm.provider = process.platform === "darwin" ? "mlx" : process.platform === "win32" ? "llamacpp" : "llamacpp";
+      migrated.llm.provider = process.platform === "darwin" ? "mlx" : process.platform === "win32" ? "ollama" : "llamacpp";
     }
   }
 

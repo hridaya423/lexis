@@ -3,6 +3,7 @@ import process from "node:process";
 import { spawnSync } from "node:child_process";
 
 export const DEFAULT_BASE_URL = "http://127.0.0.1:8000";
+export const OLLAMA_BASE_URL = "http://127.0.0.1:11434";
 
 export const MODEL_PROFILES = {
   mlx: {
@@ -19,6 +20,11 @@ export const MODEL_PROFILES = {
     light: ["bartowski/Qwen2.5-Coder-3B-Instruct-GGUF"],
     balanced: ["bartowski/Qwen2.5-Coder-7B-Instruct-GGUF"],
     heavy: ["bartowski/Qwen2.5-Coder-14B-Instruct-GGUF"],
+  },
+  ollama: {
+    light: ["qwen2.5-coder:3b"],
+    balanced: ["qwen2.5-coder:7b"],
+    heavy: ["qwen2.5-coder:14b"],
   },
 };
 
@@ -56,7 +62,11 @@ export function normalizeProvider(provider, machine = getCurrentMachineProfile()
     .trim()
     .toLowerCase();
 
-  if (value === "mlx" || value === "vllm" || value === "llamacpp") {
+  if (machine.platform === "win32" && value === "llamacpp") {
+    return "ollama";
+  }
+
+  if (value === "mlx" || value === "vllm" || value === "llamacpp" || value === "ollama") {
     return value;
   }
 
@@ -82,7 +92,7 @@ export function getDefaultProvider(machine = getCurrentMachineProfile()) {
   }
 
   if (machine.platform === "win32") {
-    return "llamacpp";
+    return "ollama";
   }
 
   if (machine.platform === "linux" && machine.hasNvidiaGpu) {
@@ -107,6 +117,10 @@ export function isProviderSupported(provider, machine = getCurrentMachineProfile
     return machine.platform === "linux" && machine.hasNvidiaGpu;
   }
 
+  if (normalized === "ollama") {
+    return machine.platform === "win32";
+  }
+
   return true;
 }
 
@@ -119,6 +133,10 @@ export function getProviderSupportError(provider, machine = getCurrentMachinePro
 
   if (normalized === "vllm") {
     return "vLLM is only supported here on Linux with an NVIDIA GPU.";
+  }
+
+  if (normalized === "ollama") {
+    return "Ollama provider is enabled only on Windows in this build.";
   }
 
   return "";
@@ -142,6 +160,13 @@ export function defaultModelForProvider(provider, machine = getCurrentMachinePro
       return MODEL_PROFILES.llamacpp.light[0];
     }
     return MODEL_PROFILES.llamacpp.balanced[0];
+  }
+
+  if (normalized === "ollama") {
+    if (machine.totalMemoryGb >= 28) {
+      return MODEL_PROFILES.ollama.balanced[0];
+    }
+    return MODEL_PROFILES.ollama.light[0];
   }
 
   return MODEL_PROFILES.vllm.balanced[0];
@@ -201,6 +226,16 @@ export function mapModelIdForProvider(value, provider, machine = getCurrentMachi
     return MODEL_PROFILES.mlx.heavy[0];
   }
 
+  if (resolvedProvider === "ollama") {
+    if (isSmall) {
+      return MODEL_PROFILES.ollama.light[0];
+    }
+    if (isMedium) {
+      return MODEL_PROFILES.ollama.balanced[0];
+    }
+    return MODEL_PROFILES.ollama.heavy[0];
+  }
+
   if (isSmall) {
     return MODEL_PROFILES.vllm.light[0];
   }
@@ -213,6 +248,14 @@ export function mapModelIdForProvider(value, provider, machine = getCurrentMachi
 export function normalizeBaseUrl(baseUrl) {
   const value = typeof baseUrl === "string" && baseUrl.trim() ? baseUrl.trim() : DEFAULT_BASE_URL;
   return value.replace(/\/+$/, "");
+}
+
+export function defaultBaseUrlForProvider(provider, machine = getCurrentMachineProfile()) {
+  const normalized = normalizeProvider(provider, machine);
+  if (normalized === "ollama") {
+    return OLLAMA_BASE_URL;
+  }
+  return DEFAULT_BASE_URL;
 }
 
 export function parseHostPort(baseUrl) {
@@ -280,6 +323,13 @@ export function buildStartCommand({ provider, python, model, baseUrl, machine = 
     };
   }
 
+  if (normalized === "ollama") {
+    return {
+      command: "ollama",
+      args: ["serve"],
+    };
+  }
+
   const modelFile = resolveLlamaCppModelFile(model);
   return {
     command: python.command,
@@ -329,6 +379,9 @@ export function rewriteStartArgsForModel(start, provider, model, baseUrl, machin
 
 export function getProviderReadinessEndpoints(provider, machine = getCurrentMachineProfile()) {
   const normalized = normalizeProvider(provider, machine);
+  if (normalized === "ollama") {
+    return ["/api/tags"];
+  }
   if (normalized === "mlx" || normalized === "vllm") {
     return ["/health", "/v1/models"];
   }
@@ -337,6 +390,24 @@ export function getProviderReadinessEndpoints(provider, machine = getCurrentMach
 
 export function buildWarmupRequest(provider, model, machine = getCurrentMachineProfile()) {
   const normalized = normalizeProvider(provider, machine);
+
+  if (normalized === "ollama") {
+    return {
+      path: "/api/chat",
+      body: {
+        model,
+        stream: false,
+        options: {
+          temperature: 0,
+          num_predict: 8,
+        },
+        messages: [
+          { role: "system", content: "Reply with plain text only." },
+          { role: "user", content: "Say ok" },
+        ],
+      },
+    };
+  }
 
   return {
     path: "/v1/chat/completions",

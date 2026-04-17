@@ -6,9 +6,9 @@ import { loadConfig, saveConfig } from "./config.mjs";
 import { installHooks, normalizeHookMode } from "./hooks.mjs";
 import { recordModelUsage } from "./model-history.mjs";
 import {
-  DEFAULT_BASE_URL,
   buildStartCommand,
   buildWarmupRequest,
+  defaultBaseUrlForProvider,
   detectRuntimeProvider,
   getCurrentMachineProfile,
   getProviderReadinessEndpoints,
@@ -49,7 +49,7 @@ export async function runSetup({
   const runtime = await ensureRuntimeAvailable({
     provider,
     model: chosenDefaultModel,
-    baseUrl: config.llm?.baseUrl || DEFAULT_BASE_URL,
+    baseUrl: config.llm?.baseUrl || defaultBaseUrlForProvider(provider, machine),
     machine,
   });
 
@@ -151,6 +151,23 @@ export async function runSetup({
 }
 
 async function ensureRuntimeAvailable({ provider, model, baseUrl, machine }) {
+  if (provider === "ollama") {
+    if (!(await canRun("ollama"))) {
+      throw new Error("Ollama is required on Windows. Install Ollama and ensure the 'ollama' command is on PATH.");
+    }
+
+    const normalizedBaseUrl = normalizeBaseUrl(baseUrl || defaultBaseUrlForProvider(provider, machine));
+    const start = buildStartCommand({ provider, python: { command: "", prefix: [] }, model, baseUrl: normalizedBaseUrl, machine });
+    const server = await ensureServerReady({ provider, baseUrl: normalizedBaseUrl, start });
+
+    return {
+      baseUrl: normalizedBaseUrl,
+      start,
+      python: "ollama",
+      server,
+    };
+  }
+
   const systemPython = await ensurePythonAvailable();
   const python = await ensureRuntimePython(systemPython);
   await ensurePipAvailable(python);
@@ -422,6 +439,13 @@ async function ensurePackagingToolsAvailable(python) {
 }
 
 async function installProviderDependencies(provider, python) {
+  if (provider === "ollama") {
+    if (await canRun("ollama")) {
+      return;
+    }
+    throw new Error("Ollama is not installed. Install Ollama and re-run setup.");
+  }
+
   const packages =
     provider === "mlx"
       ? ["mlx-lm"]
@@ -815,7 +839,10 @@ async function warmupModel({ provider, baseUrl, model, server }) {
     }
 
     const payload = await response.json().catch(() => null);
-    const content = payload?.choices?.[0]?.message?.content;
+    const content =
+      String(provider || "").toLowerCase() === "ollama"
+        ? payload?.message?.content
+        : payload?.choices?.[0]?.message?.content;
     const text = typeof content === "string" ? content.trim() : "";
     if (!text) {
       return {

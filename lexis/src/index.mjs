@@ -18,6 +18,7 @@ import { getAuditLogPath } from "./audit-log.mjs";
 import { loadModelHistory, recordModelUsage } from "./model-history.mjs";
 import {
   buildWarmupRequest,
+  defaultBaseUrlForProvider,
   defaultModelForProvider,
   getCurrentMachineProfile,
   getProviderReadinessEndpoints,
@@ -906,8 +907,8 @@ async function handleConfig(args) {
   if (mode === "set-llm-provider") {
     const machine = getCurrentMachineProfile();
     const provider = normalizeProvider(args[1], machine);
-    if (!["mlx", "vllm", "llamacpp"].includes(provider)) {
-      throw new Error("Usage: lexis config set-llm-provider <mlx|vllm|llamacpp>");
+    if (!["mlx", "vllm", "llamacpp", "ollama"].includes(provider)) {
+      throw new Error("Usage: lexis config set-llm-provider <mlx|vllm|llamacpp|ollama>");
     }
     if (!isProviderSupported(provider, machine)) {
       throw new Error(getProviderSupportError(provider, machine));
@@ -926,8 +927,15 @@ async function handleConfig(args) {
     config.llm = {
       ...(config.llm || {}),
       provider,
+      baseUrl: defaultBaseUrlForProvider(provider, machine),
       model: mappedModel,
-      start: rewriteStartArgsForModel(config.llm?.start, provider, mappedModel, config.llm?.baseUrl, machine),
+      start: rewriteStartArgsForModel(
+        config.llm?.start,
+        provider,
+        mappedModel,
+        defaultBaseUrlForProvider(provider, machine),
+        machine
+      ),
     };
     const filePath = await saveConfig(config);
     await recordModelUsage({ provider, models: [mappedModel] });
@@ -1557,7 +1565,7 @@ function sleep(ms) {
 }
 
 async function warmupLlmModel({ llm, model }) {
-  const baseUrl = normalizeBaseUrl(llm?.baseUrl || "http://127.0.0.1:8000");
+  const baseUrl = normalizeBaseUrl(llm?.baseUrl || defaultBaseUrlForProvider(llm?.provider));
   const timeoutMs = estimateModelTimeoutMs(model) + 60_000;
   const request = buildWarmupRequest(llm?.provider, model);
   const headers = {
@@ -1627,13 +1635,14 @@ function resolveLlmConfig(rawLlmConfig) {
   const llm = rawLlmConfig && typeof rawLlmConfig === "object" ? rawLlmConfig : {};
   const provider = normalizeProvider(llm.provider);
   const defaultModel = defaultModelForProvider(provider);
+  const defaultBaseUrl = defaultBaseUrlForProvider(provider);
 
   return {
     provider,
     baseUrl:
       typeof llm.baseUrl === "string" && llm.baseUrl.trim()
         ? llm.baseUrl.trim().replace(/\/+$/, "")
-        : "http://127.0.0.1:8000",
+        : defaultBaseUrl,
     apiKey: typeof llm.apiKey === "string" ? llm.apiKey : "",
     model:
       typeof llm.model === "string" && llm.model.trim()

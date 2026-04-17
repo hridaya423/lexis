@@ -1,4 +1,4 @@
-import { defaultModelForProvider, getDefaultProvider } from "./providers.mjs";
+import { defaultBaseUrlForProvider, defaultModelForProvider, getDefaultProvider } from "./providers.mjs";
 
 export const RISK_LEVELS = ["low", "moderate", "high", "critical"];
 
@@ -11,12 +11,13 @@ export const RISK_SCORE = {
 
 const DEFAULT_PROVIDER = getDefaultProvider();
 const DEFAULT_MODEL_BY_PLATFORM = defaultModelForProvider(DEFAULT_PROVIDER);
+const DEFAULT_BASE_URL_BY_PROVIDER = defaultBaseUrlForProvider(DEFAULT_PROVIDER);
 
 export const DEFAULT_CONFIG = {
   model: DEFAULT_MODEL_BY_PLATFORM,
   llm: {
     provider: DEFAULT_PROVIDER,
-    baseUrl: "http://127.0.0.1:8000",
+    baseUrl: DEFAULT_BASE_URL_BY_PROVIDER,
     apiKey: "",
     model: DEFAULT_MODEL_BY_PLATFORM,
     start: {

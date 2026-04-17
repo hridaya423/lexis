@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import process from "node:process";
 import { parsePlanFromText } from "./plan-schema.mjs";
+import { defaultBaseUrlForProvider } from "./providers.mjs";
 
 const MAX_WEB_ITEMS_FOR_PROMPT = 1;
 const MAX_TOP_WEB_CHARS = 1400;
@@ -59,7 +60,7 @@ async function requestLLMPlan({
   options,
   timeoutMs,
 }) {
-  const baseUrl = String(llm?.baseUrl || "http://127.0.0.1:8000").replace(/\/+$/, "");
+  const baseUrl = String(llm?.baseUrl || defaultBaseUrlForProvider(llm?.provider)).replace(/\/+$/, "");
   const effectiveTimeoutMs = typeof timeoutMs === "number" ? timeoutMs : 60000;
   const headers = {
     "content-type": "application/json",
@@ -71,22 +72,39 @@ async function requestLLMPlan({
 
   const provider = String(llm?.provider || "").toLowerCase();
   const supportsJsonResponseFormat = provider === "vllm";
+  const isOllama = provider === "ollama";
+  const endpoint = isOllama ? "/api/chat" : "/v1/chat/completions";
 
-  const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+  const body = isOllama
+    ? {
+        model,
+        stream: false,
+        options: {
+          temperature: options.temperature,
+          num_predict: options.max_tokens,
+        },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: enhancedPrompt },
+        ],
+      }
+    : {
+        model,
+        stream: false,
+        temperature: options.temperature,
+        max_tokens: options.max_tokens,
+        ...(supportsJsonResponseFormat ? { response_format: { type: "json_object" } } : {}),
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: enhancedPrompt },
+        ],
+      };
+
+  const response = await fetch(`${baseUrl}${endpoint}`, {
     method: "POST",
     headers,
     signal: AbortSignal.timeout(effectiveTimeoutMs),
-    body: JSON.stringify({
-      model,
-      stream: false,
-      temperature: options.temperature,
-      max_tokens: options.max_tokens,
-      ...(supportsJsonResponseFormat ? { response_format: { type: "json_object" } } : {}),
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: enhancedPrompt },
-      ],
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -95,7 +113,7 @@ async function requestLLMPlan({
   }
 
   const payload = await response.json();
-  const content = payload?.choices?.[0]?.message?.content;
+  const content = isOllama ? payload?.message?.content : payload?.choices?.[0]?.message?.content;
   const text = typeof content === "string" ? content : Array.isArray(content) ? content.map((part) => part?.text || "").join("") : "";
 
   if (typeof text !== "string" || text.trim().length === 0) {

@@ -1,4 +1,5 @@
 import { mkdir } from "node:fs/promises";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -14,8 +15,11 @@ import {
   getProviderReadinessEndpoints,
   hasNvidiaGpu,
   normalizeBaseUrl,
+  normalizeProvider,
   resolveModelList,
 } from "./providers.mjs";
+
+const MODEL_ARG_FLAGS = new Set(["--model", "--hf_model_repo_id", "--served-model-name"]);
 
 export async function runSetup({
   models,
@@ -429,7 +433,18 @@ async function ensurePipAvailable(python) {
 async function ensurePackagingToolsAvailable(python) {
   const result = await run(
     python.command,
-    [...python.prefix, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"],
+    [
+      ...python.prefix,
+      "-m",
+      "pip",
+      "install",
+      "--upgrade",
+      "--disable-pip-version-check",
+      "--quiet",
+      "pip",
+      "setuptools",
+      "wheel",
+    ],
     { stdio: "inherit" }
   );
 
@@ -453,8 +468,27 @@ async function installProviderDependencies(provider, python) {
         ? ["vllm"]
         : ["llama-cpp-python[server]", "huggingface-hub>=0.23.0"];
 
-  const installArgs = [...python.prefix, "-m", "pip", "install", "--upgrade", ...packages];
-  const installUserArgs = [...python.prefix, "-m", "pip", "install", "--upgrade", "--user", ...packages];
+  const installArgs = [
+    ...python.prefix,
+    "-m",
+    "pip",
+    "install",
+    "--upgrade",
+    "--disable-pip-version-check",
+    "--quiet",
+    ...packages,
+  ];
+  const installUserArgs = [
+    ...python.prefix,
+    "-m",
+    "pip",
+    "install",
+    "--upgrade",
+    "--disable-pip-version-check",
+    "--quiet",
+    "--user",
+    ...packages,
+  ];
   const preferUserInstall = !isLikelyVirtualEnvironment(python);
 
   if (provider === "llamacpp" && process.platform === "win32" && (await hasNvidiaGpu())) {
@@ -772,14 +806,31 @@ async function ensureServerReady({ provider, baseUrl, start }) {
     return null;
   }
 
+  process.stdout.write("[lexis-setup] Starting local LLM server...\n");
+  process.stdout.write(`[lexis-setup] command: ${start.command} ${start.args.join(" ")}\n`);
+
   const server = startServer(start);
+  const maxAttempts = 600;
+  const reporter = createServerWaitReporter({ maxSeconds: maxAttempts });
+  const downloadTracker = createModelDownloadTracker({ provider, start });
 
-  process.stdout.write(`[lexis-setup] Starting ${start.command} ${start.args.join(" ")}\n`);
-  process.stdout.write("[lexis-setup] Waiting for local LLM server (first run may take several minutes for model download)...\n");
-
-  for (let attempt = 0; attempt < 600; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     await sleep(1000);
+    const elapsedSeconds = attempt + 1;
+    server.pollOutput?.();
+    const serverProgress = server.getDownloadProgress?.() || null;
+    const trackedProgress = await downloadTracker.tick();
+    const download = mergeDownloadProgress(serverProgress, trackedProgress);
+    reporter.tick({
+      elapsedSeconds,
+      download,
+    });
+
     if (await isServerReady(provider, baseUrl)) {
+      reporter.finish({
+        elapsedSeconds,
+        download,
+      });
       return server;
     }
 
@@ -787,22 +838,24 @@ async function ensureServerReady({ provider, baseUrl, start }) {
       if (isPortConflictError(server.getRecentLogs())) {
         const existing = await waitForExistingServer(provider, baseUrl, 10_000);
         if (existing) {
+          reporter.finish({
+            elapsedSeconds,
+            download,
+          });
           return null;
         }
       }
 
+      reporter.close();
       throw new Error(buildServerStartupError({
         baseUrl,
         summary: server.getExitSummary(),
         recentLogs: server.getRecentLogs(),
       }));
     }
-
-    if ((attempt + 1) % 30 === 0) {
-      process.stdout.write(`[lexis-setup] Still waiting... ${attempt + 1}s\n`);
-    }
   }
 
+  reporter.close();
   server.terminate();
   throw new Error(buildServerStartupError({
     baseUrl,
@@ -977,6 +1030,7 @@ function prependHomebrewToPath() {
 
 async function isServerReady(provider, baseUrl) {
   const base = normalizeBaseUrl(baseUrl);
+  const normalizedProvider = normalizeProvider(provider, getCurrentMachineProfile());
 
   for (const endpoint of getProviderReadinessEndpoints(provider)) {
     try {
@@ -987,7 +1041,7 @@ async function isServerReady(provider, baseUrl) {
       if (!response.ok) {
         return false;
       }
-      if (endpoint === "/v1/models") {
+      if (endpoint === "/v1/models" && normalizedProvider !== "mlx") {
         const payload = await response.json().catch(() => null);
         if (payload && Array.isArray(payload.data) && payload.data.length === 0) {
           return false;
@@ -1003,32 +1057,88 @@ async function isServerReady(provider, baseUrl) {
 
 function startServer(start) {
   const logChunks = [];
+  const logFilePath = path.join(
+    os.tmpdir(),
+    `lexis-llm-server-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.log`
+  );
+  let logReadOffset = 0;
+  let tailFragment = "";
+  let latestDownloadProgress = null;
   let exited = false;
   let exitCode = null;
   let signalCode = null;
 
-  try {
-    const child = spawn(start.command, start.args, {
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true,
-      env: process.env,
-    });
+  const appendLogs = (streamName, chunk) => {
+    const text = String(chunk || "").replace(/\0/g, "");
+    if (!text) {
+      return;
+    }
 
-    const appendLogs = (streamName, chunk) => {
-      const text = String(chunk || "").replace(/\0/g, "");
-      if (!text) {
-        return;
+    for (const rawLine of text.split(/\r?\n|\r/)) {
+      const line = rawLine.trim();
+      if (!line) {
+        continue;
       }
-      logChunks.push(`[${streamName}] ${text}`);
+
+      const progress = parseDownloadProgressFromLine(line);
+      if (progress) {
+        latestDownloadProgress = mergeDownloadProgress(latestDownloadProgress, progress);
+      }
+
+      logChunks.push(`[${streamName}] ${line}`);
       while (logChunks.join("").length > 12000) {
         logChunks.shift();
       }
-    };
+    }
+  };
 
-    child.stdout?.on("data", (chunk) => appendLogs("stdout", chunk));
-    child.stderr?.on("data", (chunk) => appendLogs("stderr", chunk));
+  const flushLogFile = () => {
+    try {
+      const stats = fs.statSync(logFilePath, { throwIfNoEntry: false });
+      if (!stats || stats.size <= logReadOffset) {
+        return;
+      }
+
+      const nextLength = stats.size - logReadOffset;
+      const fd = fs.openSync(logFilePath, "r");
+      const buffer = Buffer.allocUnsafe(nextLength);
+      const read = fs.readSync(fd, buffer, 0, nextLength, logReadOffset);
+      fs.closeSync(fd);
+      logReadOffset += read;
+
+      if (read <= 0) {
+        return;
+      }
+
+      const chunk = tailFragment + buffer.toString("utf8", 0, read);
+      const split = chunk.split(/\r?\n|\r/);
+      tailFragment = split.pop() || "";
+      appendLogs("server", split.join("\n"));
+    } catch {
+      // Best effort only.
+    }
+  };
+
+  const cleanupLogFile = () => {
+    try {
+      fs.rmSync(logFilePath, { force: true });
+    } catch {
+      // Best effort only.
+    }
+  };
+
+  try {
+    const logFd = fs.openSync(logFilePath, "a");
+    const child = spawn(start.command, start.args, {
+      detached: true,
+      stdio: ["ignore", logFd, logFd],
+      windowsHide: true,
+      env: process.env,
+    });
+    fs.closeSync(logFd);
+
     child.once("exit", (code, signal) => {
+      flushLogFile();
       exited = true;
       exitCode = code;
       signalCode = signal;
@@ -1036,7 +1146,15 @@ function startServer(start) {
 
     return {
       hasExited() {
+        flushLogFile();
         return exited;
+      },
+      pollOutput() {
+        flushLogFile();
+      },
+      getDownloadProgress() {
+        flushLogFile();
+        return latestDownloadProgress;
       },
       getExitSummary() {
         if (!exited) {
@@ -1048,8 +1166,9 @@ function startServer(start) {
         return `process exited with code ${exitCode ?? "unknown"}`;
       },
       getRecentLogs() {
+        flushLogFile();
         return logChunks
-          .join("")
+          .join("\n")
           .trim()
           .split(/\r?\n/)
           .filter(Boolean)
@@ -1057,20 +1176,27 @@ function startServer(start) {
           .join("\n");
       },
       detach() {
-        child.stdout?.destroy();
-        child.stderr?.destroy();
+        flushLogFile();
         child.unref();
+        cleanupLogFile();
       },
       terminate() {
+        flushLogFile();
         if (!exited) {
           child.kill();
         }
+        cleanupLogFile();
       },
     };
   } catch (error) {
+    cleanupLogFile();
     return {
       hasExited() {
         return true;
+      },
+      pollOutput() {},
+      getDownloadProgress() {
+        return null;
       },
       getExitSummary() {
         return `failed to spawn process: ${error?.message || "unknown error"}`;
@@ -1086,6 +1212,9 @@ function startServer(start) {
 
 function buildServerStartupError({ baseUrl, summary, recentLogs }) {
   let message = `LLM server did not become ready at ${baseUrl} (${summary}).`;
+  if (String(summary || "").toUpperCase().includes("SIGTERM")) {
+    message += "\nHint: the local MLX server process was terminated externally. Re-run setup in a fresh terminal and avoid killing mlx_lm/python processes during download.";
+  }
   if (recentLogs) {
     message += `\nRecent server output:\n${recentLogs}`;
   }
@@ -1154,4 +1283,592 @@ async function run(command, args, options = {}) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function createServerWaitReporter({ maxSeconds }) {
+  const heading = "[lexis-setup] Waiting for local LLM server (first run may take several minutes for model download)...";
+  process.stdout.write(`${heading}\n`);
+  const etaEstimator = createDownloadEtaEstimator();
+
+  const supportsInlineProgress = Boolean(process.stdout.isTTY);
+  if (!supportsInlineProgress) {
+    return {
+      tick({ elapsedSeconds, download }) {
+        const estimatedEta = etaEstimator.update({ elapsedSeconds, download });
+        const sourceEta = Number.isFinite(download?.etaSeconds) ? download.etaSeconds : Number.NaN;
+        const etaSeconds = Number.isFinite(estimatedEta) ? estimatedEta : sourceEta;
+        const etaText = Number.isFinite(etaSeconds) ? `, ETA ${formatDurationCompact(etaSeconds)}` : "";
+
+        if (Number.isFinite(download?.currentBytes) && Number.isFinite(download?.totalBytes) && download.totalBytes > 0) {
+          if (elapsedSeconds % 5 === 0) {
+            const percent = Math.round((download.currentBytes / download.totalBytes) * 100);
+            process.stdout.write(
+              `[lexis-setup] Downloading model... ${formatByteCount(download.currentBytes)} / ${formatByteCount(download.totalBytes)} (${percent}%)${etaText}\n`
+            );
+          }
+          return;
+        }
+
+        if (Number.isFinite(download?.percent) && elapsedSeconds % 5 === 0) {
+          const bytes = Number.isFinite(download?.currentBytes) ? ` (${formatByteCount(download.currentBytes)})` : "";
+          process.stdout.write(`[lexis-setup] Downloading model... ${Math.round(download.percent)}%${bytes}${etaText}\n`);
+          return;
+        }
+
+        if (Number.isFinite(download?.currentBytes) && elapsedSeconds % 5 === 0) {
+          process.stdout.write(`[lexis-setup] Downloading model... ${formatByteCount(download.currentBytes)}${etaText}\n`);
+          return;
+        }
+
+        if (elapsedSeconds % 30 === 0) {
+          process.stdout.write(`[lexis-setup] Still waiting... ${elapsedSeconds}s\n`);
+        }
+      },
+      finish({ elapsedSeconds }) {
+        process.stdout.write(`[lexis-setup] Local LLM server is ready (${elapsedSeconds}s).\n`);
+      },
+      close() {},
+    };
+  }
+
+  let lastLineLength = 0;
+
+  const render = ({ elapsedSeconds, download }) => {
+    const estimatedEta = etaEstimator.update({ elapsedSeconds, download });
+    const sourceEta = Number.isFinite(download?.etaSeconds) ? download.etaSeconds : Number.NaN;
+    const etaSeconds = Number.isFinite(estimatedEta) ? estimatedEta : sourceEta;
+    const etaText = Number.isFinite(etaSeconds) ? ` ETA ${formatDurationCompact(etaSeconds)}` : "";
+    const width = 26;
+    const hasPercentProgress = Number.isFinite(download?.percent);
+    const hasByteProgress =
+      Number.isFinite(download?.currentBytes) && Number.isFinite(download?.totalBytes) && download.totalBytes > 0;
+    const ratio = hasByteProgress
+      ? Math.max(0, Math.min(1, download.currentBytes / download.totalBytes))
+      : hasPercentProgress
+        ? Math.max(0, Math.min(1, download.percent / 100))
+        : Math.max(0, Math.min(1, elapsedSeconds / maxSeconds));
+    const filled = Math.round(width * ratio);
+    const bar = `${"#".repeat(filled)}${"-".repeat(Math.max(0, width - filled))}`;
+    const detail = hasByteProgress
+      ? `${formatByteCount(download.currentBytes)} / ${formatByteCount(download.totalBytes)} (${Math.round(ratio * 100)}%)${etaText}`
+      : hasPercentProgress && Number.isFinite(download?.currentBytes)
+        ? `${formatByteCount(download.currentBytes)} (${Math.round(download.percent)}%)${etaText}`
+        : hasPercentProgress
+          ? `${Math.round(download.percent)}%${etaText}`
+      : Number.isFinite(download?.currentBytes)
+        ? `${formatByteCount(download.currentBytes)} downloaded${etaText}`
+        : `${elapsedSeconds}s`;
+    const line = `[lexis-setup] Download/startup progress [${bar}] ${detail}`;
+    const padding = lastLineLength > line.length ? " ".repeat(lastLineLength - line.length) : "";
+    process.stdout.write(`\r${line}${padding}`);
+    lastLineLength = line.length;
+  };
+
+  render({ elapsedSeconds: 0, download: null });
+
+  return {
+    tick({ elapsedSeconds, download }) {
+      render({ elapsedSeconds, download });
+    },
+    finish({ elapsedSeconds, download }) {
+      render({ elapsedSeconds, download });
+      process.stdout.write("\n");
+      process.stdout.write(`[lexis-setup] Local LLM server is ready (${elapsedSeconds}s).\n`);
+      lastLineLength = 0;
+    },
+    close() {
+      if (lastLineLength > 0) {
+        process.stdout.write("\n");
+        lastLineLength = 0;
+      }
+    },
+  };
+}
+
+function parseDownloadProgressFromLine(line) {
+  if (!line || typeof line !== "string") {
+    return null;
+  }
+
+  const pairMatch = line.match(/(\d+(?:\.\d+)?)\s*([KMGT]?i?B|[KMGT]?B|[KMGT])\s*\/\s*(\d+(?:\.\d+)?)\s*([KMGT]?i?B|[KMGT]?B|[KMGT])/i);
+  if (!pairMatch) {
+    return null;
+  }
+
+  const etaSeconds = parseEtaSecondsFromLine(line);
+  const currentBytes = parseByteCount(pairMatch[1], pairMatch[2]);
+  const totalBytes = parseByteCount(pairMatch[3], pairMatch[4]);
+
+  if (!Number.isFinite(currentBytes) || !Number.isFinite(totalBytes) || totalBytes <= 0) {
+    return null;
+  }
+
+  return {
+    currentBytes,
+    totalBytes,
+    percent: Math.round((currentBytes / totalBytes) * 100),
+    ...(Number.isFinite(etaSeconds) ? { etaSeconds } : {}),
+  };
+}
+
+function parseEtaSecondsFromLine(line) {
+  const tokenMatch = String(line || "").match(/<\s*(\d{1,2}:\d{2}(?::\d{2})?)/);
+  if (!tokenMatch) {
+    return Number.NaN;
+  }
+
+  const token = tokenMatch[1];
+  const parts = token.split(":").map((value) => Number.parseInt(value, 10));
+  if (parts.some((value) => !Number.isFinite(value) || value < 0)) {
+    return Number.NaN;
+  }
+
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+
+  return Number.NaN;
+}
+
+function mergeDownloadProgress(primary, secondary) {
+  const merged = {
+    currentBytes: Number.isFinite(primary?.currentBytes) ? primary.currentBytes : Number.NaN,
+    totalBytes: Number.isFinite(primary?.totalBytes) ? primary.totalBytes : Number.NaN,
+    percent: Number.isFinite(primary?.percent) ? primary.percent : Number.NaN,
+    etaSeconds: Number.isFinite(primary?.etaSeconds) ? primary.etaSeconds : Number.NaN,
+  };
+
+  if (Number.isFinite(secondary?.currentBytes)) {
+    merged.currentBytes = secondary.currentBytes;
+  }
+  if (Number.isFinite(secondary?.totalBytes)) {
+    merged.totalBytes = secondary.totalBytes;
+  }
+  if (Number.isFinite(secondary?.percent)) {
+    merged.percent = secondary.percent;
+  }
+  if (Number.isFinite(secondary?.etaSeconds)) {
+    merged.etaSeconds = secondary.etaSeconds;
+  }
+
+  if (Number.isFinite(merged.currentBytes) && Number.isFinite(merged.totalBytes) && merged.totalBytes > 0) {
+    merged.percent = Math.max(0, Math.min(100, Math.round((merged.currentBytes / merged.totalBytes) * 100)));
+  }
+
+  if (
+    !Number.isFinite(merged.currentBytes) &&
+    !Number.isFinite(merged.totalBytes) &&
+    !Number.isFinite(merged.percent) &&
+    !Number.isFinite(merged.etaSeconds)
+  ) {
+    return null;
+  }
+
+  return merged;
+}
+
+function createModelDownloadTracker({ provider, start }) {
+  const normalizedProvider = normalizeProvider(provider, getCurrentMachineProfile());
+  if (normalizedProvider !== "mlx") {
+    return {
+      async tick() {
+        return null;
+      },
+    };
+  }
+
+  const modelId = extractModelIdFromStartArgs(start?.args || []);
+  if (!isLikelyHuggingFaceRepo(modelId)) {
+    return {
+      async tick() {
+        return null;
+      },
+    };
+  }
+
+  const modelCacheDir = resolveHuggingFaceModelCacheDir(modelId);
+  const totalBytesPromise = fetchHuggingFaceModelTotalBytes(modelId);
+
+  return {
+    async tick() {
+      const currentBytes = sumDirectoryBytesSafe(modelCacheDir);
+      const totalBytes = await totalBytesPromise;
+
+      if (!Number.isFinite(currentBytes) || currentBytes <= 0) {
+        return null;
+      }
+
+      if (!Number.isFinite(totalBytes) || totalBytes <= 0) {
+        return {
+          currentBytes,
+        };
+      }
+
+      const boundedCurrent = Math.min(currentBytes, totalBytes);
+      return {
+        currentBytes: boundedCurrent,
+        totalBytes,
+      };
+    },
+  };
+}
+
+function extractModelIdFromStartArgs(args) {
+  const values = Array.isArray(args) ? args.map((item) => String(item || "")) : [];
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (!MODEL_ARG_FLAGS.has(value)) {
+      continue;
+    }
+    const next = values[index + 1];
+    if (next && next.trim()) {
+      return next.trim();
+    }
+  }
+  return "";
+}
+
+function isLikelyHuggingFaceRepo(model) {
+  const value = String(model || "").trim();
+  return Boolean(value) && value.includes("/") && !value.startsWith("/") && !value.includes(":\\");
+}
+
+function resolveHuggingFaceModelCacheDir(modelId) {
+  const hfHome =
+    typeof process.env.HF_HOME === "string" && process.env.HF_HOME.trim()
+      ? process.env.HF_HOME.trim()
+      : path.join(os.homedir(), ".cache", "huggingface");
+  const repoKey = String(modelId || "").replace(/\//g, "--");
+  return path.join(hfHome, "hub", `models--${repoKey}`);
+}
+
+async function fetchHuggingFaceModelTotalBytes(modelId) {
+  const apiUrl = `https://huggingface.co/api/models/${encodeURIComponent(modelId)}`;
+  const token =
+    typeof process.env.HF_TOKEN === "string" && process.env.HF_TOKEN.trim()
+      ? process.env.HF_TOKEN.trim()
+      : "";
+  const headers = token ? { authorization: `Bearer ${token}` } : undefined;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      signal: AbortSignal.timeout(8000),
+      headers,
+    });
+    if (!response.ok) {
+      return await fetchHuggingFaceModelTotalBytesByResolve(modelId, headers);
+    }
+
+    const payload = await response.json().catch(() => null);
+    const siblings = Array.isArray(payload?.siblings) ? payload.siblings : [];
+    const total = siblings.reduce((sum, sibling) => {
+      const size = sibling?.size;
+      return Number.isFinite(size) && size > 0 ? sum + size : sum;
+    }, 0);
+
+    if (total > 0) {
+      return total;
+    }
+
+    return await fetchHuggingFaceModelTotalBytesByResolve(modelId, headers);
+  } catch {
+    return await fetchHuggingFaceModelTotalBytesByResolve(modelId, headers);
+  }
+}
+
+async function fetchHuggingFaceModelTotalBytesByResolve(modelId, headers) {
+  const modelPath = encodePathForHf(modelId);
+  const base = `https://huggingface.co/${modelPath}/resolve/main`;
+
+  try {
+    const indexResponse = await fetch(`${base}/model.safetensors.index.json`, {
+      method: "GET",
+      signal: AbortSignal.timeout(8000),
+      headers,
+    });
+
+    if (indexResponse.ok) {
+      const indexPayload = await indexResponse.json().catch(() => null);
+      const weightMap = indexPayload?.weight_map && typeof indexPayload.weight_map === "object"
+        ? indexPayload.weight_map
+        : null;
+      const shardNames = weightMap
+        ? [...new Set(Object.values(weightMap).map((value) => String(value || "").trim()).filter(Boolean))]
+        : [];
+      const shardTotal = await sumResolveFileContentLengths({
+        base,
+        fileNames: shardNames,
+        headers,
+      });
+      if (Number.isFinite(shardTotal) && shardTotal > 0) {
+        return shardTotal;
+      }
+    }
+  } catch {
+    // Fall through to single-file fallback.
+  }
+
+  const singleFileTotal = await sumResolveFileContentLengths({
+    base,
+    fileNames: ["model.safetensors"],
+    headers,
+  });
+  return Number.isFinite(singleFileTotal) && singleFileTotal > 0 ? singleFileTotal : Number.NaN;
+}
+
+async function sumResolveFileContentLengths({ base, fileNames, headers }) {
+  let total = 0;
+  for (const fileName of fileNames) {
+    const item = String(fileName || "").trim();
+    if (!item) {
+      continue;
+    }
+
+    try {
+      const response = await fetch(`${base}/${encodePathForHf(item)}`, {
+        method: "HEAD",
+        signal: AbortSignal.timeout(8000),
+        headers,
+      });
+      if (!response.ok) {
+        continue;
+      }
+
+      const contentLength = Number.parseInt(response.headers.get("content-length") || "", 10);
+      if (!Number.isFinite(contentLength) || contentLength <= 0) {
+        continue;
+      }
+
+      total += contentLength;
+    } catch {
+      // Ignore per-file failures.
+    }
+  }
+
+  return total > 0 ? total : Number.NaN;
+}
+
+function encodePathForHf(pathValue) {
+  return String(pathValue || "")
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
+function sumDirectoryBytesSafe(rootDir) {
+  if (!rootDir || !fs.existsSync(rootDir)) {
+    return 0;
+  }
+
+  const stack = [rootDir];
+  let total = 0;
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    let entries = [];
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      const next = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === ".locks") {
+          continue;
+        }
+        stack.push(next);
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      try {
+        total += fs.statSync(next).size;
+      } catch {
+        // Ignore files that disappear mid-read.
+      }
+    }
+  }
+
+  return total;
+}
+
+function parseByteCount(amount, unit) {
+  const value = Number.parseFloat(String(amount || ""));
+  if (!Number.isFinite(value)) {
+    return Number.NaN;
+  }
+
+  const normalized = String(unit || "B").toUpperCase();
+  const base = normalized.includes("IB") ? 1024 : 1000;
+  const key = normalized.replace(/IB|B/g, "");
+  const powers = {
+    "": 0,
+    K: 1,
+    M: 2,
+    G: 3,
+    T: 4,
+  };
+  const power = powers[key] ?? 0;
+  return value * base ** power;
+}
+
+function formatByteCount(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return "0 B";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  const precision = value >= 100 ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
+}
+
+function createDownloadEtaEstimator() {
+  const samples = [];
+  const maxWindowSeconds = 60;
+  let lastEtaSeconds = Number.NaN;
+  let lastEtaAtSeconds = Number.NaN;
+  let smoothedBytesPerSecond = Number.NaN;
+  let lastProgressBytes = 0;
+  let lastProgressAtSeconds = 0;
+
+  return {
+    update({ elapsedSeconds, download }) {
+      const currentBytes = Number.isFinite(download?.currentBytes) ? download.currentBytes : Number.NaN;
+      const totalBytes = Number.isFinite(download?.totalBytes) ? download.totalBytes : Number.NaN;
+      const fallbackEta = () => {
+        if (
+          Number.isFinite(lastEtaSeconds) &&
+          Number.isFinite(lastEtaAtSeconds) &&
+          elapsedSeconds - lastEtaAtSeconds <= 90
+        ) {
+          return lastEtaSeconds;
+        }
+        return Number.NaN;
+      };
+
+      if (!Number.isFinite(currentBytes) || currentBytes <= 0) {
+        return fallbackEta();
+      }
+
+      if (!Number.isFinite(totalBytes) || totalBytes <= 0 || currentBytes >= totalBytes) {
+        return Number.NaN;
+      }
+
+      if (currentBytes >= lastProgressBytes + 1024 * 1024) {
+        lastProgressBytes = currentBytes;
+        lastProgressAtSeconds = elapsedSeconds;
+      }
+
+      if (lastProgressAtSeconds > 0 && elapsedSeconds - lastProgressAtSeconds > 10) {
+        return fallbackEta();
+      }
+
+      const remainingBytes = totalBytes - currentBytes;
+      const remainingRatio = remainingBytes / totalBytes;
+      if (remainingBytes <= 20 * 1024 * 1024 || remainingRatio <= 0.02) {
+        return Number.NaN;
+      }
+
+      if (samples.length > 0 && currentBytes < samples[samples.length - 1].bytes) {
+        samples.length = 0;
+        lastEtaSeconds = Number.NaN;
+        lastEtaAtSeconds = Number.NaN;
+        smoothedBytesPerSecond = Number.NaN;
+        lastProgressBytes = currentBytes;
+        lastProgressAtSeconds = elapsedSeconds;
+      }
+
+      samples.push({ seconds: elapsedSeconds, bytes: currentBytes });
+
+      while (samples.length > 0 && elapsedSeconds - samples[0].seconds > maxWindowSeconds) {
+        samples.shift();
+      }
+
+      const first = samples[0];
+      const last = samples[samples.length - 1];
+      const windowSeconds = Math.max(1, last.seconds - first.seconds);
+      const windowBytes = last.bytes - first.bytes;
+      const windowRate =
+        windowSeconds >= 4 && windowBytes >= 1024 * 1024 ? windowBytes / windowSeconds : Number.NaN;
+
+      const overallRate = elapsedSeconds >= 6 ? currentBytes / Math.max(1, elapsedSeconds) : Number.NaN;
+
+      let effectiveRate = Number.NaN;
+      if (Number.isFinite(windowRate) && Number.isFinite(overallRate)) {
+        effectiveRate = windowRate * 0.7 + overallRate * 0.3;
+      } else if (Number.isFinite(windowRate)) {
+        effectiveRate = windowRate;
+      } else if (Number.isFinite(overallRate)) {
+        effectiveRate = overallRate;
+      }
+
+      if (!Number.isFinite(effectiveRate) || effectiveRate <= 0) {
+        return fallbackEta();
+      }
+
+      if (!Number.isFinite(smoothedBytesPerSecond)) {
+        smoothedBytesPerSecond = effectiveRate;
+      } else {
+        const alpha = 0.3;
+        smoothedBytesPerSecond = alpha * effectiveRate + (1 - alpha) * smoothedBytesPerSecond;
+      }
+
+      if (!Number.isFinite(smoothedBytesPerSecond) || smoothedBytesPerSecond <= 0) {
+        return fallbackEta();
+      }
+
+      let etaSeconds = remainingBytes / smoothedBytesPerSecond;
+      if (!Number.isFinite(etaSeconds) || etaSeconds <= 0 || etaSeconds > 24 * 60 * 60) {
+        return fallbackEta();
+      }
+
+      if (elapsedSeconds < 8 || currentBytes < 128 * 1024 * 1024) {
+        return fallbackEta();
+      }
+
+      if (Number.isFinite(lastEtaSeconds)) {
+        const maxUpwardDrift = Math.max(lastEtaSeconds * 1.15, lastEtaSeconds + 10);
+        etaSeconds = Math.min(etaSeconds, maxUpwardDrift);
+      }
+
+      lastEtaSeconds = etaSeconds;
+      lastEtaAtSeconds = elapsedSeconds;
+      return etaSeconds;
+    },
+  };
+}
+
+function formatDurationCompact(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "0s";
+  }
+
+  const rounded = Math.max(1, Math.round(seconds));
+  const hours = Math.floor(rounded / 3600);
+  const minutes = Math.floor((rounded % 3600) / 60);
+  const secs = rounded % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${secs}s`;
+  }
+  return `${secs}s`;
 }

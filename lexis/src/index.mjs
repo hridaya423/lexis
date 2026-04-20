@@ -1063,6 +1063,9 @@ async function handleDoctor() {
   process.stdout.write(`- runtime endpoint: ${llm.baseUrl}\n`);
   process.stdout.write(`- runtime model: ${llm.model || config.model}\n`);
   process.stdout.write(`- runtime start command: ${llm.start.command || "(not set)"}\n`);
+  if (!llm.start.command) {
+    process.stdout.write("- warning: runtime start command missing; auto-start will fail. Run 'lexis setup'.\n");
+  }
   process.stdout.write(`- web search: ${config.webSearch.enabled ? "enabled" : "disabled"} (${config.webSearch.provider})\n`);
   process.stdout.write(`- web mode: ${config.webSearch.mode || "auto"}\n`);
   process.stdout.write(`- web auto threshold: ${config.webSearch.autoRetryBelowConfidence ?? 0.82}\n`);
@@ -1374,6 +1377,12 @@ async function ensureLlmServerReadyForRun(llm) {
     return true;
   }
 
+  if (!llm?.start?.command) {
+    throw new Error(
+      `Cannot connect to LLM server at ${llm.baseUrl} for provider ${llm.provider} (runtime start command missing). Run 'lexis setup'.`
+    );
+  }
+
   const server = startLlmServerInBackground(llm);
   const maxWaitMs = Math.min(180_000, estimateModelTimeoutMs(llm?.model) + 30_000);
   const startedAt = Date.now();
@@ -1418,6 +1427,7 @@ async function ensureLlmServerReadyForRun(llm) {
 
 async function isLlmServerReady(provider, baseUrl) {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  const normalizedProvider = normalizeProvider(provider, getCurrentMachineProfile());
 
   for (const endpoint of getProviderReadinessEndpoints(provider)) {
     try {
@@ -1428,7 +1438,7 @@ async function isLlmServerReady(provider, baseUrl) {
       if (!response.ok) {
         return false;
       }
-      if (endpoint === "/v1/models") {
+      if (endpoint === "/v1/models" && normalizedProvider !== "mlx") {
         const payload = await response.json().catch(() => null);
         if (payload && Array.isArray(payload.data) && payload.data.length === 0) {
           return false;
@@ -1457,7 +1467,7 @@ function startLlmServerInBackground(llm) {
   try {
     const child = spawn(command, args, {
       detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["ignore", "ignore", "ignore"],
       windowsHide: true,
       env: process.env,
     });
@@ -1505,8 +1515,6 @@ function startLlmServerInBackground(llm) {
           .join("\n");
       },
       detach() {
-        child.stdout?.destroy();
-        child.stderr?.destroy();
         child.unref();
       },
       terminate() {
@@ -1633,26 +1641,23 @@ function estimateModelTimeoutMs(model) {
 
 function resolveLlmConfig(rawLlmConfig) {
   const llm = rawLlmConfig && typeof rawLlmConfig === "object" ? rawLlmConfig : {};
-  const provider = normalizeProvider(llm.provider);
-  const defaultModel = defaultModelForProvider(provider);
-  const defaultBaseUrl = defaultBaseUrlForProvider(provider);
+  const machine = getCurrentMachineProfile();
+  const provider = normalizeProvider(llm.provider, machine);
+  const defaultModel = defaultModelForProvider(provider, machine);
+  const defaultBaseUrl = defaultBaseUrlForProvider(provider, machine);
+  const model = typeof llm.model === "string" && llm.model.trim() ? llm.model.trim() : defaultModel;
+  const baseUrl =
+    typeof llm.baseUrl === "string" && llm.baseUrl.trim()
+      ? llm.baseUrl.trim().replace(/\/+$/, "")
+      : defaultBaseUrl;
+  const start = rewriteStartArgsForModel(llm.start, provider, model, baseUrl, machine);
 
   return {
     provider,
-    baseUrl:
-      typeof llm.baseUrl === "string" && llm.baseUrl.trim()
-        ? llm.baseUrl.trim().replace(/\/+$/, "")
-        : defaultBaseUrl,
+    baseUrl,
     apiKey: typeof llm.apiKey === "string" ? llm.apiKey : "",
-    model:
-      typeof llm.model === "string" && llm.model.trim()
-        ? llm.model.trim()
-        : defaultModel,
-    start: {
-      command:
-        typeof llm.start?.command === "string" && llm.start.command.trim() ? llm.start.command.trim() : "",
-      args: Array.isArray(llm.start?.args) ? llm.start.args.map((item) => String(item)) : [],
-    },
+    model,
+    start,
   };
 }
 

@@ -14,6 +14,46 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+npm_global_prefix() {
+  local prefix
+  prefix="$(npm config get prefix 2>/dev/null || true)"
+  prefix="${prefix//$'\r'/}"
+
+  case "$prefix" in
+    ""|null|undefined)
+      return 1
+      ;;
+  esac
+
+  printf "%s" "$prefix"
+}
+
+refresh_path_for_npm_global_bin() {
+  local prefix
+  prefix="$(npm_global_prefix || true)"
+  if [ -n "$prefix" ] && [ -d "$prefix/bin" ]; then
+    export PATH="$prefix/bin:$PATH"
+  fi
+
+  hash -r 2>/dev/null || true
+}
+
+resolve_lexis_command() {
+  if has_cmd lexis; then
+    printf "lexis"
+    return 0
+  fi
+
+  local prefix
+  prefix="$(npm_global_prefix || true)"
+  if [ -n "$prefix" ] && [ -x "$prefix/bin/lexis" ]; then
+    printf "%s" "$prefix/bin/lexis"
+    return 0
+  fi
+
+  return 1
+}
+
 require_cmd() {
   if ! has_cmd "$1"; then
     fail "missing required command: $1"
@@ -253,8 +293,15 @@ main() {
   log "Installing Lexis from: $install_source"
   install_global_with_fallbacks "$install_source"
 
-  if ! has_cmd lexis; then
-    fail "'lexis' command not found after install"
+  refresh_path_for_npm_global_bin
+
+  local lexis_cmd
+  lexis_cmd="$(resolve_lexis_command || true)"
+
+  if [ -z "$lexis_cmd" ]; then
+    local prefix
+    prefix="$(npm_global_prefix || true)"
+    fail "'lexis' command not found after install (npm prefix: ${prefix:-unknown}). Add your npm global bin to PATH and retry."
   fi
 
   local profile
@@ -264,7 +311,7 @@ main() {
   hook_mode="$(choose_hook_mode)"
 
   log "Running setup (profile=$profile, hook-mode=$hook_mode)"
-  lexis setup --profile "$profile" --hook-mode "$hook_mode" --enable-web-search --web-provider mcp
+  "$lexis_cmd" setup --profile "$profile" --hook-mode "$hook_mode" --enable-web-search --web-provider mcp
 
   log "Done. Open a new terminal and run: lx doctor"
 }

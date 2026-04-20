@@ -1,4 +1,6 @@
 import os from "node:os";
+import fs from "node:fs";
+import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
 
@@ -363,8 +365,10 @@ export function rewriteStartArgsForModel(start, provider, model, baseUrl, machin
   }
 
   const prefix = extractPythonPrefix(current.args);
+  const normalized = normalizeProvider(provider, machine);
+  const fallbackCommand = normalized === "ollama" ? "ollama" : inferPythonCommandForRuntime(machine);
   const python = {
-    command: current.command,
+    command: current.command || fallbackCommand,
     prefix,
   };
 
@@ -377,12 +381,43 @@ export function rewriteStartArgsForModel(start, provider, model, baseUrl, machin
   });
 }
 
+function inferPythonCommandForRuntime(machine = getCurrentMachineProfile()) {
+  const runtimePython = runtimeVenvPythonPath(machine);
+  if (runtimePython) {
+    return runtimePython;
+  }
+
+  return machine.platform === "win32" ? "python" : "python3";
+}
+
+function runtimeVenvPythonPath(machine = getCurrentMachineProfile()) {
+  if (machine.platform === "win32") {
+    const localAppData =
+      typeof process.env.LOCALAPPDATA === "string" && process.env.LOCALAPPDATA.trim()
+        ? process.env.LOCALAPPDATA.trim()
+        : path.join(os.homedir(), "AppData", "Local");
+    const windowsPython = path.join(localAppData, "Lexis", "runtime-venv", "Scripts", "python.exe");
+    return fs.existsSync(windowsPython) ? windowsPython : "";
+  }
+
+  const xdgDataHome =
+    typeof process.env.XDG_DATA_HOME === "string" && process.env.XDG_DATA_HOME.trim()
+      ? process.env.XDG_DATA_HOME.trim()
+      : path.join(os.homedir(), ".local", "share");
+
+  const unixPython = path.join(xdgDataHome, "lexis", "runtime-venv", "bin", "python3");
+  return fs.existsSync(unixPython) ? unixPython : "";
+}
+
 export function getProviderReadinessEndpoints(provider, machine = getCurrentMachineProfile()) {
   const normalized = normalizeProvider(provider, machine);
   if (normalized === "ollama") {
     return ["/api/tags"];
   }
-  if (normalized === "mlx" || normalized === "vllm") {
+  if (normalized === "mlx") {
+    return ["/health"];
+  }
+  if (normalized === "vllm") {
     return ["/health", "/v1/models"];
   }
   return ["/v1/models"];

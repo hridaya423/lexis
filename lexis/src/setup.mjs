@@ -82,10 +82,6 @@ export async function runSetup({
 
   runtime.server?.detach?.();
 
-  if (!warmup.ok) {
-    throw new Error(warmup.message || `Runtime warmup failed for ${chosenDefaultModel}`);
-  }
-
   if (enableWebSearch) {
     config.webSearch.enabled = true;
   }
@@ -866,6 +862,8 @@ async function ensureServerReady({ provider, baseUrl, start }) {
 
 async function warmupModel({ provider, baseUrl, model, server }) {
   const timeoutSeconds = estimateWarmupTimeoutSeconds({ provider, model });
+  const retryTimeoutSeconds = Math.min(timeoutSeconds * 2, 900);
+  const attemptTimeouts = [timeoutSeconds, retryTimeoutSeconds];
   const request = buildWarmupRequest(provider, model);
   const endpoint = `${normalizeBaseUrl(baseUrl)}${request.path}`;
 
@@ -873,58 +871,87 @@ async function warmupModel({ provider, baseUrl, model, server }) {
     `[lexis-setup] Warming ${provider} model ${model} (this can take a while on first download)...\n`
   );
 
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      signal: AbortSignal.timeout(timeoutSeconds * 1000),
-      body: JSON.stringify(request.body),
-    });
+  for (let attempt = 0; attempt < attemptTimeouts.length; attempt += 1) {
+    const attemptTimeoutSeconds = attemptTimeouts[attempt];
 
-    if (!response.ok) {
-      const body = await response.text();
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        signal: AbortSignal.timeout(attemptTimeoutSeconds * 1000),
+        body: JSON.stringify(request.body),
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        const shouldRetry = response.status === 408 || response.status === 429 || response.status >= 500;
+        if (shouldRetry && attempt < attemptTimeouts.length - 1) {
+          process.stdout.write(
+            `[lexis-setup] Warmup request returned ${response.status}. Retrying with a longer timeout...\n`
+          );
+          continue;
+        }
+
+        return {
+          ok: false,
+          message: `Warmup request failed (${response.status}): ${body.slice(0, 160)}`,
+        };
+      }
+
+      const payload = await response.json().catch(() => null);
+      const content =
+        String(provider || "").toLowerCase() === "ollama"
+          ? payload?.message?.content
+          : payload?.choices?.[0]?.message?.content;
+      const text = typeof content === "string" ? content.trim() : "";
+      if (!text) {
+        return {
+          ok: false,
+          message: "Warmup completed without any assistant content.",
+        };
+      }
+
+      return {
+        ok: true,
+        message: "Model warmup completed.",
+      };
+    } catch (error) {
+      const timedOut = isWarmupTimeoutError(error);
+      if (timedOut && attempt < attemptTimeouts.length - 1) {
+        process.stdout.write(
+          `[lexis-setup] Warmup timed out after ${attemptTimeoutSeconds}s. Retrying once with a longer timeout...\n`
+        );
+        continue;
+      }
+
+      const details = [];
+
+      if (server?.hasExited?.()) {
+        details.push(server.getExitSummary());
+      }
+
+      const recentLogs = server?.getRecentLogs?.();
+      if (recentLogs) {
+        details.push(`Recent server output:\n${recentLogs}`);
+      }
+
+      if (timedOut) {
+        details.push("Hint: initial model warmup can exceed expected time on slower networks/disks. Lexis setup can still be used; first run may be slower.");
+      }
+
       return {
         ok: false,
-        message: `Warmup request failed (${response.status}): ${body.slice(0, 160)}`,
+        message: `Warmup did not complete: ${error.message}${details.length ? `\n${details.join("\n")}` : ""}`,
       };
     }
-
-    const payload = await response.json().catch(() => null);
-    const content =
-      String(provider || "").toLowerCase() === "ollama"
-        ? payload?.message?.content
-        : payload?.choices?.[0]?.message?.content;
-    const text = typeof content === "string" ? content.trim() : "";
-    if (!text) {
-      return {
-        ok: false,
-        message: "Warmup completed without any assistant content.",
-      };
-    }
-
-    return {
-      ok: true,
-      message: "Model warmup completed.",
-    };
-  } catch (error) {
-    const details = [];
-
-    if (server?.hasExited?.()) {
-      details.push(server.getExitSummary());
-    }
-
-    const recentLogs = server?.getRecentLogs?.();
-    if (recentLogs) {
-      details.push(`Recent server output:\n${recentLogs}`);
-    }
-
-    return {
-      ok: false,
-      message: `Warmup did not complete: ${error.message}${details.length ? `\n${details.join("\n")}` : ""}`,
-    };
   }
+
+  return {
+    ok: false,
+    message: "Warmup did not complete due to an unknown retry exhaustion state.",
+  };
 }
 
 function estimateWarmupTimeoutSeconds({ provider, model }) {
@@ -942,12 +969,12 @@ function estimateWarmupTimeoutSeconds({ provider, model }) {
 
   if (runtime === "mlx") {
     return bucket === "small"
-      ? 45
+      ? 120
       : bucket === "medium"
-        ? 90
+        ? 180
         : bucket === "large"
-          ? 180
-          : 240;
+          ? 300
+          : 420;
   }
 
   if (runtime === "vllm") {
@@ -977,6 +1004,22 @@ function estimateWarmupTimeoutSeconds({ provider, model }) {
       : bucket === "large"
         ? 300
         : 420;
+}
+
+function isWarmupTimeoutError(error) {
+  if (!error) {
+    return false;
+  }
+
+  const name = String(error.name || "").toLowerCase();
+  const message = String(error.message || "").toLowerCase();
+  return (
+    name === "timeouterror" ||
+    name === "aborterror" ||
+    message.includes("aborted due to timeout") ||
+    message.includes("signal timed out") ||
+    message.includes("timeout")
+  );
 }
 
 function parseModelSizeInBillions(model) {

@@ -1,0 +1,735 @@
+.sec {
+  max-width: 1586px;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.h2 {
+  margin: 0;
+  font-weight: 400;
+}
+
+.hMask {
+  display: block;
+  background: var(--p-ink);
+  -webkit-mask: left center / contain no-repeat;
+  mask: left center / contain no-repeat;
+}
+
+.hExamples {
+  aspect-ratio: 992 / 108;
+  width: min(992px, 100%);
+  mask-image: url("/lexis-prompt/heading-examples.svg");
+  -webkit-mask-image: url("/lexis-prompt/heading-examples.svg");
+}
+
+.hReview {
+  aspect-ratio: 954 / 315;
+  width: min(954px, 100%);
+  mask-image: url("/lexis-prompt/heading-review.svg");
+  -webkit-mask-image: url("/lexis-prompt/heading-review.svg");
+}
+
+.hInstallMask {
+  aspect-ratio: 574 / 362;
+  width: min(340px, 86%);
+  margin-inline: auto;
+  mask-image: url("/lexis-prompt/heading-install.svg");
+  -webkit-mask-image: url("/lexis-prompt/heading-install.svg");
+}
+
+.kicker {
+  margin: 0;
+  font-size: max(15px, calc(19 * var(--u)));
+  line-height: 1.4;
+  color: var(--p-ink2);
+}
+
+.underlined {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.28em;
+}
+
+.textButton {
+  font: inherit;
+  color: var(--p-ink);
+  background: none;
+  border: 0;
+  padding: 12px 0;
+  margin: -12px 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.28em;
+}
+
+.examples {
+  padding-block: max(64px, calc(120 * var(--u)));
+}
+
+.exTabsScroll {
+  margin-top: max(48px, calc(90 * var(--u)));
+  padding-bottom: max(8px, calc(10 * var(--u)));
+}
+
+.exTabs {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--p-rule);
+}
+
+.exTab {
+  position: relative;
+  min-height: 44px;
+  padding: 0 0 22px;
+  background: none;
+  border: 0;
+  color: var(--p-ink);
+  font: inherit;
+  font-size: max(16px, calc(27 * var(--u)));
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.exMarker {
+  position: absolute;
+  left: calc(50% - 0.35em);
+  bottom: calc(-0.35em - 0.5px);
+  width: 0.7em;
+  height: 0.7em;
+  background: var(--p-coral);
+  pointer-events: none;
+}
+
+.exBody {
+  display: grid;
+  grid-template-columns: minmax(0, 62fr) minmax(0, 32fr);
+  gap: 6%;
+  align-items: start;
+  margin-top: max(48px, calc(92 * var(--u)));
+}
+
+.exLeft {
+  min-width: 0;
+  animation: contentIn 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes contentIn {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
+
+.exReq {
+  display: block;
+  margin: 0;
+  font-size: max(22px, calc(40 * var(--u)));
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.exCmd {
+  display: block;
+  margin: max(20px, calc(32 * var(--u))) 0 0;
+  font-size: max(17px, calc(30 * var(--u)));
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.tree {
+  font-size: max(16px, calc(26 * var(--u)));
+  line-height: 1.4;
+  padding-top: 8px;
+}
+
+.treeRoot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+}
+
+.treeIcon {
+  width: 1.5em;
+  height: 1.2em;
+  flex: none;
+  background: currentColor;
+  -webkit-mask: url("/lexis-prompt/icon-folder.svg") center / contain no-repeat;
+  mask: url("/lexis-prompt/icon-folder.svg") center / contain no-repeat;
+}
+
+.fileIcon {
+  width: 0.85em;
+  height: 1em;
+  flex: none;
+  background: currentColor;
+  -webkit-mask: url("/lexis-prompt/icon-file.svg") center / contain no-repeat;
+  mask: url("/lexis-prompt/icon-file.svg") center / contain no-repeat;
+}
+
+.treeList {
+  list-style: none;
+  margin: 14px 0 0 0.55em;
+  padding: 0 0 0 1.15em;
+  border-left: 1px solid var(--p-rule);
+}
+
+.treeItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.treeItem::before {
+  content: "";
+  position: absolute;
+  left: -1.15em;
+  top: 50%;
+  width: 0.9em;
+  height: 1px;
+  background: var(--p-rule);
+}
+
+.treeName {
+  padding: 2px 10px;
+}
+
+.treeSel .treeName {
+  background: var(--p-ink);
+  color: var(--p-paper);
+}
+
+.treeMarker {
+  position: absolute;
+  left: -0.55em;
+  width: 0.4em;
+  height: 0.4em;
+  background: var(--p-coral);
+}
+
+.treeMeta {
+  margin: 14px 0 0;
+  padding-left: 1.6em;
+  font-size: 0.8em;
+  color: var(--p-ink2);
+}
+
+.treeRoot,
+.treeItem,
+.treeMeta {
+  animation: treeRowIn 60ms steps(1, end) backwards;
+}
+
+.treeItem:nth-child(1) { animation-delay: 40ms; }
+.treeItem:nth-child(2) { animation-delay: 80ms; }
+.treeItem:nth-child(3) { animation-delay: 120ms; }
+.treeItem:nth-child(4),
+.treeMeta { animation-delay: 160ms; }
+
+@keyframes treeRowIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.review {
+  padding-block: max(64px, calc(120 * var(--u)));
+}
+
+.review .kicker {
+  margin-bottom: max(36px, calc(56 * var(--u)));
+}
+
+.revCmd {
+  margin: max(64px, calc(120 * var(--u))) 0 0;
+  font-size: clamp(22px, 3.1vw, 48px);
+  line-height: 1.35;
+}
+
+.revCmdText {
+  overflow-wrap: break-word;
+}
+
+.revCursor,
+.footCursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.14em;
+  margin-left: 0.16em;
+  background: var(--p-coral);
+  vertical-align: baseline;
+  flex: none;
+}
+
+.revCursor {
+  animation: lcdCursorBlink 1.1s steps(1, end) infinite;
+}
+
+@keyframes lcdCursorBlink {
+  50% { opacity: 0; }
+}
+
+.revRule {
+  border-top: 1px solid var(--p-rule);
+  margin-top: max(24px, calc(34 * var(--u)));
+}
+
+.revActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px 48px;
+  padding-block: max(24px, calc(30 * var(--u)));
+  font-size: max(16px, calc(27 * var(--u)));
+}
+
+.revDecision {
+  margin: 0;
+  padding-block: 12px;
+}
+
+
+
+.revOutput {
+  margin-top: max(32px, calc(56 * var(--u)));
+  animation: reviewOutputIn 240ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes reviewOutputIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.revOutLabel {
+  margin: 0 0 16px;
+  font-size: max(14px, calc(18 * var(--u)));
+  color: var(--p-ink2);
+}
+
+.revOut {
+  margin: 0;
+  font: inherit;
+  font-size: max(16px, calc(26 * var(--u)));
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.install {
+  padding-block: max(64px, calc(120 * var(--u)));
+}
+
+.instGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  column-gap: calc(95 * var(--u));
+}
+
+.instLeft {
+  min-width: 0;
+}
+
+.osTabs {
+  display: flex;
+  gap: max(24px, calc(48 * var(--u)));
+  font-size: max(15px, calc(22 * var(--u)));
+}
+
+.osTab {
+  font: inherit;
+  color: var(--p-ink);
+  background: none;
+  border: 0;
+  padding: 12px 0;
+  margin: -12px 0;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.osTab[aria-selected="true"] {
+  text-decoration: underline;
+  text-underline-offset: 0.28em;
+  text-decoration-thickness: 2px;
+}
+
+.osTab:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.28em;
+}
+
+.instRight {
+  min-width: 0;
+  padding-top: calc(32 * var(--u));
+}
+
+.instCmd {
+  margin: max(28px, calc(48 * var(--u))) 0 0;
+  font-size: clamp(16px, 1.8vw, 28px);
+  line-height: 1.5;
+}
+
+.instCmdText {
+  overflow-wrap: break-word;
+  user-select: all;
+  animation: contentIn 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.instRule {
+  border-top: 1px solid var(--p-rule);
+  margin-top: max(24px, calc(32 * var(--u)));
+}
+
+.instCopyRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding-block: max(20px, calc(26 * var(--u)));
+  font-size: max(15px, calc(22 * var(--u)));
+}
+
+.copyFail {
+  margin: 0;
+  font-size: 0.82em;
+  color: var(--p-ink2);
+}
+
+.copyButton {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px;
+  margin: -10px 0;
+  background: none;
+  border: 0;
+  color: var(--p-ink2);
+  cursor: pointer;
+}
+
+.copyButton:hover {
+  color: var(--p-ink);
+}
+
+.copyIcon {
+  width: 1.1em;
+  height: 1.1em;
+  display: block;
+}
+
+.copySuccess {
+  animation: copySuccessIn 160ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes copySuccessIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.instMore {
+  margin-top: max(28px, calc(64 * var(--u)));
+  font-size: max(15px, calc(24 * var(--u)));
+}
+
+.instMore summary {
+  display: inline-block;
+  padding: 12px 0;
+  margin: -12px 0;
+  list-style: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.28em;
+}
+
+.instMore summary::-webkit-details-marker {
+  display: none;
+}
+
+.instMore summary::after {
+  content: "\00a0+";
+}
+
+.instMore[open] summary::after {
+  content: "−";
+}
+
+.instDetails {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+  max-width: 720px;
+  font-size: max(14px, calc(18 * var(--u)));
+  line-height: 1.7;
+  color: var(--p-ink2);
+}
+
+.instDetails p {
+  margin: 0;
+}
+
+.instDetails h3 {
+  margin: 8px 0 0;
+  font-size: inherit;
+  color: var(--p-ink);
+}
+
+.instDetails code {
+  overflow-wrap: anywhere;
+}
+
+.instDetails a {
+  color: inherit;
+  text-underline-offset: 0.24em;
+}
+
+.foot {
+  padding-top: max(64px, calc(120 * var(--u)));
+}
+
+.footTop {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 32px;
+  align-items: start;
+  font-size: max(15px, calc(25 * var(--u)));
+}
+
+.footPrompt {
+  margin: 0;
+  line-height: 1.3;
+}
+
+.footInstall {
+  display: inline-block;
+  margin-top: 24px;
+  padding: 12px 0;
+}
+
+.footNav {
+  display: grid;
+  gap: 14px;
+  justify-items: end;
+  font-size: 0.92em;
+}
+
+.footNav a {
+  padding: 6px 0;
+  margin: -6px 0;
+}
+
+.footBand {
+  margin-top: max(24px, calc(40 * var(--u)));
+  width: 100%;
+  aspect-ratio: 1344 / 500;
+  max-height: 78vh;
+}
+
+.legalFoot {
+  border-top: 1px solid var(--p-rule);
+  margin-top: 48px;
+  padding-block: 24px 32px;
+  font-size: 15px;
+}
+
+.legalNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  align-items: center;
+}
+
+.legalNav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -12px 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.legalNav a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.24em;
+}
+
+.sec :is(a, button, summary):focus-visible {
+  outline: 2px solid var(--p-ink);
+  outline-offset: 4px;
+}
+
+@media (max-width: 899px) {
+  .examples,
+  .review,
+  .install {
+    padding-block: 80px;
+  }
+
+  .exBody {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .tree {
+    max-width: 420px;
+  }
+
+  .instGrid {
+    grid-template-columns: 1fr;
+    row-gap: 56px;
+  }
+
+  .instRight {
+    padding-top: 0;
+  }
+}
+
+@media (max-width: 599px) {
+  .exTabsScroll {
+    margin-top: 36px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .exTabs {
+    gap: 28px;
+    justify-content: flex-start;
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .exTab {
+    flex: none;
+    font-size: 14px;
+    padding-bottom: 16px;
+  }
+
+  .exBody {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    margin-top: 36px;
+  }
+
+  .exReq {
+    font-size: 22px;
+  }
+
+  .exCmd {
+    margin-top: 16px;
+    font-size: 17px;
+  }
+
+  .tree {
+    font-size: 17px;
+  }
+
+  .review .kicker {
+    margin-bottom: 32px;
+  }
+
+  .revCmd {
+    margin-top: 56px;
+    font-size: clamp(22px, 6.6vw, 26px);
+  }
+
+  .revActions {
+    padding-block: 24px;
+    font-size: 16px;
+  }
+
+  .osTabs {
+    font-size: 15px;
+    gap: 24px;
+  }
+
+  .instCmd {
+    font-size: clamp(16px, 5vw, 22px);
+  }
+
+  .instCopyRow,
+  .instMore {
+    font-size: 15px;
+  }
+
+  .footTop {
+    font-size: 15px;
+  }
+
+}
+
+@media (max-width: 340px) {
+  .footTop {
+    grid-template-columns: 1fr;
+  }
+
+  .footNav {
+    justify-items: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sec * {
+    transition: none;
+    scroll-behavior: auto;
+  }
+
+  .revCursor { animation: none; }
+  .revOutput { animation: none; }
+  .exLeft, .treeRoot, .treeItem, .treeMeta,
+  .instCmdText, .copySuccess { animation: none; }
+}
+
+.requestWord {
+  padding: 0;
+  border: 0;
+  border-bottom: 2px dotted var(--p-coral);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.exBody[data-exploring="true"] .requestWord { color: var(--p-ink2); }
+.treeItem { transition: opacity 200ms ease, transform 250ms cubic-bezier(0.23, 1, 0.32, 1); }
+.treeName { transition: color 160ms ease, background-color 160ms ease; }
+.exBody[data-exploring="true"] .treeItem:not(.treeSel) { opacity: 0.22; }
+.exBody[data-exploring="true"] .treeSel { transform: translateX(8px); }
+.exBody[data-exploring="true"] .treeSel .treeName { background: var(--p-coral); color: var(--p-ink); }
+.exBody[data-fixture="size"][data-exploring="true"] .treeItem { opacity: 1; transform: none; }
+.exBody[data-fixture="size"] .treeList { position: relative; padding-block: 8px; }
+.exBody[data-fixture="size"] .treeList::after {
+  content: "";
+  position: absolute;
+  inset: -6px -12px;
+  border: 2px solid var(--p-coral);
+  pointer-events: none;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 250ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.exBody[data-fixture="size"][data-exploring="true"] .treeList::after { clip-path: inset(0); }
+.exBody[data-fixture="size"][data-exploring="true"] .treeMeta { color: var(--p-ink); }
+.sourcePreview { min-width: 0; align-self: start; font-size: 13px; }
+.sourceHeader { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 16px; }
+.sourceHeader > span:last-child { margin-left: auto; font-size: 12px; color: var(--p-ink2); }
+.sourceCode { margin: 0; overflow-x: auto; font: inherit; line-height: 1.65; }
+.sourceLine { display: flex; min-height: 1.65em; }
+.sourceLine code { font: inherit; }
+.lineNumber { flex: 0 0 3ch; margin-right: 12px; border-right: 1px solid var(--p-rule); color: var(--p-ink2); opacity: 0; transition: opacity 160ms ease; user-select: none; }
+.sourceCount { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 0; color: var(--p-ink2); visibility: hidden; }
+.sourceCount strong { color: var(--p-ink); font-weight: 400; }
+.exBody[data-exploring="true"] .lineNumber { opacity: 1; }
+.exBody[data-exploring="true"] .sourceCount { visibility: visible; }
+
+@media (prefers-reduced-motion: reduce) {
+  .treeItem, .treeName, .requestWord, .lineNumber,
+  .exBody[data-fixture="size"] .treeList::after { transition: none; }
+  .exBody[data-exploring="true"] .treeSel { transform: none; }
+}

@@ -1,0 +1,19 @@
+.host {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1344 / 620;
+  max-height: 72vh;
+  overflow: hidden;
+  background: var(--p-paper, #c3dfa0);
+}
+
+.fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--lcd-font, monospace);
+  font-size: clamp(72px, 20vw, 300px);
+  line-height: 1;
+  color: var(--p-ink, #182510);
+}

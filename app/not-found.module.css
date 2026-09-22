@@ -1,0 +1,15 @@
+.cmd {
+  margin-top: max(56px, calc(95 * var(--u)));
+}
+
+.err {
+  margin-top: 10px;
+}
+
+.band {
+  margin-top: max(36px, calc(72 * var(--u)));
+}
+
+.back {
+  margin-top: max(28px, calc(48 * var(--u)));
+}

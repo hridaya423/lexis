@@ -1,0 +1,242 @@
+.page {
+  --p-paper: #c3dfa0;
+  --p-ink: #182510;
+  --p-ink2: #41582d;
+  --p-coral: #ff735b;
+  --p-rule: rgb(24 37 16 / 0.24);
+
+  --muted: var(--p-ink2);
+  --quiet: var(--p-ink2);
+  --line: var(--p-rule);
+  --line-strong: rgb(24 37 16 / 0.5);
+
+  --u: calc(min(100vw, 1586px) / 1586);
+  --gutter: calc(75 * var(--u));
+  --lcd-font: var(--font-departure), "Departure Mono", var(--font-ibm-plex-mono), monospace;
+
+  flex: 1;
+  color: var(--p-ink);
+  background-color: var(--p-paper);
+  background-image: url("/lexis-prompt/lcd-substrate.svg");
+  background-size: 6px 6px;
+  font-family: var(--lcd-font);
+}
+
+.page :is(code, pre, kbd, samp) {
+  font-family: inherit;
+}
+
+.hero {
+  max-width: 1586px;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+  padding-top: calc(58 * var(--u));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
+.wordmark {
+  display: block;
+  width: max(88px, calc(112 * var(--u)));
+  aspect-ratio: 760 / 280;
+  background: var(--p-ink);
+  -webkit-mask: url("/lexis-prompt/wordmark-mark.svg") left center / contain no-repeat;
+  mask: url("/lexis-prompt/wordmark-mark.svg") left center / contain no-repeat;
+}
+
+.nav {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px max(16px, calc(47 * var(--u)));
+  font-size: max(14px, calc(22 * var(--u)));
+  line-height: 1.3;
+}
+
+.navLink,
+.navButton {
+  color: var(--p-ink);
+  background: none;
+  border: 0;
+  padding: 12px 0;
+  margin: -12px 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.28em;
+}
+
+.headline {
+  margin: max(56px, calc(95 * var(--u))) 0 0;
+  width: min(100%, 1157px);
+}
+
+.headlinePixels {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1157 / 366;
+  background: var(--p-ink);
+  -webkit-mask: url("/lexis-prompt/heading-hero.svg") left center / contain no-repeat;
+  mask: url("/lexis-prompt/heading-hero.svg") left center / contain no-repeat;
+}
+
+.promptRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  margin-top: max(44px, calc(70 * var(--u)));
+  font-size: clamp(22px, 3.55vw, 56px);
+  line-height: 1.25;
+}
+
+.promptGt {
+  flex: none;
+  color: var(--p-ink);
+  transition: color 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.promptRow:focus-within .promptGt {
+  color: var(--p-coral);
+}
+
+.inputWrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--p-ink);
+  font: inherit;
+  line-height: inherit;
+  outline: none;
+  caret-color: var(--p-coral);
+}
+
+.sizer {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: pre;
+  visibility: hidden;
+}
+
+.idleCursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 0.12em;
+  vertical-align: -0.14em;
+  background: var(--p-coral);
+  visibility: visible;
+  animation: heroCursorBlink 1.1s steps(1, end) infinite;
+}
+
+.inputWrap:focus-within .idleCursor {
+  visibility: hidden;
+  animation-play-state: paused;
+}
+
+@keyframes heroCursorBlink {
+  50% { opacity: 0; }
+}
+
+.heroRule {
+  border-top: 1px solid var(--p-rule);
+  margin-top: max(24px, calc(34 * var(--u)));
+  transition: border-color 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.promptRow:focus-within + .heroRule {
+  border-color: var(--p-coral);
+}
+
+.cmdRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: 32px;
+  row-gap: 16px;
+  padding-block: max(24px, calc(30 * var(--u)));
+}
+
+.command {
+  margin: 0;
+  font-size: max(17px, calc(28 * var(--u)));
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.pipe {
+  display: inline-block;
+  padding-inline: 0.14em;
+}
+
+.heroNote {
+  margin: 0;
+  font-size: max(17px, calc(28 * var(--u)));
+  line-height: 1.4;
+  color: var(--p-ink2);
+}
+
+.heroNote a {
+  color: inherit;
+}
+
+.heroInstall {
+  margin: max(40px, calc(56 * var(--u))) 0 max(24px, calc(40 * var(--u)));
+  font-size: max(17px, calc(25 * var(--u)));
+  line-height: 1.4;
+}
+
+.heroInstall a {
+  color: var(--p-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.28em;
+  padding: 12px 0;
+}
+
+.page :is(a, button, summary, input):focus-visible {
+  outline: 2px solid var(--p-ink);
+  outline-offset: 4px;
+}
+
+@media (max-width: 1279px) {
+  .page { --gutter: 48px; }
+}
+
+@media (max-width: 899px) {
+  .page { --gutter: 32px; }
+}
+
+@media (max-width: 599px) {
+  .page { --gutter: 20px; }
+  .hero { padding-top: 28px; }
+  .wordmark { width: 88px; }
+  .nav { font-size: 14px; gap: 8px 20px; }
+  .headline { margin-top: 52px; }
+  .promptRow { margin-top: 48px; font-size: clamp(22px, 5.6vw, 30px); }
+  .heroRule { margin-top: 28px; }
+  .cmdRow { padding-block: 24px; }
+  .command, .heroNote { font-size: 16px; }
+  .heroInstall { margin-top: 44px; font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page * { scroll-behavior: auto; }
+  .idleCursor { animation: none; }
+  .promptGt, .heroRule { transition: none; }
+}

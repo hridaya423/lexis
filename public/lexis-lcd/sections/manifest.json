@@ -1,0 +1,183 @@
+{
+  "head-workflow.svg": {
+    "viewBox": [
+      0,
+      0,
+      2316,
+      444
+    ],
+    "lines": [
+      "A thought becomes",
+      "a command."
+    ]
+  },
+  "head-examples.svg": {
+    "viewBox": [
+      0,
+      0,
+      2148,
+      238
+    ],
+    "lines": [
+      "What needs doing?"
+    ]
+  },
+  "head-review.svg": {
+    "viewBox": [
+      0,
+      0,
+      1572,
+      444
+    ],
+    "lines": [
+      "The last word",
+      "is yours."
+    ]
+  },
+  "head-install.svg": {
+    "viewBox": [
+      0,
+      0,
+      2544,
+      238
+    ],
+    "lines": [
+      "Make it your terminal."
+    ]
+  },
+  "head-closing.svg": {
+    "viewBox": [
+      0,
+      0,
+      2412,
+      444
+    ],
+    "lines": [
+      "Your next command",
+      "starts with you."
+    ]
+  },
+  "px-req-list.svg": {
+    "viewBox": [
+      0,
+      0,
+      2112,
+      238
+    ],
+    "lines": [
+      "list all python files"
+    ]
+  },
+  "px-req-count.svg": {
+    "viewBox": [
+      0,
+      0,
+      2496,
+      238
+    ],
+    "lines": [
+      "count lines in main.go"
+    ]
+  },
+  "px-req-folder.svg": {
+    "viewBox": [
+      0,
+      0,
+      2604,
+      238
+    ],
+    "lines": [
+      "show this folder's size"
+    ]
+  },
+  "px-cmd-find.svg": {
+    "viewBox": [
+      0,
+      0,
+      2040,
+      238
+    ],
+    "lines": [
+      "find . -name \"*.py\""
+    ]
+  },
+  "px-cmd-wc.svg": {
+    "viewBox": [
+      0,
+      0,
+      1452,
+      238
+    ],
+    "lines": [
+      "wc -l main.go"
+    ]
+  },
+  "px-cmd-du.svg": {
+    "viewBox": [
+      0,
+      0,
+      804,
+      238
+    ],
+    "lines": [
+      "du -sh ."
+    ]
+  },
+  "px-out-find.svg": {
+    "viewBox": [
+      0,
+      0,
+      1500,
+      444
+    ],
+    "lines": [
+      "./src/app.py",
+      "./src/utils.py"
+    ]
+  },
+  "icon-folder.svg": {
+    "viewBox": [
+      0,
+      0,
+      26,
+      18
+    ]
+  },
+  "icon-file.svg": {
+    "viewBox": [
+      0,
+      0,
+      10,
+      15
+    ]
+  },
+  "lcd-grid-dark.svg": {
+    "size": [
+      6,
+      6
+    ],
+    "consumers": [
+      ".band"
+    ]
+  },
+  "metal-grain.svg": {
+    "viewBox": [
+      0,
+      0,
+      173,
+      40
+    ],
+    "consumers": [
+      ".metal",
+      ".osTab"
+    ]
+  },
+  "keycap-coral-xl.svg": {
+    "viewBox": [
+      0,
+      0,
+      468,
+      232
+    ]
+  }
+}

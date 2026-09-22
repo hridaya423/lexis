@@ -1,4 +1,7 @@
 import Link from "next/link";
+import lcd from "@/app/lexis-lcd.module.css";
+import styles from "@/app/lexis-legal.module.css";
+import { LexisLegalFooter } from "@/components/lexis-lcd-sections";
 
 export const metadata = {
   title: "Lexis — Privacy",
@@ -21,30 +24,24 @@ const PRIVACY_SECTIONS = [
 
 export default function PrivacyPage() {
   return (
-    <main id="main-content" className="w-full flex-1 px-6 py-20 md:px-10 md:py-24 xl:px-14">
-      <div className="mx-auto w-full max-w-[1040px] border-y border-[var(--line)] py-8 md:py-10">
-        <header className="border-b border-[var(--line)] pb-8 md:pb-10">
-          <Link href="/" className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted)] hover:text-[var(--text)]">
-            Lexis / Home
-          </Link>
-          <h1 className="mt-7 text-5xl uppercase tracking-[-0.04em] md:text-7xl">Privacy</h1>
-          <p className="mt-5 max-w-[38ch] text-lg leading-relaxed text-[var(--muted)] md:text-xl">
-            Local-first behavior with clear boundaries around external retrieval.
-          </p>
+    <div className={lcd.page}>
+      <main id="main-content" className={styles.content}>
+        <nav className={styles.nav} aria-label="Primary">
+          <Link href="/" className={styles.mark}>lexis</Link>
+          <Link href="/" className={styles.back}>← Back to Lexis</Link>
+        </nav>
+        <header className={styles.header}>
+          <h1>Privacy</h1>
+          <p>Local-first behavior with clear boundaries around external retrieval.</p>
         </header>
-
-        <div className="mt-8 divide-y divide-[var(--line)]">
-          {PRIVACY_SECTIONS.map((section, index) => (
-            <section key={section.heading} className="grid grid-cols-1 gap-5 py-7 md:grid-cols-[110px_1fr] md:gap-10">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--quiet)]">{String(index + 1).padStart(2, "0")}</p>
-              <div>
-                <h2 className="text-2xl tracking-[-0.03em] md:text-3xl">{section.heading}</h2>
-                <p className="mt-4 text-base leading-relaxed text-[var(--muted)] md:text-lg">{section.body}</p>
-              </div>
-            </section>
-          ))}
-        </div>
-      </div>
-    </main>
+        {PRIVACY_SECTIONS.map((section, index) => (
+          <section key={section.heading} className={styles.section}>
+            <span className={styles.number}>{String(index + 1).padStart(2, "0")}</span>
+            <div><h2>{section.heading}</h2><p>{section.body}</p></div>
+          </section>
+        ))}
+      </main>
+      <LexisLegalFooter />
+    </div>
   );
 }

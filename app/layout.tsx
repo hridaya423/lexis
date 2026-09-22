@@ -1,6 +1,9 @@
+import localFont from "next/font/local";
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Sora } from "next/font/google";
 import "./globals.css";
+
+const departure = localFont({ src: "./fonts/DepartureMono-1.500.woff2", display: "swap", variable: "--font-departure", weight: "400" });
 
 const sora = Sora({
   variable: "--font-sora",
@@ -31,9 +34,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${sora.variable} ${ibmPlexMono.variable} min-h-[100dvh] antialiased`}
+      className={`${sora.variable} ${ibmPlexMono.variable} ${departure.variable} min-h-[100dvh] antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-[100dvh] flex flex-col bg-[var(--bg)] text-[var(--text)] selection:bg-[var(--text)] selection:text-[var(--bg)]">
+
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-[var(--text)] focus:text-[var(--bg)] focus:px-4 focus:py-2 focus:font-mono focus:text-xs focus:uppercase focus:tracking-widest focus:outline-none"

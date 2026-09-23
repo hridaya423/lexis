@@ -14,14 +14,13 @@ buffer.seek(0)
 face = ImageFont.truetype(buffer, 11)
 
 headings = {
-    "hero": ["In your", "own words."],
     "examples": ["What needs doing?"],
     "review": ["The last word", "is yours."],
     "install": ["Make it", "your", "terminal."],
 }
 
 for name, lines in headings.items():
-    line_height = 12 if name == "hero" else 14
+    line_height = 14
     bitmap = Image.new("L", (max(round(face.getlength(line)) for line in lines), len(lines) * line_height))
     draw = ImageDraw.Draw(bitmap)
     draw.fontmode = "1"

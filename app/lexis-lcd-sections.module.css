@@ -17,25 +17,25 @@
 }
 
 .hExamples {
-  aspect-ratio: 234 / 20;
+  aspect-ratio: 235 / 21;
   width: min(992px, 100%);
-  mask-image: url("/lexis-prompt/heading-examples.svg?v=2");
-  -webkit-mask-image: url("/lexis-prompt/heading-examples.svg?v=2");
+  mask-image: url("/lexis-prompt/heading-examples.svg?v=3");
+  -webkit-mask-image: url("/lexis-prompt/heading-examples.svg?v=3");
 }
 
 .hReview {
-  aspect-ratio: 178 / 48;
+  aspect-ratio: 179 / 49;
   width: min(954px, 100%);
-  mask-image: url("/lexis-prompt/heading-review.svg?v=2");
-  -webkit-mask-image: url("/lexis-prompt/heading-review.svg?v=2");
+  mask-image: url("/lexis-prompt/heading-review.svg?v=3");
+  -webkit-mask-image: url("/lexis-prompt/heading-review.svg?v=3");
 }
 
 .hInstallMask {
-  aspect-ratio: 118 / 72;
+  aspect-ratio: 119 / 73;
   width: min(340px, 86%);
   margin-inline: auto;
-  mask-image: url("/lexis-prompt/heading-install.svg?v=2");
-  -webkit-mask-image: url("/lexis-prompt/heading-install.svg?v=2");
+  mask-image: url("/lexis-prompt/heading-install.svg?v=3");
+  -webkit-mask-image: url("/lexis-prompt/heading-install.svg?v=3");
 }
 
 .kicker {

@@ -1,121 +1,168 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import os from "node:os";
-import { DEFAULT_CONFIG } from "./constants.mjs";
-import {
-  defaultModelForProvider,
-  mapModelIdForProvider,
-  normalizeProvider,
-  rewriteStartArgsForModel,
-} from "./providers.mjs";
+import { configPath } from "./paths.mjs";
 
-export function getConfigPath() {
-  if (process.platform === "win32") {
-    const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
-    return path.join(appData, "lexis", "config.json");
-  }
-  return path.join(os.homedir(), ".config", "lexis", "config.json");
-}
+export const CONFIG_VERSION = 2;
+
+export const DEFAULT_CONFIG = {
+  version: CONFIG_VERSION,
+  model: "",
+  provider: {
+    active: "auto",
+    openaiCompat: { baseUrl: "", apiKeyEnv: "", model: "" },
+  },
+  webSearch: {
+    enabled: true,
+    mode: "auto",
+    autoRetryBelowConfidence: 0.82,
+    maxResults: 5,
+    timeoutMs: 15000,
+    provider: "builtin",
+    mcp: { command: "", args: [], toolName: "", env: {} },
+  },
+  execution: {
+    autoExecuteLowRisk: true,
+    askConfirmationAt: "moderate",
+    hookMode: "auto",
+  },
+  runtime: {
+    backend: "auto",
+    idleTimeoutSec: 1800,
+    port: 0,
+  },
+  history: {
+    maxEvents: 500,
+  },
+};
+
+const PROVIDER_MAP_V1 = {
+  mlx: "llama-server",
+  vllm: "llama-server",
+  llamacpp: "llama-server",
+  ollama: "ollama",
+};
 
 export async function ensureConfigDir() {
-  const configPath = getConfigPath();
-  await fs.mkdir(path.dirname(configPath), { recursive: true });
-  return configPath;
+  const dir = path.dirname(configPath());
+  await fs.mkdir(dir, { recursive: true });
+  return dir;
 }
 
 export async function loadConfig() {
-  const configPath = getConfigPath();
-
+  const file = configPath();
+  let raw;
   try {
-    const raw = await fs.readFile(configPath, "utf8");
-    const userConfig = migrateConfig(JSON.parse(raw));
-    return deepMerge(DEFAULT_CONFIG, userConfig);
-  } catch {
-    return structuredClone(DEFAULT_CONFIG);
+    raw = await fs.readFile(file, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return structuredClone(DEFAULT_CONFIG);
+    }
+    throw error;
   }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      `Config file is corrupt: ${file}\nFix it manually or run 'lx config reset' to restore defaults.`
+    );
+  }
+
+  const { config, notes } = migrateConfig(parsed);
+  const merged = deepMerge(DEFAULT_CONFIG, config);
+  merged.version = CONFIG_VERSION;
+  if (notes.length > 0) {
+    merged.__migrationNotes = notes;
+  }
+  return merged;
 }
 
 export async function saveConfig(config) {
-  const configPath = await ensureConfigDir();
-  await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
-  return configPath;
+  await ensureConfigDir();
+  const file = configPath();
+  const clean = { ...config };
+  delete clean.__migrationNotes;
+  const tmp = `${file}.tmp-${process.pid}`;
+  await fs.writeFile(tmp, JSON.stringify(clean, null, 2) + "\n", { mode: 0o600 });
+  await fs.rename(tmp, file);
+  return file;
+}
+
+export async function resetConfig() {
+  const file = await saveConfig(structuredClone(DEFAULT_CONFIG));
+  return file;
 }
 
 export function deepMerge(base, override) {
   if (!isObject(base) || !isObject(override)) {
     return override ?? base;
   }
-
   const result = { ...base };
-
   for (const key of Object.keys(override)) {
     const baseValue = result[key];
     const overrideValue = override[key];
-
     if (isObject(baseValue) && isObject(overrideValue)) {
       result[key] = deepMerge(baseValue, overrideValue);
       continue;
     }
-
     result[key] = overrideValue;
   }
-
   return result;
+}
+
+function migrateConfig(input) {
+  const notes = [];
+  if (!isObject(input)) {
+    return { config: {}, notes };
+  }
+  if (Number(input.version) >= CONFIG_VERSION) {
+    return { config: input, notes };
+  }
+
+  const out = { ...input };
+  delete out.version;
+  delete out.ollamaBaseUrl;
+
+    const llm = isObject(input.llm) ? input.llm : {};
+  const rawProvider = String(llm.provider || "").trim().toLowerCase();
+  if (rawProvider) {
+    if (rawProvider === "ollama") {
+      out.provider = { ...(isObject(out.provider) ? out.provider : {}), active: "ollama" };
+      notes.push("Provider 'ollama' preserved.");
+    } else if (PROVIDER_MAP_V1[rawProvider]) {
+      out.provider = { ...(isObject(out.provider) ? out.provider : {}), active: "llama-server" };
+      notes.push(`Provider '${rawProvider}' migrated to 'llama-server' (prebuilt llama.cpp, no Python).`);
+    } else if (rawProvider === "apple-fm" || rawProvider === "openai-compat" || rawProvider === "auto") {
+      out.provider = { ...(isObject(out.provider) ? out.provider : {}), active: rawProvider };
+    }
+  }
+  if (typeof llm.model === "string" && llm.model.trim() && !out.model) {
+    out.model = llm.model.trim();
+  } else if (typeof input.model === "string" && input.model.trim()) {
+    out.model = input.model.trim();
+  }
+  if (typeof llm.apiKey === "string" && llm.apiKey.trim()) {
+    notes.push("Plaintext API key dropped from config. Set LEXIS_API_KEY in your environment and run: lx model use openai-compat --api-key-env LEXIS_API_KEY");
+  }
+  if (typeof llm.baseUrl === "string" && llm.baseUrl.trim() && rawProvider && !PROVIDER_MAP_V1[rawProvider] && rawProvider !== "ollama") {
+    out.provider = isObject(out.provider) ? out.provider : {};
+    out.provider.openaiCompat = { baseUrl: llm.baseUrl.trim(), apiKeyEnv: "", model: out.model || "" };
+  }
+  delete out.llm;
+
+  if (isObject(out.execution)) {
+    delete out.execution.riskMode;
+    delete out.execution.criticalReview;
+  }
+  if (isObject(out.webSearch) && out.webSearch.provider === "mcp") {
+    notes.push("Web search provider 'mcp' preserved (external MCP server). Default is now 'builtin' (in-process).");
+  }
+
+  notes.push("Config migrated to v2.");
+  return { config: out, notes };
 }
 
 function isObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function migrateConfig(config) {
-  if (!isObject(config)) {
-    return config;
-  }
-
-  const migrated = { ...config };
-
-  if (!isObject(migrated.llm)) {
-    migrated.llm = {};
-  }
-
-  if (typeof migrated.ollamaBaseUrl === "string" && migrated.ollamaBaseUrl.trim()) {
-    migrated.llm.baseUrl = migrated.llm.baseUrl || migrated.ollamaBaseUrl.trim();
-    if (!migrated.llm.provider) {
-      migrated.llm.provider = process.platform === "darwin" ? "mlx" : process.platform === "win32" ? "ollama" : "llamacpp";
-    }
-  }
-
-  delete migrated.ollamaBaseUrl;
-
-  if (isObject(migrated.execution)) {
-    delete migrated.execution.criticalReview;
-  }
-
-  if (isObject(migrated.llm)) {
-    if (!isObject(migrated.llm.start)) {
-      migrated.llm.start = { command: "", args: [] };
-    }
-    if (typeof migrated.llm.apiKey !== "string") {
-      migrated.llm.apiKey = "";
-    }
-    if (typeof migrated.llm.model !== "string" || !migrated.llm.model.trim()) {
-      if (typeof migrated.model === "string" && migrated.model.trim()) {
-        migrated.llm.model = migrated.model.trim();
-      } else {
-        migrated.llm.model = defaultModelForProvider(migrated.llm.provider);
-      }
-    }
-
-    migrated.llm.model = mapModelIdForProvider(migrated.llm.model, migrated.llm.provider);
-    migrated.llm.start = rewriteStartArgsForModel(
-      migrated.llm.start,
-      normalizeProvider(migrated.llm.provider),
-      migrated.llm.model,
-      migrated.llm.baseUrl
-    );
-  }
-
-  migrated.model = mapModelIdForProvider(migrated.model || migrated.llm.model, migrated.llm.provider);
-
-  return migrated;
 }

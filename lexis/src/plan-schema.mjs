@@ -1,4 +1,48 @@
-import { RISK_LEVELS } from "./constants.mjs";
+import { RISK_LEVELS } from "./policy.mjs";
+
+export const PLAN_JSON_SCHEMA = {
+  name: "lexis_plan",
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["summary", "overall_risk", "confidence", "requires_confirmation", "commands"],
+    properties: {
+      summary: { type: "string", description: "Short plan summary, <= 12 words" },
+      overall_risk: { type: "string", enum: RISK_LEVELS },
+      confidence: { type: "number", minimum: 0, maximum: 1 },
+      requires_confirmation: { type: "boolean" },
+      commands: {
+        type: "array",
+        minItems: 1,
+        maxItems: 6,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["command", "intent", "risk", "requires_confirmation"],
+          properties: {
+            command: { type: "string" },
+            intent: { type: "string" },
+            risk: { type: "string", enum: RISK_LEVELS },
+            requires_confirmation: { type: "boolean" },
+            platform: { type: "string", enum: ["all", "unix", "windows"], default: "all" },
+            rollback: { type: "string" },
+          },
+        },
+      },
+      preflight_checks: { type: "array", maxItems: 3, items: { type: "string" } },
+      sources: {
+        type: "array",
+        maxItems: 2,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["title", "url"],
+          properties: { title: { type: "string" }, url: { type: "string" } },
+        },
+      },
+    },
+  },
+};
 
 export function parsePlanFromText(text) {
   const json = extractJson(text);
@@ -33,19 +77,11 @@ export function validatePlan(plan) {
   plan.preflight_checks = normalizeStringList(plan.preflight_checks);
 
   if (plan.sources !== undefined) {
-    if (!Array.isArray(plan.sources)) {
-      plan.sources = [];
-    }
-
-    plan.sources = plan.sources
+    plan.sources = (Array.isArray(plan.sources) ? plan.sources : [])
       .map((source) => normalizeSource(source))
       .filter((source) => source !== null);
-
-    for (const [index, source] of plan.sources.entries()) {
-      assertString(source.title, `sources[${index}].title`);
-      assertString(source.url, `sources[${index}].url`);
-    }
   }
+  return plan;
 }
 
 function validateCommand(command, index) {
@@ -65,32 +101,30 @@ function validateCommand(command, index) {
     if (!valid.includes(command.platform)) {
       throw new Error(`commands[${index}].platform must be one of ${valid.join(", ")}`);
     }
+  } else {
+    command.platform = "all";
   }
 
   if (command.rollback !== undefined) {
     if (typeof command.rollback !== "string") {
       throw new Error(`commands[${index}].rollback must be a string`);
     }
-
-    const normalizedRollback = command.rollback.trim();
-    command.rollback = normalizedRollback.length > 0 ? normalizedRollback : "not_applicable";
+    const normalized = command.rollback.trim();
+    command.rollback = normalized.length > 0 ? normalized : "not_applicable";
   }
 }
 
 function extractJson(text) {
-  const trimmed = text.trim();
+  const trimmed = String(text || "").trim();
   try {
     return JSON.parse(trimmed);
   } catch {
     const first = trimmed.indexOf("{");
     const last = trimmed.lastIndexOf("}");
-
     if (first === -1 || last === -1 || last <= first) {
       throw new Error("Model output did not contain JSON");
     }
-
-    const sliced = trimmed.slice(first, last + 1);
-    return JSON.parse(sliced);
+    return JSON.parse(trimmed.slice(first, last + 1));
   }
 }
 
@@ -116,26 +150,19 @@ function normalizeStringList(value) {
   if (!Array.isArray(value)) {
     return [];
   }
-
   return value
     .map((item) => {
       if (typeof item === "string") {
         return item.trim();
       }
-
       if (item === null || item === undefined) {
         return "";
       }
-
       if (typeof item === "object") {
-        if (typeof item.message === "string") {
-          return item.message.trim();
-        }
-        if (typeof item.check === "string") {
-          return item.check.trim();
-        }
-        if (typeof item.description === "string") {
-          return item.description.trim();
+        for (const key of ["message", "check", "description"]) {
+          if (typeof item[key] === "string") {
+            return item[key].trim();
+          }
         }
         if (typeof item.title === "string" && typeof item.command === "string") {
           return `${item.title.trim()}: ${item.command.trim()}`.trim();
@@ -144,13 +171,11 @@ function normalizeStringList(value) {
           return `${item.title.trim()}: ${item.url.trim()}`.trim();
         }
         try {
-          const serialized = JSON.stringify(item);
-          return serialized.length > 0 ? serialized : "";
+          return JSON.stringify(item);
         } catch {
           return "";
         }
       }
-
       return String(item).trim();
     })
     .filter(Boolean);
@@ -160,25 +185,18 @@ function normalizeSource(source) {
   if (isObject(source)) {
     const title = typeof source.title === "string" ? source.title.trim() : "";
     const url = typeof source.url === "string" ? source.url.trim() : "";
-
     if (!title || !url) {
       return null;
     }
-
     return { title, url };
   }
-
   if (typeof source === "string") {
     const text = source.trim();
     if (!text || !text.startsWith("http")) {
       return null;
     }
-    return {
-      title: text,
-      url: text,
-    };
+    return { title: text, url: text };
   }
-
   return null;
 }
 
@@ -192,53 +210,33 @@ function normalizeRisk(value) {
   if (typeof value !== "string") {
     return value;
   }
-
   const normalized = value.trim().toLowerCase();
-  if (normalized === "medium") {
-    return "moderate";
-  }
-  return normalized;
+  return normalized === "medium" ? "moderate" : normalized;
 }
 
 function normalizePlatform(value) {
   if (typeof value !== "string") {
     return value;
   }
-
   const normalized = value.trim().toLowerCase();
   if (!normalized) {
     return "all";
   }
-
   if (["all", "any", "cross-platform", "cross_platform", "universal"].includes(normalized)) {
     return "all";
   }
-
-  if (
-    ["unix", "linux", "darwin", "mac", "macos", "posix", "bash", "zsh", "fish", "sh"].includes(
-      normalized
-    )
-  ) {
+  if (["unix", "linux", "darwin", "mac", "macos", "posix", "bash", "zsh", "fish", "sh"].includes(normalized)) {
     return "unix";
   }
-
   if (["windows", "win", "win32", "powershell", "pwsh", "cmd"].includes(normalized)) {
     return "windows";
   }
-
   if (normalized.includes("win")) {
     return "windows";
   }
-
-  if (
-    normalized.includes("unix") ||
-    normalized.includes("linux") ||
-    normalized.includes("darwin") ||
-    normalized.includes("mac")
-  ) {
+  if (normalized.includes("unix") || normalized.includes("linux") || normalized.includes("darwin") || normalized.includes("mac")) {
     return "unix";
   }
-
   return "all";
 }
 

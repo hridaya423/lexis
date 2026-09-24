@@ -1,6 +1,6 @@
 {
   "name": "@hridyacodes/lexis",
-  "version": "0.1.15",
+  "version": "0.2.0",
   "type": "module",
   "bin": {
     "lexis": "src/index.mjs",
@@ -9,8 +9,12 @@
   "files": [
     "src",
     "prompts",
+    "bin",
     "README.md"
   ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
   "engines": {
     "node": ">=20"
   },

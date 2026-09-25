@@ -74,8 +74,7 @@ async function writeCachedResults({ query, maxResults, results }) {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, JSON.stringify(payload), "utf8");
   } catch {
-    // Ignore cache write errors.
-  }
+      }
 }
 
 function getCacheFilePath({ query, maxResults }) {

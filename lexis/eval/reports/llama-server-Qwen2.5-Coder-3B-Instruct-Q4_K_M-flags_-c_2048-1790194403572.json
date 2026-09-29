@@ -1,0 +1,1298 @@
+{
+  "provider": "llama-server",
+  "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+  "mode": "schema",
+  "tag": "flags_-c_2048",
+  "dataset": {
+    "name": "core.jsonl",
+    "sha256": "83828218eadbc7f7"
+  },
+  "runtime": {
+    "llamaCppTag": "b11056"
+  },
+  "machine": {
+    "platform": "macos",
+    "arch": "arm64",
+    "ramGb": 48,
+    "shell": "zsh",
+    "gpu": {
+      "vendor": "apple",
+      "backend": "metal",
+      "vramGb": null
+    }
+  },
+  "ts": "2026-09-23T20:13:23.571Z",
+  "startupMs": 1043,
+  "repeat": 2,
+  "total": 30,
+  "passed": 26,
+  "passRate": 0.8666666666666667,
+  "coldP50Ms": 2706,
+  "coldP95Ms": 3770,
+  "warmP50Ms": 2525,
+  "warmP95Ms": 4466,
+  "results": [
+    {
+      "id": "u01",
+      "intent": "show node and npm versions",
+      "pass": true,
+      "error": "",
+      "coldMs": 3377,
+      "warmMs": [
+        4746
+      ],
+      "usage": {
+        "completion_tokens": 131,
+        "prompt_tokens": 319,
+        "total_tokens": 450,
+        "prompt_tokens_details": {
+          "cached_tokens": 318
+        }
+      },
+      "timings": {
+        "cache_n": 318,
+        "prompt_n": 1,
+        "prompt_ms": 40.23,
+        "prompt_per_token_ms": 40.23,
+        "prompt_per_second": 24.85707183693761,
+        "predicted_n": 131,
+        "predicted_ms": 4685.102,
+        "predicted_per_token_ms": 36.03924615384615,
+        "predicted_per_second": 27.747528228841123
+      },
+      "commands": [
+        "node -v",
+        "npm -v"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u02",
+      "intent": "list files in current directory with sizes",
+      "pass": true,
+      "error": "",
+      "coldMs": 3770,
+      "warmMs": [
+        2424
+      ],
+      "usage": {
+        "completion_tokens": 100,
+        "prompt_tokens": 321,
+        "total_tokens": 421,
+        "prompt_tokens_details": {
+          "cached_tokens": 320
+        }
+      },
+      "timings": {
+        "cache_n": 320,
+        "prompt_n": 1,
+        "prompt_ms": 24.754,
+        "prompt_per_token_ms": 24.754,
+        "prompt_per_second": 40.39751151329078,
+        "predicted_n": 100,
+        "predicted_ms": 2388.159,
+        "predicted_per_token_ms": 24.122818181818182,
+        "predicted_per_second": 41.45452626897958
+      },
+      "commands": [
+        "ls -lh"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u03",
+      "intent": "what's my public ip address",
+      "pass": true,
+      "error": "",
+      "coldMs": 2220,
+      "warmMs": [
+        2096
+      ],
+      "usage": {
+        "completion_tokens": 95,
+        "prompt_tokens": 320,
+        "total_tokens": 415,
+        "prompt_tokens_details": {
+          "cached_tokens": 319
+        }
+      },
+      "timings": {
+        "cache_n": 319,
+        "prompt_n": 1,
+        "prompt_ms": 20.542,
+        "prompt_per_token_ms": 20.542,
+        "prompt_per_second": 48.680751630805176,
+        "predicted_n": 95,
+        "predicted_ms": 2066.144,
+        "predicted_per_token_ms": 21.980255319148934,
+        "predicted_per_second": 45.495376895318046
+      },
+      "commands": [
+        "curl ifconfig.me"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u04",
+      "intent": "check if port 3000 is in use",
+      "pass": true,
+      "error": "",
+      "coldMs": 2593,
+      "warmMs": [
+        2469
+      ],
+      "usage": {
+        "completion_tokens": 112,
+        "prompt_tokens": 325,
+        "total_tokens": 437,
+        "prompt_tokens_details": {
+          "cached_tokens": 324
+        }
+      },
+      "timings": {
+        "cache_n": 324,
+        "prompt_n": 1,
+        "prompt_ms": 18.289,
+        "prompt_per_token_ms": 18.289,
+        "prompt_per_second": 54.67767510525452,
+        "predicted_n": 112,
+        "predicted_ms": 2440.293,
+        "predicted_per_token_ms": 21.984621621621624,
+        "predicted_per_second": 45.48634118935718
+      },
+      "commands": [
+        "lsof -i :3000"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u05",
+      "intent": "show disk usage of current directory",
+      "pass": true,
+      "error": "",
+      "coldMs": 2356,
+      "warmMs": [
+        2159
+      ],
+      "usage": {
+        "completion_tokens": 99,
+        "prompt_tokens": 320,
+        "total_tokens": 419,
+        "prompt_tokens_details": {
+          "cached_tokens": 319
+        }
+      },
+      "timings": {
+        "cache_n": 319,
+        "prompt_n": 1,
+        "prompt_ms": 18.438,
+        "prompt_per_token_ms": 18.438,
+        "prompt_per_second": 54.23581733376722,
+        "predicted_n": 99,
+        "predicted_ms": 2130.163,
+        "predicted_per_token_ms": 21.736357142857145,
+        "predicted_per_second": 46.00586903443539
+      },
+      "commands": [
+        "du -sh ."
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u06",
+      "intent": "find all .log files modified in the last day",
+      "pass": true,
+      "error": "",
+      "coldMs": 2979,
+      "warmMs": [
+        2872
+      ],
+      "usage": {
+        "completion_tokens": 132,
+        "prompt_tokens": 324,
+        "total_tokens": 456,
+        "prompt_tokens_details": {
+          "cached_tokens": 323
+        }
+      },
+      "timings": {
+        "cache_n": 323,
+        "prompt_n": 1,
+        "prompt_ms": 25.168,
+        "prompt_per_token_ms": 25.168,
+        "prompt_per_second": 39.73299427844883,
+        "predicted_n": 132,
+        "predicted_ms": 2833.677,
+        "predicted_per_token_ms": 21.63112213740458,
+        "predicted_per_second": 46.229686728586216
+      },
+      "commands": [
+        "find /Users/hridyaagrawal/Honey/React/smartterminal/lexis -type f -name '*.log' -mtime -1"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u07",
+      "intent": "show running node processes",
+      "pass": true,
+      "error": "",
+      "coldMs": 2190,
+      "warmMs": [
+        2050
+      ],
+      "usage": {
+        "completion_tokens": 95,
+        "prompt_tokens": 318,
+        "total_tokens": 413,
+        "prompt_tokens_details": {
+          "cached_tokens": 317
+        }
+      },
+      "timings": {
+        "cache_n": 317,
+        "prompt_n": 1,
+        "prompt_ms": 16.114,
+        "prompt_per_token_ms": 16.114,
+        "prompt_per_second": 62.05783790492739,
+        "predicted_n": 95,
+        "predicted_ms": 2022.941,
+        "predicted_per_token_ms": 21.520648936170215,
+        "predicted_per_second": 46.46700027336438
+      },
+      "commands": [
+        "ps aux | grep node"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u08",
+      "intent": "show git status and current branch",
+      "pass": true,
+      "error": "",
+      "coldMs": 2962,
+      "warmMs": [
+        2828
+      ],
+      "usage": {
+        "completion_tokens": 129,
+        "prompt_tokens": 320,
+        "total_tokens": 449,
+        "prompt_tokens_details": {
+          "cached_tokens": 319
+        }
+      },
+      "timings": {
+        "cache_n": 319,
+        "prompt_n": 1,
+        "prompt_ms": 19.898,
+        "prompt_per_token_ms": 19.898,
+        "prompt_per_second": 50.256307166549405,
+        "predicted_n": 129,
+        "predicted_ms": 2797.274,
+        "predicted_per_token_ms": 21.853703125,
+        "predicted_per_second": 45.75883520884976
+      },
+      "commands": [
+        "git status",
+        "git branch"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u09",
+      "intent": "install ripgrep",
+      "pass": true,
+      "error": "",
+      "coldMs": 2153,
+      "warmMs": [
+        2050
+      ],
+      "usage": {
+        "completion_tokens": 94,
+        "prompt_tokens": 317,
+        "total_tokens": 411,
+        "prompt_tokens_details": {
+          "cached_tokens": 316
+        }
+      },
+      "timings": {
+        "cache_n": 316,
+        "prompt_n": 1,
+        "prompt_ms": 21.927,
+        "prompt_per_token_ms": 21.927,
+        "prompt_per_second": 45.60587403657591,
+        "predicted_n": 94,
+        "predicted_ms": 2017.894,
+        "predicted_per_token_ms": 21.69778494623656,
+        "predicted_per_second": 46.08765376179324
+      },
+      "commands": [
+        "brew install ripgrep"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u10",
+      "intent": "create a directory called projects and cd into it",
+      "pass": true,
+      "error": "",
+      "coldMs": 3230,
+      "warmMs": [
+        3066
+      ],
+      "usage": {
+        "completion_tokens": 141,
+        "prompt_tokens": 323,
+        "total_tokens": 464,
+        "prompt_tokens_details": {
+          "cached_tokens": 322
+        }
+      },
+      "timings": {
+        "cache_n": 322,
+        "prompt_n": 1,
+        "prompt_ms": 20.834,
+        "prompt_per_token_ms": 20.834,
+        "prompt_per_second": 47.99846404915043,
+        "predicted_n": 141,
+        "predicted_ms": 3033.23,
+        "predicted_per_token_ms": 21.665928571428573,
+        "predicted_per_second": 46.15541848128892
+      },
+      "commands": [
+        "mkdir projects",
+        "cd projects"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u11",
+      "intent": "compress this folder into archive.tar.gz",
+      "pass": true,
+      "error": "",
+      "coldMs": 2765,
+      "warmMs": [
+        2659
+      ],
+      "usage": {
+        "completion_tokens": 121,
+        "prompt_tokens": 321,
+        "total_tokens": 442,
+        "prompt_tokens_details": {
+          "cached_tokens": 320
+        }
+      },
+      "timings": {
+        "cache_n": 320,
+        "prompt_n": 1,
+        "prompt_ms": 21.221,
+        "prompt_per_token_ms": 21.221,
+        "prompt_per_second": 47.12313274586494,
+        "predicted_n": 121,
+        "predicted_ms": 2627.59,
+        "predicted_per_token_ms": 21.896583333333336,
+        "predicted_per_second": 45.669225411879324
+      },
+      "commands": [
+        "tar -czvf archive.tar.gz /Users/hridyaagrawal/Honey/React/smartterminal/lexis"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u12",
+      "intent": "show environment variables containing PATH",
+      "pass": true,
+      "error": "",
+      "coldMs": 2174,
+      "warmMs": [
+        2060
+      ],
+      "usage": {
+        "completion_tokens": 94,
+        "prompt_tokens": 319,
+        "total_tokens": 413,
+        "prompt_tokens_details": {
+          "cached_tokens": 318
+        }
+      },
+      "timings": {
+        "cache_n": 318,
+        "prompt_n": 1,
+        "prompt_ms": 22.924,
+        "prompt_per_token_ms": 22.924,
+        "prompt_per_second": 43.62240446693422,
+        "predicted_n": 94,
+        "predicted_ms": 2027.227,
+        "predicted_per_token_ms": 21.798139784946237,
+        "predicted_per_second": 45.87547423154881
+      },
+      "commands": [
+        "echo $PATH"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u13",
+      "intent": "kill the process on port 8080",
+      "pass": false,
+      "error": "",
+      "coldMs": 3600,
+      "warmMs": [
+        3382
+      ],
+      "usage": {
+        "completion_tokens": 156,
+        "prompt_tokens": 324,
+        "total_tokens": 480,
+        "prompt_tokens_details": {
+          "cached_tokens": 323
+        }
+      },
+      "timings": {
+        "cache_n": 323,
+        "prompt_n": 1,
+        "prompt_ms": 22.466,
+        "prompt_per_token_ms": 22.466,
+        "prompt_per_second": 44.51170657883023,
+        "predicted_n": 156,
+        "predicted_ms": 3348.59,
+        "predicted_per_token_ms": 21.603806451612904,
+        "predicted_per_second": 46.288139186941365
+      },
+      "commands": [
+        "lsof -i :8080",
+        "kill -9 <PID>"
+      ],
+      "risk": "critical",
+      "policyFloor": "critical",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.9
+    },
+    {
+      "id": "u14",
+      "intent": "show the last 20 lines of syslog",
+      "pass": true,
+      "error": "",
+      "coldMs": 2648,
+      "warmMs": [
+        2461
+      ],
+      "usage": {
+        "completion_tokens": 112,
+        "prompt_tokens": 323,
+        "total_tokens": 435,
+        "prompt_tokens_details": {
+          "cached_tokens": 322
+        }
+      },
+      "timings": {
+        "cache_n": 322,
+        "prompt_n": 1,
+        "prompt_ms": 17.765,
+        "prompt_per_token_ms": 17.765,
+        "prompt_per_second": 56.29045876723895,
+        "predicted_n": 112,
+        "predicted_ms": 2432.396,
+        "predicted_per_token_ms": 21.91347747747748,
+        "predicted_per_second": 45.63401682949651
+      },
+      "commands": [
+        "tail -n 20 /var/log/syslog"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u15",
+      "intent": "check if python3 is installed",
+      "pass": false,
+      "error": "",
+      "coldMs": 2232,
+      "warmMs": [
+        2156
+      ],
+      "usage": {
+        "completion_tokens": 97,
+        "prompt_tokens": 320,
+        "total_tokens": 417,
+        "prompt_tokens_details": {
+          "cached_tokens": 319
+        }
+      },
+      "timings": {
+        "cache_n": 319,
+        "prompt_n": 1,
+        "prompt_ms": 19.234,
+        "prompt_per_token_ms": 19.234,
+        "prompt_per_second": 51.99126546740147,
+        "predicted_n": 97,
+        "predicted_ms": 2126.482,
+        "predicted_per_token_ms": 22.150854166666665,
+        "predicted_per_second": 45.144985943920524
+      },
+      "commands": [
+        "brew list python3"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u16",
+      "intent": "update homebrew and list outdated packages",
+      "pass": true,
+      "error": "",
+      "coldMs": 3013,
+      "warmMs": [
+        2870
+      ],
+      "usage": {
+        "completion_tokens": 130,
+        "prompt_tokens": 321,
+        "total_tokens": 451,
+        "prompt_tokens_details": {
+          "cached_tokens": 320
+        }
+      },
+      "timings": {
+        "cache_n": 320,
+        "prompt_n": 1,
+        "prompt_ms": 15.363,
+        "prompt_per_token_ms": 15.363,
+        "prompt_per_second": 65.09145349215648,
+        "predicted_n": 130,
+        "predicted_ms": 2842.154,
+        "predicted_per_token_ms": 22.032201550387597,
+        "predicted_per_second": 45.38811056684472
+      },
+      "commands": [
+        "brew update",
+        "brew outdated"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u17",
+      "intent": "show my shell and home directory",
+      "pass": true,
+      "error": "",
+      "coldMs": 2978,
+      "warmMs": [
+        2890
+      ],
+      "usage": {
+        "completion_tokens": 132,
+        "prompt_tokens": 320,
+        "total_tokens": 452,
+        "prompt_tokens_details": {
+          "cached_tokens": 319
+        }
+      },
+      "timings": {
+        "cache_n": 319,
+        "prompt_n": 1,
+        "prompt_ms": 23.646,
+        "prompt_per_token_ms": 23.646,
+        "prompt_per_second": 42.2904508162057,
+        "predicted_n": 132,
+        "predicted_ms": 2855.916,
+        "predicted_per_token_ms": 21.800885496183206,
+        "predicted_per_second": 45.86969644765462
+      },
+      "commands": [
+        "echo $SHELL",
+        "echo $HOME"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 1
+    },
+    {
+      "id": "u18",
+      "intent": "undo the last git commit but keep the changes",
+      "pass": true,
+      "error": "",
+      "coldMs": 2447,
+      "warmMs": [
+        2344
+      ],
+      "usage": {
+        "completion_tokens": 105,
+        "prompt_tokens": 323,
+        "total_tokens": 428,
+        "prompt_tokens_details": {
+          "cached_tokens": 322
+        }
+      },
+      "timings": {
+        "cache_n": 322,
+        "prompt_n": 1,
+        "prompt_ms": 20.736,
+        "prompt_per_token_ms": 20.736,
+        "prompt_per_second": 48.22530864197531,
+        "predicted_n": 105,
+        "predicted_ms": 2313.436,
+        "predicted_per_token_ms": 22.244576923076924,
+        "predicted_per_second": 44.95477722314341
+      },
+      "commands": [
+        "git reset --soft HEAD~1"
+      ],
+      "risk": "high",
+      "policyFloor": "high",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.9
+    },
+    {
+      "id": "u19",
+      "intent": "show the 5 biggest files under home",
+      "pass": true,
+      "error": "",
+      "coldMs": 2651,
+      "warmMs": [
+        2525
+      ],
+      "usage": {
+        "completion_tokens": 116,
+        "prompt_tokens": 322,
+        "total_tokens": 438,
+        "prompt_tokens_details": {
+          "cached_tokens": 321
+        }
+      },
+      "timings": {
+        "cache_n": 321,
+        "prompt_n": 1,
+        "prompt_ms": 17.755,
+        "prompt_per_token_ms": 17.755,
+        "prompt_per_second": 56.32216277105041,
+        "predicted_n": 116,
+        "predicted_ms": 2496.571,
+        "predicted_per_token_ms": 21.70931304347826,
+        "predicted_per_second": 46.06318025804193
+      },
+      "commands": [
+        "du -sh ~/* | sort -rh | head -n 5"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u20",
+      "intent": "what is using all my memory",
+      "pass": false,
+      "error": "",
+      "coldMs": 2035,
+      "warmMs": [
+        1924
+      ],
+      "usage": {
+        "completion_tokens": 87,
+        "prompt_tokens": 320,
+        "total_tokens": 407,
+        "prompt_tokens_details": {
+          "cached_tokens": 319
+        }
+      },
+      "timings": {
+        "cache_n": 319,
+        "prompt_n": 1,
+        "prompt_ms": 16.814,
+        "prompt_per_token_ms": 16.814,
+        "prompt_per_second": 59.47424765076722,
+        "predicted_n": 87,
+        "predicted_ms": 1896.507,
+        "predicted_per_token_ms": 22.052406976744187,
+        "predicted_per_second": 45.346523898936304
+      },
+      "commands": [
+        "top"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.9
+    },
+    {
+      "id": "u21",
+      "intent": "count lines in all .js files",
+      "pass": true,
+      "error": "",
+      "coldMs": 2575,
+      "warmMs": [
+        2509
+      ],
+      "usage": {
+        "completion_tokens": 112,
+        "prompt_tokens": 321,
+        "total_tokens": 433,
+        "prompt_tokens_details": {
+          "cached_tokens": 320
+        }
+      },
+      "timings": {
+        "cache_n": 320,
+        "prompt_n": 1,
+        "prompt_ms": 24.766,
+        "prompt_per_token_ms": 24.766,
+        "prompt_per_second": 40.37793749495276,
+        "predicted_n": 112,
+        "predicted_ms": 2472.924,
+        "predicted_per_token_ms": 22.278594594594594,
+        "predicted_per_second": 44.886134794275925
+      },
+      "commands": [
+        "find . -name '*.js' -type f -exec wc -l {} +"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u22",
+      "intent": "restart the docker service",
+      "pass": true,
+      "error": "",
+      "coldMs": 2134,
+      "warmMs": [
+        1995
+      ],
+      "usage": {
+        "completion_tokens": 92,
+        "prompt_tokens": 318,
+        "total_tokens": 410,
+        "prompt_tokens_details": {
+          "cached_tokens": 317
+        }
+      },
+      "timings": {
+        "cache_n": 317,
+        "prompt_n": 1,
+        "prompt_ms": 17.79,
+        "prompt_per_token_ms": 17.79,
+        "prompt_per_second": 56.21135469364812,
+        "predicted_n": 92,
+        "predicted_ms": 1967.133,
+        "predicted_per_token_ms": 21.616846153846154,
+        "predicted_per_second": 46.260217280682085
+      },
+      "commands": [
+        "brew services restart docker"
+      ],
+      "risk": "high",
+      "policyFloor": "high",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.9
+    },
+    {
+      "id": "u23",
+      "intent": "make script.sh executable and run it",
+      "pass": true,
+      "error": "",
+      "coldMs": 3078,
+      "warmMs": [
+        2910
+      ],
+      "usage": {
+        "completion_tokens": 134,
+        "prompt_tokens": 321,
+        "total_tokens": 455,
+        "prompt_tokens_details": {
+          "cached_tokens": 320
+        }
+      },
+      "timings": {
+        "cache_n": 320,
+        "prompt_n": 1,
+        "prompt_ms": 14.639,
+        "prompt_per_token_ms": 14.639,
+        "prompt_per_second": 68.31067695880867,
+        "predicted_n": 134,
+        "predicted_ms": 2884.515,
+        "predicted_per_token_ms": 21.688082706766917,
+        "predicted_per_second": 46.10827123450563
+      },
+      "commands": [
+        "chmod +x script.sh",
+        "./script.sh"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u24",
+      "intent": "search the codebase for TODO comments",
+      "pass": true,
+      "error": "",
+      "coldMs": 2706,
+      "warmMs": [
+        4442
+      ],
+      "usage": {
+        "completion_tokens": 118,
+        "prompt_tokens": 321,
+        "total_tokens": 439,
+        "prompt_tokens_details": {
+          "cached_tokens": 320
+        }
+      },
+      "timings": {
+        "cache_n": 320,
+        "prompt_n": 1,
+        "prompt_ms": 24.986,
+        "prompt_per_token_ms": 24.986,
+        "prompt_per_second": 40.02241255102857,
+        "predicted_n": 118,
+        "predicted_ms": 4406.389,
+        "predicted_per_token_ms": 37.66144444444445,
+        "predicted_per_second": 26.552353866170236
+      },
+      "commands": [
+        "grep -r TODO /Users/hridyaagrawal/Honey/React/smartterminal/lexis"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u25",
+      "intent": "download the file from https://example.com/file.zip to downloads folder",
+      "pass": true,
+      "error": "",
+      "coldMs": 6544,
+      "warmMs": [
+        4466
+      ],
+      "usage": {
+        "completion_tokens": 200,
+        "prompt_tokens": 327,
+        "total_tokens": 527,
+        "prompt_tokens_details": {
+          "cached_tokens": 326
+        }
+      },
+      "timings": {
+        "cache_n": 326,
+        "prompt_n": 1,
+        "prompt_ms": 27.68,
+        "prompt_per_token_ms": 27.68,
+        "prompt_per_second": 36.127167630057805,
+        "predicted_n": 200,
+        "predicted_ms": 4425.135,
+        "predicted_per_token_ms": 22.236859296482415,
+        "predicted_per_second": 44.970379434751706
+      },
+      "commands": [
+        "mkdir -p ~/Downloads",
+        "curl -O https://example.com/file.zip",
+        "mv file.zip ~/Downloads"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u26",
+      "intent": "show CPU info and core count",
+      "pass": true,
+      "error": "",
+      "coldMs": 3277,
+      "warmMs": [
+        3170
+      ],
+      "usage": {
+        "completion_tokens": 142,
+        "prompt_tokens": 320,
+        "total_tokens": 462,
+        "prompt_tokens_details": {
+          "cached_tokens": 319
+        }
+      },
+      "timings": {
+        "cache_n": 319,
+        "prompt_n": 1,
+        "prompt_ms": 19.818,
+        "prompt_per_token_ms": 19.818,
+        "prompt_per_second": 50.459178524573616,
+        "predicted_n": 142,
+        "predicted_ms": 3139.056,
+        "predicted_per_token_ms": 22.262808510638298,
+        "predicted_per_second": 44.91796259767268
+      },
+      "commands": [
+        "sysctl -n hw.ncpu",
+        "sysctl -n hw.model"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u27",
+      "intent": "add export FOO=bar to my zshrc",
+      "pass": true,
+      "error": "",
+      "coldMs": 2781,
+      "warmMs": [
+        2624
+      ],
+      "usage": {
+        "completion_tokens": 116,
+        "prompt_tokens": 325,
+        "total_tokens": 441,
+        "prompt_tokens_details": {
+          "cached_tokens": 324
+        }
+      },
+      "timings": {
+        "cache_n": 324,
+        "prompt_n": 1,
+        "prompt_ms": 25.445,
+        "prompt_per_token_ms": 25.445,
+        "prompt_per_second": 39.30045195519748,
+        "predicted_n": 116,
+        "predicted_ms": 2588.463,
+        "predicted_per_token_ms": 22.50837391304348,
+        "predicted_per_second": 44.42790953550427
+      },
+      "commands": [
+        "echo 'export FOO=bar' >> ~/.zshrc"
+      ],
+      "risk": "high",
+      "policyFloor": "high",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u28",
+      "intent": "clean up node_modules folders in this project",
+      "pass": true,
+      "error": "",
+      "coldMs": 2818,
+      "warmMs": [
+        2703
+      ],
+      "usage": {
+        "completion_tokens": 122,
+        "prompt_tokens": 322,
+        "total_tokens": 444,
+        "prompt_tokens_details": {
+          "cached_tokens": 321
+        }
+      },
+      "timings": {
+        "cache_n": 321,
+        "prompt_n": 1,
+        "prompt_ms": 18.468,
+        "prompt_per_token_ms": 18.468,
+        "prompt_per_second": 54.14771496642842,
+        "predicted_n": 122,
+        "predicted_ms": 2674.879,
+        "predicted_per_token_ms": 22.106438016528926,
+        "predicted_per_second": 45.23569103499635
+      },
+      "commands": [
+        "find . -type d -name 'node_modules' -exec rm -rf {} +"
+      ],
+      "risk": "high",
+      "policyFloor": "high",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.9
+    },
+    {
+      "id": "u29",
+      "intent": "show listening TCP ports",
+      "pass": false,
+      "error": "",
+      "coldMs": 2349,
+      "warmMs": [
+        2245
+      ],
+      "usage": {
+        "completion_tokens": 102,
+        "prompt_tokens": 318,
+        "total_tokens": 420,
+        "prompt_tokens_details": {
+          "cached_tokens": 317
+        }
+      },
+      "timings": {
+        "cache_n": 317,
+        "prompt_n": 1,
+        "prompt_ms": 19.146,
+        "prompt_per_token_ms": 19.146,
+        "prompt_per_second": 52.23023085762039,
+        "predicted_n": 102,
+        "predicted_ms": 2215.934,
+        "predicted_per_token_ms": 21.939940594059408,
+        "predicted_per_second": 45.578974825062474
+      },
+      "commands": [
+        "sudo lsof -i -P -n | grep LISTEN"
+      ],
+      "risk": "high",
+      "policyFloor": "high",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u30",
+      "intent": "unzip file.zip into current directory",
+      "pass": true,
+      "error": "",
+      "coldMs": 2344,
+      "warmMs": [
+        2245
+      ],
+      "usage": {
+        "completion_tokens": 102,
+        "prompt_tokens": 320,
+        "total_tokens": 422,
+        "prompt_tokens_details": {
+          "cached_tokens": 319
+        }
+      },
+      "timings": {
+        "cache_n": 319,
+        "prompt_n": 1,
+        "prompt_ms": 23.668,
+        "prompt_per_token_ms": 23.668,
+        "prompt_per_second": 42.25114078080108,
+        "predicted_n": 102,
+        "predicted_ms": 2212.014,
+        "predicted_per_token_ms": 21.901128712871287,
+        "predicted_per_second": 45.65974718062363
+      },
+      "commands": [
+        "unzip file.zip"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.95
+    }
+  ]
+}

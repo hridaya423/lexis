@@ -1,0 +1,356 @@
+{
+  "provider": "llama-server",
+  "model": "qwen2.5-coder-1.5b",
+  "mode": "schema",
+  "tag": "smoke",
+  "dataset": {
+    "name": "core.jsonl",
+    "sha256": "83828218eadbc7f7"
+  },
+  "runtime": {
+    "llamaCppTag": "b11056"
+  },
+  "machine": {
+    "platform": "macos",
+    "arch": "arm64",
+    "ramGb": 48,
+    "shell": "zsh",
+    "gpu": {
+      "vendor": "apple",
+      "backend": "metal",
+      "vramGb": null
+    }
+  },
+  "ts": "2026-09-23T16:29:02.970Z",
+  "repeat": 1,
+  "total": 8,
+  "passed": 7,
+  "passRate": 0.875,
+  "coldP50Ms": 2723,
+  "coldP95Ms": 3048,
+  "warmP50Ms": 0,
+  "warmP95Ms": 0,
+  "results": [
+    {
+      "id": "u01",
+      "intent": "show node and npm versions",
+      "pass": true,
+      "error": "",
+      "coldMs": 2943,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 125,
+        "prompt_tokens": 319,
+        "total_tokens": 444,
+        "prompt_tokens_details": {
+          "cached_tokens": 254
+        }
+      },
+      "timings": {
+        "cache_n": 254,
+        "prompt_n": 65,
+        "prompt_ms": 89.034,
+        "prompt_per_token_ms": 1.3697538461538463,
+        "prompt_per_second": 730.0581800211154,
+        "predicted_n": 125,
+        "predicted_ms": 2794.691,
+        "predicted_per_token_ms": 22.53783064516129,
+        "predicted_per_second": 44.3698426767038
+      },
+      "commands": [
+        "node -v",
+        "npm -v"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u02",
+      "intent": "list files in current directory with sizes",
+      "pass": true,
+      "error": "",
+      "coldMs": 2073,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 93,
+        "prompt_tokens": 321,
+        "total_tokens": 414,
+        "prompt_tokens_details": {
+          "cached_tokens": 254
+        }
+      },
+      "timings": {
+        "cache_n": 254,
+        "prompt_n": 67,
+        "prompt_ms": 101.233,
+        "prompt_per_token_ms": 1.5109402985074627,
+        "prompt_per_second": 661.8395187340096,
+        "predicted_n": 93,
+        "predicted_ms": 1956.461,
+        "predicted_per_token_ms": 21.26588043478261,
+        "predicted_per_second": 47.02368204630709
+      },
+      "commands": [
+        "ls -lh"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u03",
+      "intent": "what's my public ip address",
+      "pass": true,
+      "error": "",
+      "coldMs": 2636,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 94,
+        "prompt_tokens": 320,
+        "total_tokens": 414,
+        "prompt_tokens_details": {
+          "cached_tokens": 254
+        }
+      },
+      "timings": {
+        "cache_n": 254,
+        "prompt_n": 66,
+        "prompt_ms": 107.25,
+        "prompt_per_token_ms": 1.625,
+        "prompt_per_second": 615.3846153846155,
+        "predicted_n": 94,
+        "predicted_ms": 2515.413,
+        "predicted_per_token_ms": 27.047451612903227,
+        "predicted_per_second": 36.97205985657226
+      },
+      "commands": [
+        "curl ifconfig.me"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u04",
+      "intent": "check if port 3000 is in use",
+      "pass": true,
+      "error": "",
+      "coldMs": 2919,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 125,
+        "prompt_tokens": 325,
+        "total_tokens": 450,
+        "prompt_tokens_details": {
+          "cached_tokens": 254
+        }
+      },
+      "timings": {
+        "cache_n": 254,
+        "prompt_n": 71,
+        "prompt_ms": 116.169,
+        "prompt_per_token_ms": 1.6361830985915493,
+        "prompt_per_second": 611.1785416074857,
+        "predicted_n": 125,
+        "predicted_ms": 2779.634,
+        "predicted_per_token_ms": 22.41640322580645,
+        "predicted_per_second": 44.61018968684366
+      },
+      "commands": [
+        "lsof -i :3000"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u05",
+      "intent": "show disk usage of current directory",
+      "pass": true,
+      "error": "",
+      "coldMs": 1930,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 92,
+        "prompt_tokens": 320,
+        "total_tokens": 412,
+        "prompt_tokens_details": {
+          "cached_tokens": 254
+        }
+      },
+      "timings": {
+        "cache_n": 254,
+        "prompt_n": 66,
+        "prompt_ms": 79.97,
+        "prompt_per_token_ms": 1.2116666666666667,
+        "prompt_per_second": 825.3094910591471,
+        "predicted_n": 92,
+        "predicted_ms": 1831.994,
+        "predicted_per_token_ms": 20.131802197802198,
+        "predicted_per_second": 49.67265176632675
+      },
+      "commands": [
+        "du -sh ."
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u06",
+      "intent": "find all .log files modified in the last day",
+      "pass": false,
+      "error": "",
+      "coldMs": 2723,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 129,
+        "prompt_tokens": 324,
+        "total_tokens": 453,
+        "prompt_tokens_details": {
+          "cached_tokens": 254
+        }
+      },
+      "timings": {
+        "cache_n": 254,
+        "prompt_n": 70,
+        "prompt_ms": 111.536,
+        "prompt_per_token_ms": 1.5933714285714287,
+        "prompt_per_second": 627.6000573805766,
+        "predicted_n": 129,
+        "predicted_ms": 2597.677,
+        "predicted_per_token_ms": 20.2943515625,
+        "predicted_per_second": 49.274794364349376
+      },
+      "commands": [
+        "find /Users/hridyaagrawal/Honey/React/smartterminal/lexis -type f -name '*.log' -mtime -1"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u07",
+      "intent": "show running node processes",
+      "pass": true,
+      "error": "",
+      "coldMs": 2244,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 92,
+        "prompt_tokens": 318,
+        "total_tokens": 410,
+        "prompt_tokens_details": {
+          "cached_tokens": 254
+        }
+      },
+      "timings": {
+        "cache_n": 254,
+        "prompt_n": 64,
+        "prompt_ms": 91.476,
+        "prompt_per_token_ms": 1.4293125,
+        "prompt_per_second": 699.6370632734269,
+        "predicted_n": 92,
+        "predicted_ms": 2135.45,
+        "predicted_per_token_ms": 23.466483516483514,
+        "predicted_per_second": 42.61396895267977
+      },
+      "commands": [
+        "ps aux | grep node"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u08",
+      "intent": "show git status and current branch",
+      "pass": true,
+      "error": "",
+      "coldMs": 3048,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 128,
+        "prompt_tokens": 320,
+        "total_tokens": 448,
+        "prompt_tokens_details": {
+          "cached_tokens": 255
+        }
+      },
+      "timings": {
+        "cache_n": 255,
+        "prompt_n": 65,
+        "prompt_ms": 102.533,
+        "prompt_per_token_ms": 1.5774307692307692,
+        "prompt_per_second": 633.9422429851852,
+        "predicted_n": 128,
+        "predicted_ms": 2931.494,
+        "predicted_per_token_ms": 23.082629921259844,
+        "predicted_per_second": 43.32261979727743
+      },
+      "commands": [
+        "git status",
+        "git branch"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    }
+  ]
+}

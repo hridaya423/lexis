@@ -1,0 +1,996 @@
+{
+  "provider": "llama-server",
+  "model": "qwen3-4b-instruct-2507.Q4_K_M.gguf",
+  "mode": "plain",
+  "tag": "2507ft-win",
+  "dataset": {
+    "name": "core.jsonl",
+    "sha256": "83828218eadbc7f7"
+  },
+  "runtime": {
+    "llamaCppTag": "b11056"
+  },
+  "machine": {
+    "platform": "macos",
+    "arch": "arm64",
+    "ramGb": 48,
+    "shell": "powershell",
+    "gpu": {
+      "vendor": "apple",
+      "backend": "metal",
+      "vramGb": null
+    }
+  },
+  "ts": "2026-09-24T06:50:46.599Z",
+  "startupMs": 2194,
+  "repeat": 1,
+  "total": 24,
+  "passed": 14,
+  "passRate": 0.5833333333333334,
+  "coldP50Ms": 326,
+  "coldP95Ms": 857,
+  "warmP50Ms": 0,
+  "warmP95Ms": 0,
+  "results": [
+    {
+      "id": "w01",
+      "intent": "show node and npm versions",
+      "pass": true,
+      "error": "",
+      "coldMs": 216,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 73,
+        "total_tokens": 77,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 73,
+        "prompt_ms": 161.672,
+        "prompt_per_token_ms": 2.214684931506849,
+        "prompt_per_second": 451.53149586817756,
+        "predicted_n": 4,
+        "predicted_ms": 43.382,
+        "predicted_per_token_ms": 14.460666666666667,
+        "predicted_per_second": 69.15310497441337
+      },
+      "commands": [
+        "node --version"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w02",
+      "intent": "list files in current directory",
+      "pass": true,
+      "error": "",
+      "coldMs": 145,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 5,
+        "prompt_tokens": 73,
+        "total_tokens": 78,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 75.13,
+        "prompt_per_token_ms": 3.5776190476190473,
+        "prompt_per_second": 279.5155064554772,
+        "predicted_n": 5,
+        "predicted_ms": 61.445,
+        "predicted_per_token_ms": 15.36125,
+        "predicted_per_second": 65.09886890715273
+      },
+      "commands": [
+        "Get-ChildItem"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w03",
+      "intent": "check if port 3000 is in use",
+      "pass": false,
+      "error": "",
+      "coldMs": 474,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 13,
+        "prompt_tokens": 79,
+        "total_tokens": 92,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 27,
+        "prompt_ms": 89.926,
+        "prompt_per_token_ms": 3.3305925925925925,
+        "prompt_per_second": 300.2468696483775,
+        "predicted_n": 13,
+        "predicted_ms": 373.195,
+        "predicted_per_token_ms": 31.09958333333333,
+        "predicted_per_second": 32.15477163413229
+      },
+      "commands": [
+        "Test-NetConnection localhost -Port 3000"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w04",
+      "intent": "show environment variable PATH",
+      "pass": false,
+      "error": "",
+      "coldMs": 212,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 72,
+        "total_tokens": 76,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 20,
+        "prompt_ms": 126.228,
+        "prompt_per_token_ms": 6.3114,
+        "prompt_per_second": 158.4434515321482,
+        "predicted_n": 4,
+        "predicted_ms": 71.685,
+        "predicted_per_token_ms": 23.895,
+        "predicted_per_second": 41.849759363883656
+      },
+      "commands": [
+        "echo $PATH"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w05",
+      "intent": "install git via winget",
+      "pass": true,
+      "error": "",
+      "coldMs": 228,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 5,
+        "prompt_tokens": 73,
+        "total_tokens": 78,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 125.631,
+        "prompt_per_token_ms": 5.982428571428572,
+        "prompt_per_second": 167.15619552498984,
+        "predicted_n": 5,
+        "predicted_ms": 94.065,
+        "predicted_per_token_ms": 23.51625,
+        "predicted_per_second": 42.523786743209484
+      },
+      "commands": [
+        "winget install git"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w06",
+      "intent": "show running processes sorted by memory",
+      "pass": false,
+      "error": "",
+      "coldMs": 857,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 24,
+        "prompt_tokens": 74,
+        "total_tokens": 98,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 22,
+        "prompt_ms": 124.414,
+        "prompt_per_token_ms": 5.655181818181818,
+        "prompt_per_second": 176.82897423119584,
+        "predicted_n": 24,
+        "predicted_ms": 724.576,
+        "predicted_per_token_ms": 31.503304347826088,
+        "predicted_per_second": 31.742701938789025
+      },
+      "commands": [
+        "Get-Process | Sort-Object -Property WS -Descending | Select-Object ProcessName, WorkingSet, CPU"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w07",
+      "intent": "create a folder called projects",
+      "pass": true,
+      "error": "",
+      "coldMs": 202,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 73,
+        "total_tokens": 76,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 146.11,
+        "prompt_per_token_ms": 6.9576190476190485,
+        "prompt_per_second": 143.72732872493324,
+        "predicted_n": 3,
+        "predicted_ms": 48.42,
+        "predicted_per_token_ms": 24.21,
+        "predicted_per_second": 41.30524576621231
+      },
+      "commands": [
+        "mkdir projects"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w08",
+      "intent": "show disk space on C:",
+      "pass": false,
+      "error": "",
+      "coldMs": 326,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 11,
+        "prompt_tokens": 73,
+        "total_tokens": 84,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 111.454,
+        "prompt_per_token_ms": 5.307333333333333,
+        "prompt_per_second": 188.4185403843738,
+        "predicted_n": 11,
+        "predicted_ms": 206.096,
+        "predicted_per_token_ms": 20.6096,
+        "predicted_per_second": 48.52107755609037
+      },
+      "commands": [
+        "Get-PSDrive C | Select Used, Free"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w09",
+      "intent": "kill the process notepad",
+      "pass": true,
+      "error": "",
+      "coldMs": 360,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 8,
+        "prompt_tokens": 73,
+        "total_tokens": 81,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 129.898,
+        "prompt_per_token_ms": 6.185619047619047,
+        "prompt_per_second": 161.66530662519824,
+        "predicted_n": 8,
+        "predicted_ms": 221.454,
+        "predicted_per_token_ms": 31.636285714285716,
+        "predicted_per_second": 31.6092732576517
+      },
+      "commands": [
+        "Stop-Process -Name notepad"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w10",
+      "intent": "show ip configuration",
+      "pass": false,
+      "error": "",
+      "coldMs": 305,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 6,
+        "prompt_tokens": 71,
+        "total_tokens": 77,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 19,
+        "prompt_ms": 174.846,
+        "prompt_per_token_ms": 9.202421052631578,
+        "prompt_per_second": 108.66705558033927,
+        "predicted_n": 6,
+        "predicted_ms": 118.227,
+        "predicted_per_token_ms": 23.645400000000002,
+        "predicted_per_second": 42.291523932773394
+      },
+      "commands": [
+        "Get-NetIPConfiguration"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w11",
+      "intent": "copy file.txt to backup.txt",
+      "pass": true,
+      "error": "",
+      "coldMs": 259,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 8,
+        "prompt_tokens": 74,
+        "total_tokens": 82,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 22,
+        "prompt_ms": 112.374,
+        "prompt_per_token_ms": 5.10790909090909,
+        "prompt_per_second": 195.77482335771623,
+        "predicted_n": 8,
+        "predicted_ms": 139.653,
+        "predicted_per_token_ms": 19.95042857142857,
+        "predicted_per_second": 50.124236500469024
+      },
+      "commands": [
+        "Copy-Item file.txt backup.txt"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w12",
+      "intent": "check if python is installed",
+      "pass": true,
+      "error": "",
+      "coldMs": 178,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 73,
+        "total_tokens": 77,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 108.206,
+        "prompt_per_token_ms": 5.152666666666667,
+        "prompt_per_second": 194.0742657523612,
+        "predicted_n": 4,
+        "predicted_ms": 61.411,
+        "predicted_per_token_ms": 20.470333333333333,
+        "predicted_per_second": 48.851183012815284
+      },
+      "commands": [
+        "python --version"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w13",
+      "intent": "empty the recycle bin",
+      "pass": true,
+      "error": "",
+      "coldMs": 671,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 19,
+        "prompt_tokens": 72,
+        "total_tokens": 91,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 20,
+        "prompt_ms": 105.537,
+        "prompt_per_token_ms": 5.2768500000000005,
+        "prompt_per_second": 189.5069975458844,
+        "predicted_n": 19,
+        "predicted_ms": 557.264,
+        "predicted_per_token_ms": 30.959111111111113,
+        "predicted_per_second": 32.30066898274426
+      },
+      "commands": [
+        "Remove-Item -Path $env:USERPROFILE\\RecycleBin -Recurse"
+      ],
+      "risk": "high",
+      "policyFloor": "high",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w14",
+      "intent": "show windows version",
+      "pass": false,
+      "error": "",
+      "coldMs": 416,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 14,
+        "prompt_tokens": 71,
+        "total_tokens": 85,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 19,
+        "prompt_ms": 142.614,
+        "prompt_per_token_ms": 7.506,
+        "prompt_per_second": 133.2267519317879,
+        "predicted_n": 14,
+        "predicted_ms": 263.637,
+        "predicted_per_token_ms": 20.27976923076923,
+        "predicted_per_second": 49.31022580290323
+      },
+      "commands": [
+        "Get-ComputerInfo | Select-Object -ExpandProperty WindowsVersion"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w15",
+      "intent": "extract archive.zip to current directory",
+      "pass": true,
+      "error": "",
+      "coldMs": 249,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 6,
+        "prompt_tokens": 74,
+        "total_tokens": 80,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 22,
+        "prompt_ms": 124.075,
+        "prompt_per_token_ms": 5.639772727272727,
+        "prompt_per_second": 177.31210961112228,
+        "predicted_n": 6,
+        "predicted_ms": 115.9,
+        "predicted_per_token_ms": 23.18,
+        "predicted_per_second": 43.14063848144953
+      },
+      "commands": [
+        "Expand-Archive archive.zip"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w16",
+      "intent": "show last 20 lines of a log file",
+      "pass": true,
+      "error": "",
+      "coldMs": 529,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 17,
+        "prompt_tokens": 78,
+        "total_tokens": 95,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 26,
+        "prompt_ms": 125.716,
+        "prompt_per_token_ms": 4.835230769230769,
+        "prompt_per_second": 206.81536160870533,
+        "predicted_n": 17,
+        "predicted_ms": 395.878,
+        "predicted_per_token_ms": 24.742375,
+        "predicted_per_second": 40.41649194954001
+      },
+      "commands": [
+        "Get-Content -Path \"path/to/file.log\" -Tail 20"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w17",
+      "intent": "search files for the word error",
+      "pass": false,
+      "error": "",
+      "coldMs": 401,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 11,
+        "prompt_tokens": 74,
+        "total_tokens": 85,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 22,
+        "prompt_ms": 164.362,
+        "prompt_per_token_ms": 7.471,
+        "prompt_per_second": 133.85089010841924,
+        "predicted_n": 11,
+        "predicted_ms": 227.883,
+        "predicted_per_token_ms": 22.7883,
+        "predicted_per_second": 43.88216760355094
+      },
+      "commands": [
+        "Get-Content *.txt | Select-String error"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w18",
+      "intent": "check winget version",
+      "pass": true,
+      "error": "",
+      "coldMs": 214,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 5,
+        "prompt_tokens": 72,
+        "total_tokens": 77,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 20,
+        "prompt_ms": 118.689,
+        "prompt_per_token_ms": 5.93445,
+        "prompt_per_second": 168.5076123313871,
+        "predicted_n": 5,
+        "predicted_ms": 86.439,
+        "predicted_per_token_ms": 21.60975,
+        "predicted_per_second": 46.27540809125511
+      },
+      "commands": [
+        "winget --version"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w19",
+      "intent": "list installed programs",
+      "pass": false,
+      "error": "",
+      "coldMs": 476,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 16,
+        "prompt_tokens": 71,
+        "total_tokens": 87,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 19,
+        "prompt_ms": 117.061,
+        "prompt_per_token_ms": 6.1611052631578955,
+        "prompt_per_second": 162.30853999197,
+        "predicted_n": 16,
+        "predicted_ms": 350.887,
+        "predicted_per_token_ms": 23.392466666666667,
+        "predicted_per_second": 42.74880517089547
+      },
+      "commands": [
+        "Get-AppxPackage | Select Name, PackageFullName | Format-Table"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w20",
+      "intent": "restart the print spooler service",
+      "pass": true,
+      "error": "",
+      "coldMs": 351,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 75,
+        "total_tokens": 84,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 23,
+        "prompt_ms": 148.367,
+        "prompt_per_token_ms": 6.4507391304347825,
+        "prompt_per_second": 155.02099523478944,
+        "predicted_n": 9,
+        "predicted_ms": 182.852,
+        "predicted_per_token_ms": 22.8565,
+        "predicted_per_second": 43.7512305033579
+      },
+      "commands": [
+        "Restart-Service -Name spooler"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w21",
+      "intent": "find files larger than 100MB",
+      "pass": false,
+      "error": "",
+      "coldMs": 911,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 27,
+        "prompt_tokens": 77,
+        "total_tokens": 104,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 25,
+        "prompt_ms": 136.896,
+        "prompt_per_token_ms": 5.47584,
+        "prompt_per_second": 182.62038335670877,
+        "predicted_n": 27,
+        "predicted_ms": 763.37,
+        "predicted_per_token_ms": 29.360384615384614,
+        "predicted_per_second": 34.059499325359916
+      },
+      "commands": [
+        "Get-ChildItem -Recurse -File | Where-Object { $_.Length -gt 100MB }"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "platformOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w22",
+      "intent": "show the 5 most recent git commits",
+      "pass": true,
+      "error": "",
+      "coldMs": 832,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 26,
+        "prompt_tokens": 76,
+        "total_tokens": 102,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 24,
+        "prompt_ms": 134.31,
+        "prompt_per_token_ms": 5.59625,
+        "prompt_per_second": 178.69108778199688,
+        "predicted_n": 26,
+        "predicted_ms": 684.164,
+        "predicted_per_token_ms": 27.36656,
+        "predicted_per_second": 36.54094632281149
+      },
+      "commands": [
+        "git log --pretty=format:'%h %ad | %s' --date=iso --reverse --max-count=5"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "platformOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w23",
+      "intent": "stop the windows update service",
+      "pass": false,
+      "error": "",
+      "coldMs": 322,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 10,
+        "prompt_tokens": 73,
+        "total_tokens": 83,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 124.409,
+        "prompt_per_token_ms": 5.9242380952380955,
+        "prompt_per_second": 168.79807730951939,
+        "predicted_n": 10,
+        "predicted_ms": 186.312,
+        "predicted_per_token_ms": 20.701333333333334,
+        "predicted_per_second": 48.3060672420456
+      },
+      "commands": [
+        "Stop-Service -Name wuauserv"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "platformOk": true,
+        "riskFloor": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w24",
+      "intent": "open the current folder in file explorer",
+      "pass": true,
+      "error": "",
+      "coldMs": 193,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 75,
+        "total_tokens": 79,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 23,
+        "prompt_ms": 119.662,
+        "prompt_per_token_ms": 5.202695652173913,
+        "prompt_per_second": 192.20805268172015,
+        "predicted_n": 4,
+        "predicted_ms": 66.13,
+        "predicted_per_token_ms": 22.043333333333333,
+        "predicted_per_second": 45.365189777710576
+      },
+      "commands": [
+        "explorer ."
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "platformOk": true
+      },
+      "confidence": 0.8
+    }
+  ]
+}

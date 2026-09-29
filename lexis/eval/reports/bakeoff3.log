@@ -1,0 +1,50 @@
+
+===== llama-server 19:06 =====
+✗ a24 (2249,2293ms)
+
+57/72 passed (79%)  cold p50=2212ms  warm p50=2038ms
+Report: eval/reports/llama-server-Qwen2.5-Coder-1.5B-Instruct-Q4_K_M-bake-1790187093906.{json,md}
+
+===== llama-server 19:11 =====
+✓ a24 (4240,3810ms)
+
+56/72 passed (78%)  cold p50=2691ms  warm p50=2517ms
+Report: eval/reports/llama-server-Qwen3-1.7B-Q8_0-bake-1790187498023.{json,md}
+
+===== llama-server 19:18 =====
+✗ a24 (2291,2127ms)
+
+47/72 passed (65%)  cold p50=2760ms  warm p50=2630ms
+Report: eval/reports/llama-server-Qwen3.5-2B-M-TS-Q4_K_M-bake-1790187901087.{json,md}
+
+===== llama-server 19:25 =====
+✗ a24 (3427,3110ms)
+
+52/72 passed (72%)  cold p50=3090ms  warm p50=2826ms
+Report: eval/reports/llama-server-Qwen2.5-3B-Instruct.Q4_K_M-bake-1790188362468.{json,md}
+
+===== llama-server 19:32 =====
+✗ a24 (209,210ms)
+
+46/72 passed (64%)  cold p50=220ms  warm p50=239ms
+Report: eval/reports/llama-server-nl2sh-1.5b-Q4_K_M-bake-1790188404809.{json,md}
+
+===== llama-server 19:33 =====
+✗ a24 (282,219ms)
+
+49/72 passed (68%)  cold p50=157ms  warm p50=182ms
+Report: eval/reports/llama-server-shellwhisperer-1.5b-Q4_K_M-bake-1790188433567.{json,md}
+
+===== llama-server 19:33 =====
+✗ a24 (658,483ms)
+
+57/72 passed (79%)  cold p50=593ms  warm p50=476ms
+Report: eval/reports/llama-server-howdo-4b-v4-Q4_K_M-bake-1790188519652.{json,md}
+
+=====  19:35 =====
+✓ a24 (4662,4649ms)
+
+54/72 passed (75%)  cold p50=3792ms  warm p50=3739ms
+Report: eval/reports/apple-fm-apple-on-device-bake-1790189150239.{json,md}
+
+===== ALL DONE Wed Sep 23 19:45:50 BST 2026 =====

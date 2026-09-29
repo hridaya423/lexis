@@ -1,0 +1,76 @@
+{
+  "provider": "llama-server",
+  "model": "shellminator-qwen05b-dpo-selfplay-Q4_K_M.gguf",
+  "mode": "plain",
+  "tag": "mini-smoke",
+  "dataset": {
+    "name": "core.jsonl",
+    "sha256": "83828218eadbc7f7"
+  },
+  "runtime": {
+    "llamaCppTag": "b11056"
+  },
+  "machine": {
+    "platform": "macos",
+    "arch": "arm64",
+    "ramGb": 16,
+    "shell": "zsh",
+    "gpu": {
+      "vendor": "apple",
+      "backend": "metal",
+      "vramGb": null
+    }
+  },
+  "ts": "2026-09-23T21:12:47.156Z",
+  "startupMs": 18100,
+  "repeat": 1,
+  "total": 1,
+  "passed": 1,
+  "passRate": 1,
+  "coldP50Ms": 233,
+  "coldP95Ms": 233,
+  "warmP50Ms": 0,
+  "warmP95Ms": 0,
+  "results": [
+    {
+      "id": "u01",
+      "intent": "show node and npm versions",
+      "pass": true,
+      "error": "",
+      "coldMs": 233,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 8,
+        "prompt_tokens": 73,
+        "total_tokens": 81,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 73,
+        "prompt_ms": 177.233,
+        "prompt_per_token_ms": 2.427849315068493,
+        "prompt_per_second": 411.8871767673063,
+        "predicted_n": 8,
+        "predicted_ms": 40.45,
+        "predicted_per_token_ms": 5.778571428571429,
+        "predicted_per_second": 173.053152039555
+      },
+      "commands": [
+        "node -v && npm -v"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    }
+  ]
+}

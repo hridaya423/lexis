@@ -1,0 +1,136 @@
+{
+  "provider": "apple-fm",
+  "model": "qwen2.5-coder-1.5b",
+  "machine": {
+    "platform": "macos",
+    "arch": "arm64",
+    "ramGb": 48
+  },
+  "ts": "2026-09-19T21:13:26.555Z",
+  "total": 6,
+  "passed": 3,
+  "passRate": 0.5,
+  "latencyP50Ms": 4415,
+  "latencyP95Ms": 8672,
+  "results": [
+    {
+      "id": "u01",
+      "intent": "show node and npm versions",
+      "pass": false,
+      "error": "",
+      "latencyMs": 8672,
+      "commands": [
+        "brew outdated node && brew outdated npm"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u02",
+      "intent": "list files in current directory with sizes",
+      "pass": true,
+      "error": "",
+      "latencyMs": 3309,
+      "commands": [
+        "ls -la"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u03",
+      "intent": "what's my public ip address",
+      "pass": true,
+      "error": "",
+      "latencyMs": 3599,
+      "commands": [
+        "curl -I ifconfig.com"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u04",
+      "intent": "check if port 3000 is in use",
+      "pass": true,
+      "error": "",
+      "latencyMs": 4415,
+      "commands": [
+        "netstat -tulnp | grep :3000"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u05",
+      "intent": "show disk usage of current directory",
+      "pass": false,
+      "error": "",
+      "latencyMs": 5289,
+      "commands": [
+        "df -h ."
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.95
+    },
+    {
+      "id": "u06",
+      "intent": "find all .log files modified in the last day",
+      "pass": false,
+      "error": "",
+      "latencyMs": 4000,
+      "commands": [
+        "find /Users/hridyaagrawal/Honey/React/smartterminal/lexis -name '*.log' -type f -mtime -1"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.95
+    }
+  ]
+}

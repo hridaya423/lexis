@@ -1,0 +1,996 @@
+{
+  "provider": "llama-server",
+  "model": "smolcode-coder-powershell-1.5b-q4_k_m.gguf",
+  "mode": "plain",
+  "tag": "ps-win",
+  "dataset": {
+    "name": "core.jsonl",
+    "sha256": "83828218eadbc7f7"
+  },
+  "runtime": {
+    "llamaCppTag": "b11056"
+  },
+  "machine": {
+    "platform": "macos",
+    "arch": "arm64",
+    "ramGb": 48,
+    "shell": "powershell",
+    "gpu": {
+      "vendor": "apple",
+      "backend": "metal",
+      "vramGb": null
+    }
+  },
+  "ts": "2026-09-24T06:50:02.656Z",
+  "startupMs": 24,
+  "repeat": 1,
+  "total": 24,
+  "passed": 8,
+  "passRate": 0.3333333333333333,
+  "coldP50Ms": 246,
+  "coldP95Ms": 778,
+  "warmP50Ms": 0,
+  "warmP95Ms": 0,
+  "results": [
+    {
+      "id": "w01",
+      "intent": "show node and npm versions",
+      "pass": false,
+      "error": "",
+      "coldMs": 201,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 12,
+        "prompt_tokens": 73,
+        "total_tokens": 85,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 73,
+        "prompt_ms": 110.467,
+        "prompt_per_token_ms": 1.5132465753424658,
+        "prompt_per_second": 660.8308363583695,
+        "predicted_n": 12,
+        "predicted_ms": 78.789,
+        "predicted_per_token_ms": 7.162636363636364,
+        "predicted_per_second": 139.61339780933886
+      },
+      "commands": [
+        "powershell \"node -v; npm -v\""
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w02",
+      "intent": "list files in current directory",
+      "pass": true,
+      "error": "",
+      "coldMs": 167,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 73,
+        "total_tokens": 75,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 75.178,
+        "prompt_per_token_ms": 3.579904761904762,
+        "prompt_per_second": 279.33704009151614,
+        "predicted_n": 2,
+        "predicted_ms": 77.212,
+        "predicted_per_token_ms": 77.212,
+        "predicted_per_second": 12.951354711702843
+      },
+      "commands": [
+        "dir"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w03",
+      "intent": "check if port 3000 is in use",
+      "pass": false,
+      "error": "",
+      "coldMs": 632,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 34,
+        "prompt_tokens": 79,
+        "total_tokens": 113,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 27,
+        "prompt_ms": 37.696,
+        "prompt_per_token_ms": 1.3961481481481481,
+        "prompt_per_second": 716.2563667232597,
+        "predicted_n": 34,
+        "predicted_ms": 574.614,
+        "predicted_per_token_ms": 17.412545454545455,
+        "predicted_per_second": 57.429857260700224
+      },
+      "commands": [
+        "powershell -Command \"Get-NetTCPConnection -LocalPort 3000 | Where-Object {$_.State -eq 'LISTENING'}\""
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w04",
+      "intent": "show environment variable PATH",
+      "pass": false,
+      "error": "",
+      "coldMs": 177,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 14,
+        "prompt_tokens": 72,
+        "total_tokens": 86,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 20,
+        "prompt_ms": 58.479,
+        "prompt_per_token_ms": 2.92395,
+        "prompt_per_second": 342.00311222832124,
+        "predicted_n": 14,
+        "predicted_ms": 109.289,
+        "predicted_per_token_ms": 8.406846153846153,
+        "predicted_per_second": 118.95067207129719
+      },
+      "commands": [
+        "powershell -command \"Write-Output $env:PATH\""
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w05",
+      "intent": "install git via winget",
+      "pass": true,
+      "error": "",
+      "coldMs": 1367,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 80,
+        "prompt_tokens": 73,
+        "total_tokens": 153,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 40.199,
+        "prompt_per_token_ms": 1.914238095238095,
+        "prompt_per_second": 522.4010547526059,
+        "predicted_n": 80,
+        "predicted_ms": 1316.486,
+        "predicted_per_token_ms": 16.664379746835444,
+        "predicted_per_second": 60.00823404122793
+      },
+      "commands": [
+        "winget install git —s —f —y —c —n —v —i —u —t —p —d —o —r —g —a —b —c —d —e —f —g —h —i —j —k —l —m —n —o —p —q —r —s —t —u —v —w —x"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w06",
+      "intent": "show running processes sorted by memory",
+      "pass": false,
+      "error": "",
+      "coldMs": 244,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 16,
+        "prompt_tokens": 74,
+        "total_tokens": 90,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 22,
+        "prompt_ms": 58.957,
+        "prompt_per_token_ms": 2.6798636363636366,
+        "prompt_per_second": 373.15331512797457,
+        "predicted_n": 16,
+        "predicted_ms": 176.585,
+        "predicted_per_token_ms": 11.772333333333334,
+        "predicted_per_second": 84.9449273720871
+      },
+      "commands": [
+        "powershell Get-Process | Sort-Object -Property WorkingSet -Descending"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w07",
+      "intent": "create a folder called projects",
+      "pass": true,
+      "error": "",
+      "coldMs": 98,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 73,
+        "total_tokens": 76,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 44.508,
+        "prompt_per_token_ms": 2.1194285714285717,
+        "prompt_per_second": 471.82528983553516,
+        "predicted_n": 3,
+        "predicted_ms": 38.646,
+        "predicted_per_token_ms": 19.323,
+        "predicted_per_second": 51.75179837499353
+      },
+      "commands": [
+        "mkdir projects"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w08",
+      "intent": "show disk space on C:",
+      "pass": false,
+      "error": "",
+      "coldMs": 342,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 19,
+        "prompt_tokens": 73,
+        "total_tokens": 92,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 39.342,
+        "prompt_per_token_ms": 1.8734285714285714,
+        "prompt_per_second": 533.7806923898124,
+        "predicted_n": 19,
+        "predicted_ms": 290.489,
+        "predicted_per_token_ms": 16.138277777777777,
+        "predicted_per_second": 61.96448058274152
+      },
+      "commands": [
+        "powershell Get-PSDrive C: | Select-Object Name, FreeSpace, Size"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w09",
+      "intent": "kill the process notepad",
+      "pass": true,
+      "error": "",
+      "coldMs": 259,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 14,
+        "prompt_tokens": 73,
+        "total_tokens": 87,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 41.91,
+        "prompt_per_token_ms": 1.9957142857142856,
+        "prompt_per_second": 501.07372942018617,
+        "predicted_n": 14,
+        "predicted_ms": 205.701,
+        "predicted_per_token_ms": 15.823153846153845,
+        "predicted_per_second": 63.19852601591631
+      },
+      "commands": [
+        "powershell -Command \"Stop-Process -Name notepad\""
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w10",
+      "intent": "show ip configuration",
+      "pass": false,
+      "error": "",
+      "coldMs": 171,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 71,
+        "total_tokens": 80,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 19,
+        "prompt_ms": 51.307,
+        "prompt_per_token_ms": 2.7003684210526315,
+        "prompt_per_second": 370.3198393981328,
+        "predicted_n": 9,
+        "predicted_ms": 109.822,
+        "predicted_per_token_ms": 13.72775,
+        "predicted_per_second": 72.84514942361275
+      },
+      "commands": [
+        "powershell \"Get-NetIPAddress\""
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w11",
+      "intent": "copy file.txt to backup.txt",
+      "pass": false,
+      "error": "",
+      "coldMs": 144,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 10,
+        "prompt_tokens": 74,
+        "total_tokens": 84,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 22,
+        "prompt_ms": 51.629,
+        "prompt_per_token_ms": 2.346772727272727,
+        "prompt_per_second": 426.117104727963,
+        "predicted_n": 10,
+        "predicted_ms": 83.621,
+        "predicted_per_token_ms": 9.291222222222222,
+        "predicted_per_second": 107.62846653352626
+      },
+      "commands": [
+        "copy \"file.txt\" \"backup.txt\""
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w12",
+      "intent": "check if python is installed",
+      "pass": false,
+      "error": "",
+      "coldMs": 778,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 44,
+        "prompt_tokens": 73,
+        "total_tokens": 117,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 65.239,
+        "prompt_per_token_ms": 3.1066190476190476,
+        "prompt_per_second": 321.89334600469044,
+        "predicted_n": 44,
+        "predicted_ms": 703.78,
+        "predicted_per_token_ms": 16.366976744186047,
+        "predicted_per_second": 61.09863877916395
+      },
+      "commands": [
+        "powershell -Command \"if (Test-Path -Path \"C:\\Python39\\python.exe\") {Write-Output 'Python is installed'} else {Write-Output 'Python is not installed'}\""
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w13",
+      "intent": "empty the recycle bin",
+      "pass": false,
+      "error": "",
+      "coldMs": 609,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 35,
+        "prompt_tokens": 72,
+        "total_tokens": 107,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 20,
+        "prompt_ms": 45.37,
+        "prompt_per_token_ms": 2.2685,
+        "prompt_per_second": 440.8199250606128,
+        "predicted_n": 35,
+        "predicted_ms": 555.554,
+        "predicted_per_token_ms": 16.339823529411763,
+        "predicted_per_second": 61.200171360479814
+      },
+      "commands": [
+        "powershell Remove-Item -Path \"C:\\$env:USERPROFILE\\AppData\\Local\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\*\" -Recurse"
+      ],
+      "risk": "high",
+      "policyFloor": "high",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w14",
+      "intent": "show windows version",
+      "pass": false,
+      "error": "",
+      "coldMs": 322,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 18,
+        "prompt_tokens": 71,
+        "total_tokens": 89,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 19,
+        "prompt_ms": 47.703,
+        "prompt_per_token_ms": 2.510684210526316,
+        "prompt_per_second": 398.29780097687774,
+        "predicted_n": 18,
+        "predicted_ms": 263.53,
+        "predicted_per_token_ms": 15.501764705882351,
+        "predicted_per_second": 64.50878457860586
+      },
+      "commands": [
+        "powershell -Command \"Write-Output (Get-ComputerInfo).OSVersion\""
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w15",
+      "intent": "extract archive.zip to current directory",
+      "pass": true,
+      "error": "",
+      "coldMs": 147,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 10,
+        "prompt_tokens": 74,
+        "total_tokens": 84,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 22,
+        "prompt_ms": 57.812,
+        "prompt_per_token_ms": 2.627818181818182,
+        "prompt_per_second": 380.54383173043664,
+        "predicted_n": 10,
+        "predicted_ms": 81.094,
+        "predicted_per_token_ms": 9.010444444444444,
+        "predicted_per_second": 110.98231681752041
+      },
+      "commands": [
+        "Expand-Archive archive.zip -DestinationPath ."
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w16",
+      "intent": "show last 20 lines of a log file",
+      "pass": false,
+      "error": "",
+      "coldMs": 360,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 18,
+        "prompt_tokens": 78,
+        "total_tokens": 96,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 26,
+        "prompt_ms": 44.906,
+        "prompt_per_token_ms": 1.727153846153846,
+        "prompt_per_second": 578.9872177437313,
+        "predicted_n": 18,
+        "predicted_ms": 305.357,
+        "predicted_per_token_ms": 17.962176470588236,
+        "predicted_per_second": 55.672540665516095
+      },
+      "commands": [
+        "powershell Get-Content \"path_to_log_file.log\" -Tail 20"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w17",
+      "intent": "search files for the word error",
+      "pass": false,
+      "error": "",
+      "coldMs": 479,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 23,
+        "prompt_tokens": 74,
+        "total_tokens": 97,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 22,
+        "prompt_ms": 52.085,
+        "prompt_per_token_ms": 2.3675,
+        "prompt_per_second": 422.3864836325237,
+        "predicted_n": 23,
+        "predicted_ms": 412.307,
+        "predicted_per_token_ms": 18.741227272727272,
+        "predicted_per_second": 53.35829854938189
+      },
+      "commands": [
+        "powershell -Command \"Get-ChildItem -Recurse | Select-String -Pattern 'error'\""
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w18",
+      "intent": "check winget version",
+      "pass": false,
+      "error": "",
+      "coldMs": 126,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 7,
+        "prompt_tokens": 72,
+        "total_tokens": 79,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 20,
+        "prompt_ms": 61.647,
+        "prompt_per_token_ms": 3.08235,
+        "prompt_per_second": 324.4277904845329,
+        "predicted_n": 7,
+        "predicted_ms": 56.825,
+        "predicted_per_token_ms": 9.470833333333333,
+        "predicted_per_second": 105.58732952045753
+      },
+      "commands": [
+        "powershell winget --version"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w19",
+      "intent": "list installed programs",
+      "pass": false,
+      "error": "",
+      "coldMs": 105,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 7,
+        "prompt_tokens": 71,
+        "total_tokens": 78,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 19,
+        "prompt_ms": 38.29,
+        "prompt_per_token_ms": 2.015263157894737,
+        "prompt_per_second": 496.2131104727083,
+        "predicted_n": 7,
+        "predicted_ms": 57.786,
+        "predicted_per_token_ms": 9.631,
+        "predicted_per_second": 103.83137784238397
+      },
+      "commands": [
+        "powershell Get-InstalledSoftware"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": false,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w20",
+      "intent": "restart the print spooler service",
+      "pass": true,
+      "error": "",
+      "coldMs": 246,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 11,
+        "prompt_tokens": 75,
+        "total_tokens": 86,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 23,
+        "prompt_ms": 36.346,
+        "prompt_per_token_ms": 1.5802608695652172,
+        "prompt_per_second": 632.8069113520057,
+        "predicted_n": 11,
+        "predicted_ms": 200.931,
+        "predicted_per_token_ms": 20.0931,
+        "predicted_per_second": 49.76832843115298
+      },
+      "commands": [
+        "powershell Restart-Service -Name Spooler"
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "riskFloor": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w21",
+      "intent": "find files larger than 100MB",
+      "pass": false,
+      "error": "",
+      "coldMs": 586,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 33,
+        "prompt_tokens": 77,
+        "total_tokens": 110,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 25,
+        "prompt_ms": 42.636,
+        "prompt_per_token_ms": 1.70544,
+        "prompt_per_second": 586.3589454920724,
+        "predicted_n": 33,
+        "predicted_ms": 532.253,
+        "predicted_per_token_ms": 16.63290625,
+        "predicted_per_second": 60.12178418909804
+      },
+      "commands": [
+        "powershell Get-ChildItem -Recurse -Filter *.txt -File | Where-Object { $_.Length -gt 100MB }"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "platformOk": true,
+        "readonly": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w22",
+      "intent": "show the 5 most recent git commits",
+      "pass": true,
+      "error": "",
+      "coldMs": 136,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 7,
+        "prompt_tokens": 76,
+        "total_tokens": 83,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 24,
+        "prompt_ms": 58.224,
+        "prompt_per_token_ms": 2.4259999999999997,
+        "prompt_per_second": 412.20115416323165,
+        "predicted_n": 7,
+        "predicted_ms": 69.171,
+        "predicted_per_token_ms": 11.528500000000001,
+        "predicted_per_second": 86.74155354122391
+      },
+      "commands": [
+        "git log -n 5"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "platformOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w23",
+      "intent": "stop the windows update service",
+      "pass": false,
+      "error": "",
+      "coldMs": 266,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 16,
+        "prompt_tokens": 73,
+        "total_tokens": 89,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 21,
+        "prompt_ms": 51.839,
+        "prompt_per_token_ms": 2.4685238095238096,
+        "prompt_per_second": 405.10040702945656,
+        "predicted_n": 16,
+        "predicted_ms": 205.559,
+        "predicted_per_token_ms": 13.703933333333334,
+        "predicted_per_second": 72.9717502031047
+      },
+      "commands": [
+        "powershell -Command \"Stop-Service -Name wuauserv\""
+      ],
+      "risk": "moderate",
+      "policyFloor": "moderate",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "platformOk": true,
+        "riskFloor": false
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "w24",
+      "intent": "open the current folder in file explorer",
+      "pass": true,
+      "error": "",
+      "coldMs": 97,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 75,
+        "total_tokens": 79,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 23,
+        "prompt_ms": 46.336,
+        "prompt_per_token_ms": 2.014608695652174,
+        "prompt_per_second": 496.3743093922652,
+        "predicted_n": 4,
+        "predicted_ms": 40.957,
+        "predicted_per_token_ms": 13.652333333333333,
+        "predicted_per_second": 73.24755231096027
+      },
+      "commands": [
+        "explorer ."
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "platformOk": true
+      },
+      "confidence": 0.8
+    }
+  ]
+}

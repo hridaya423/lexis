@@ -1,0 +1,24 @@
+=== profile: 'default'
+
+26/30 passed (87%)  cold p50=2732ms  warm p50=2607ms
+Report: eval/reports/llama-server-Qwen2.5-Coder-3B-Instruct-Q4_K_M-flags_default-1790193915852.{json,md}
+=== profile: '-t 8'
+
+26/30 passed (87%)  cold p50=2498ms  warm p50=2403ms
+Report: eval/reports/llama-server-Qwen2.5-Coder-3B-Instruct-Q4_K_M-flags_-t_8-1790194072572.{json,md}
+=== profile: '-fa on'
+
+26/30 passed (87%)  cold p50=2665ms  warm p50=2541ms
+Report: eval/reports/llama-server-Qwen2.5-Coder-3B-Instruct-Q4_K_M-flags_-fa_on-1790194235899.{json,md}
+=== profile: '-c 2048'
+
+26/30 passed (87%)  cold p50=2706ms  warm p50=2525ms
+Report: eval/reports/llama-server-Qwen2.5-Coder-3B-Instruct-Q4_K_M-flags_-c_2048-1790194403572.{json,md}
+=== profile: '--cache-reuse 0'
+
+26/30 passed (87%)  cold p50=2684ms  warm p50=2541ms
+Report: eval/reports/llama-server-Qwen2.5-Coder-3B-Instruct-Q4_K_M-flags_--cache-reuse_0-1790194567331.{json,md}
+=== profile: '-fa on -c 4096 --cache-reuse 256'
+
+26/30 passed (87%)  cold p50=2664ms  warm p50=2559ms
+Report: eval/reports/llama-server-Qwen2.5-Coder-3B-Instruct-Q4_K_M-flags_-fa_on_-c_4096_--cache-reuse_256-1790194730621.{json,md}

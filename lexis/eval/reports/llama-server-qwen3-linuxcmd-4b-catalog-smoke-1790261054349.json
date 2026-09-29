@@ -1,0 +1,155 @@
+{
+  "provider": "llama-server",
+  "model": "qwen3-linuxcmd-4b",
+  "mode": "schema",
+  "tag": "catalog-smoke",
+  "dataset": {
+    "name": "core.jsonl",
+    "sha256": "83828218eadbc7f7"
+  },
+  "runtime": {
+    "llamaCppTag": "b11056"
+  },
+  "machine": {
+    "platform": "macos",
+    "arch": "arm64",
+    "ramGb": 48,
+    "shell": "zsh",
+    "gpu": {
+      "vendor": "apple",
+      "backend": "metal",
+      "vramGb": null
+    }
+  },
+  "ts": "2026-09-24T14:44:14.347Z",
+  "startupMs": 24,
+  "repeat": 1,
+  "total": 3,
+  "passed": 3,
+  "passRate": 1,
+  "coldP50Ms": 398,
+  "coldP95Ms": 421,
+  "warmP50Ms": 0,
+  "warmP95Ms": 0,
+  "results": [
+    {
+      "id": "u01",
+      "intent": "show node and npm versions",
+      "pass": true,
+      "error": "",
+      "coldMs": 398,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 8,
+        "prompt_tokens": 73,
+        "total_tokens": 81,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 73,
+        "prompt_ms": 253.231,
+        "prompt_per_token_ms": 3.468917808219178,
+        "prompt_per_second": 288.27434239883746,
+        "predicted_n": 8,
+        "predicted_ms": 126.671,
+        "predicted_per_token_ms": 18.095857142857145,
+        "predicted_per_second": 55.26126737769497
+      },
+      "commands": [
+        "node -v && npm -v"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "u02",
+      "intent": "list files in current directory with sizes",
+      "pass": true,
+      "error": "",
+      "coldMs": 287,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 75,
+        "total_tokens": 79,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 23,
+        "prompt_ms": 175.993,
+        "prompt_per_token_ms": 7.651869565217391,
+        "prompt_per_second": 130.68701596086208,
+        "predicted_n": 4,
+        "predicted_ms": 60.627,
+        "predicted_per_token_ms": 20.209,
+        "predicted_per_second": 49.48290365678658
+      },
+      "commands": [
+        "ls -lh"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true,
+        "readonly": true
+      },
+      "confidence": 0.8
+    },
+    {
+      "id": "u03",
+      "intent": "what's my public ip address",
+      "pass": true,
+      "error": "",
+      "coldMs": 421,
+      "warmMs": [],
+      "usage": {
+        "completion_tokens": 8,
+        "prompt_tokens": 74,
+        "total_tokens": 82,
+        "prompt_tokens_details": {
+          "cached_tokens": 52
+        }
+      },
+      "timings": {
+        "cache_n": 52,
+        "prompt_n": 22,
+        "prompt_ms": 120.326,
+        "prompt_per_token_ms": 5.469363636363636,
+        "prompt_per_second": 182.83662716287418,
+        "predicted_n": 8,
+        "predicted_ms": 288.969,
+        "predicted_per_token_ms": 41.281285714285715,
+        "predicted_per_second": 24.224051714889832
+      },
+      "commands": [
+        "curl -s ifconfig.me/ip"
+      ],
+      "risk": "low",
+      "policyFloor": "low",
+      "checks": {
+        "jsonValid": true,
+        "anyMatch": true,
+        "noForbidden": true,
+        "commandCountOk": true
+      },
+      "confidence": 0.8
+    }
+  ]
+}

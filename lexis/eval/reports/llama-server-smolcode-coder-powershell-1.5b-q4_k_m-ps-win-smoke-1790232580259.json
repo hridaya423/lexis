@@ -1,0 +1,35 @@
+{
+  "provider": "llama-server",
+  "model": "smolcode-coder-powershell-1.5b-q4_k_m.gguf",
+  "mode": "plain",
+  "tag": "ps-win-smoke",
+  "dataset": {
+    "name": "core.jsonl",
+    "sha256": "83828218eadbc7f7"
+  },
+  "runtime": {
+    "llamaCppTag": "b11056"
+  },
+  "machine": {
+    "platform": "macos",
+    "arch": "arm64",
+    "ramGb": 48,
+    "shell": "powershell",
+    "gpu": {
+      "vendor": "apple",
+      "backend": "metal",
+      "vramGb": null
+    }
+  },
+  "ts": "2026-09-24T06:49:40.258Z",
+  "startupMs": 24,
+  "repeat": 1,
+  "total": 0,
+  "passed": 0,
+  "passRate": 0,
+  "coldP50Ms": 0,
+  "coldP95Ms": 0,
+  "warmP50Ms": 0,
+  "warmP95Ms": 0,
+  "results": []
+}

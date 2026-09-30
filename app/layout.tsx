@@ -19,6 +19,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://lexis.hridya.tech"),
   title: {
     default: "Lexis",
     template: "%s | Lexis",

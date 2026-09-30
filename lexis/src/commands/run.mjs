@@ -318,7 +318,7 @@ export async function runCommand(runArgs, { dryRunOnly = false, memory = true } 
     });
 
     const failed = results.find((r) => r.exitCode && r.exitCode !== 0);
-    if (failed && policy.readonly && !failed.stderrTail?.trim() && !(failed.stdoutBytes > 0)) {
+    if (failed && !failed.signal && failed.exitCode < 128 && policy.readonly && !failed.stderrTail?.trim() && !(failed.stdoutBytes > 0)) {
       process.stderr.write(ui.dim(`  no matches (exit ${failed.exitCode})\n`));
       await audit({ type: "no_matches", prompt, failedCommand: failed.command, exitCode: failed.exitCode });
       process.exit(failed.exitCode);

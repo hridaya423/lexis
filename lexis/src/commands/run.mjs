@@ -318,9 +318,15 @@ export async function runCommand(runArgs, { dryRunOnly = false, memory = true } 
     });
 
     const failed = results.find((r) => r.exitCode && r.exitCode !== 0);
+    if (failed && policy.readonly && !failed.stderrTail?.trim() && !(failed.stdoutBytes > 0)) {
+      process.stderr.write(ui.dim(`  no matches (exit ${failed.exitCode})\n`));
+      await audit({ type: "no_matches", prompt, failedCommand: failed.command, exitCode: failed.exitCode });
+      process.exit(failed.exitCode);
+    }
     const retryable = failed && !failed.signal && !editedPlan && attempt === 0;
     if (retryable) {
       const errLine = (failed.stderrTail || `exited ${failed.exitCode}`).trim().split("\n").slice(0, 3).join(" ").slice(0, 300);
+      if (failed.stderrTail?.trim()) process.stderr.write(ui.dim(`  ${errLine}\n`));
       process.stderr.write(ui.dim(`  failed — replanning with the error\n`));
       await audit({ type: "retry", prompt, failedCommand: failed.command, exitCode: failed.exitCode });
       if (await replan(`\n(the command \`${failed.command}\` failed — ${errLine}. give the corrected command)`)) {

@@ -45,3 +45,4 @@ eval/reports/
 runs/
 training/artifacts/
 training/data/
+.build/

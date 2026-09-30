@@ -217,7 +217,7 @@ test("headBinary skips wrappers and env assignments", () => {
 });
 
 test("isInstalled finds builtins and PATH entries, not phantom bins", () => {
-  assert.equal(isInstalled("sh"), true);
+  assert.equal(isInstalled("node"), true);
   assert.equal(isInstalled("cd"), true);
   assert.equal(isInstalled("definitely-not-a-bin-xyz123"), false);
 });

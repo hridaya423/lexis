@@ -75,7 +75,8 @@ test("auto snippets pass through command-shaped input and skip non-TTY", async (
 test("zsh __lexis_command_shaped flags commands, not English", async (t) => {
   const { execFileSync } = await import("node:child_process");
   const { readFileSync } = await import("node:fs");
-  const snippet = new URL("../src/shell/snippets/zsh.zsh", import.meta.url).pathname;
+  const { fileURLToPath } = await import("node:url");
+  const snippet = fileURLToPath(new URL("../src/shell/snippets/zsh.zsh", import.meta.url));
   const src = readFileSync(snippet, "utf8");
   const fn = src.match(/^__lexis_command_shaped\(\) \{[\s\S]*?^\}/m)[0];
   const run = (line) => execFileSync("zsh", ["-fc",

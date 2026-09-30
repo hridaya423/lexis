@@ -10,13 +10,13 @@ test("shouldSearchWeb: install/update verbs trigger", () => {
 
 test("shouldSearchWeb: greetings and plain lookups don't trigger", () => {
   for (const p of ["hi", "list files", "show disk usage", "what's on port 3000"]) {
-    assert.equal(shouldSearchWeb(p, { commands: [{ command: "ls" }] }), false, p);
+    assert.equal(shouldSearchWeb(p, { commands: [{ command: "cd ." }] }), false, p);
   }
 });
 
 test("shouldSearchWeb: missing head binary triggers", () => {
   assert.equal(shouldSearchWeb("run it", { commands: [{ command: "definitely-not-a-bin-xyz123 --flag" }] }), true);
-  assert.equal(shouldSearchWeb("run it", { commands: [{ command: "ls -la" }] }), false);
+  assert.equal(shouldSearchWeb("run it", { commands: [{ command: "cd .." }] }), false);
 });
 
 test("parseLiteHtml extracts links and snippets from lite markup", () => {

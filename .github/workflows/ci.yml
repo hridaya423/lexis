@@ -36,9 +36,13 @@ jobs:
         run: |
           if command -v fish >/dev/null; then fish -n lexis/src/shell/snippets/fish.fish 2>/dev/null || fish --no-execute lexis/src/shell/snippets/fish.fish; fi
       - name: snippet syntax (powershell)
-        run: |
-          pwsh -NoProfile -NonInteractive -Command "[void][System.Management.Automation.Language.Parser]::ParseFile('lexis/src/shell/snippets/powershell.ps1',[ref]\$null,[ref]\$errors); if (\$errors) { \$errors | ForEach-Object { Write-Error \$_.Message }; exit 1 }"
         shell: pwsh
+        run: |
+          $parseErrors = $null
+          foreach ($f in @('lexis/src/shell/snippets/powershell.ps1','lexis/src/shell/snippets/powershell.lx.ps1')) {
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f,[ref]$null,[ref]$parseErrors)
+          }
+          if ($parseErrors) { $parseErrors | ForEach-Object { Write-Error $_.Message }; exit 1 }
 
   apple-fm-helper:
     runs-on: macos-latest

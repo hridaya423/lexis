@@ -1,0 +1,63 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  apple-fm-binary:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build + package helper
+        working-directory: platform/apple-fm-helper
+        run: |
+          swift build -c release --arch arm64
+          mkdir -p ../../lexis/bin/darwin-arm64
+          cp .build/release/lexis-apple-fm ../../lexis/bin/darwin-arm64/lexis-apple-fm
+          strip ../../lexis/bin/darwin-arm64/lexis-apple-fm || true
+          codesign -s - ../../lexis/bin/darwin-arm64/lexis-apple-fm || true
+          chmod +x ../../lexis/bin/darwin-arm64/lexis-apple-fm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apple-fm-bin
+          path: lexis/bin/darwin-arm64/
+
+  npm-publish:
+    needs: [test, apple-fm-binary]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: apple-fm-bin
+          path: lexis/bin/darwin-arm64/
+      - run: chmod +x lexis/bin/darwin-arm64/lexis-apple-fm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: publish
+        working-directory: lexis
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+  github-release:
+    needs: [npm-publish]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            lexis-*/**
+          generate_release_notes: true

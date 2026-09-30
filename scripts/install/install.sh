@@ -192,15 +192,6 @@ install_global_with_fallbacks() {
   return 0
 }
 
-is_valid_profile() {
-  case "$1" in
-    light|balanced|heavy)
-      return 0
-      ;;
-  esac
-  return 1
-}
-
 is_valid_hook_mode() {
   case "$1" in
     auto|lx)
@@ -222,25 +213,6 @@ read_from_tty() {
   fi
 
   return 1
-}
-
-choose_profile() {
-  local current="${LEXIS_PROFILE:-}"
-  if is_valid_profile "$current"; then
-    printf "%s" "$current"
-    return 0
-  fi
-
-  local answer
-  answer="$(read_from_tty "Model profile [light/balanced/heavy] (default: balanced): " || true)"
-  answer="${answer:-balanced}"
-
-  if ! is_valid_profile "$answer"; then
-    log "Invalid profile '$answer'. Using balanced."
-    answer="balanced"
-  fi
-
-  printf "%s" "$answer"
 }
 
 choose_hook_mode() {
@@ -304,14 +276,19 @@ main() {
     fail "'lexis' command not found after install (npm prefix: ${prefix:-unknown}). Add your npm global bin to PATH and retry."
   fi
 
-  local profile
-  profile="$(choose_profile)"
-
   local hook_mode
   hook_mode="$(choose_hook_mode)"
 
-  log "Running setup (profile=$profile, hook-mode=$hook_mode)"
-  "$lexis_cmd" setup --profile "$profile" --hook-mode "$hook_mode" --enable-web-search --web-provider mcp
+  local -a setup_args=(setup --hook-mode "$hook_mode")
+  if [ -n "${LEXIS_PROVIDER:-}" ]; then
+    setup_args+=(--provider "$LEXIS_PROVIDER")
+  fi
+  if [ -n "${LEXIS_MODEL:-}" ]; then
+    setup_args+=(--model "$LEXIS_MODEL")
+  fi
+
+  log "Running setup (hook-mode=$hook_mode)"
+  "$lexis_cmd" "${setup_args[@]}"
 
   log "Done. Open a new terminal and run: lx doctor"
 }

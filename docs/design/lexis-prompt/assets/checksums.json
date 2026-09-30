@@ -1,0 +1,18 @@
+{
+  "assets/DepartureMono-1.500.woff2": "5b4fed1daa90708aa9c6ee1190abca9dc22164a1c1def0020386e46b61038cfb",
+  "assets/DepartureMono-LICENSE.txt": "b65e42750f3cb65437a97f4dfd781c58f199259949db2341012be60e32500e83",
+  "assets/footer-wordmark-cells.json": "fa9646dddbeed6b3c1f8d97f569576820b9468237bd298ffcd8c34405376d374",
+  "assets/footer-wordmark.svg": "9b4ec76188c2d043015dc78a8732ee98f53291ababbcf25f6e0c3e2d94af31a2",
+  "assets/heading-examples.svg": "b738a4a68f19beba78148d67b5cdb9eeb8aa67c7612909c49cf178eac1cc979c",
+  "assets/heading-hero.svg": "95d9a5e4a22c815d429999fb1d7bf1365326ebe2fa76ae2b545f0580f72ea33d",
+  "assets/heading-install.svg": "2b5b0524ce2af253dadba91e5e63c36d7c91eacef1d52e9091241d9ce4948e76",
+  "assets/heading-review.svg": "7bc6c7c7998a69de7ed6768d32571e4a43e876ffd1dc6e2893dd506237db501f",
+  "assets/lcd-substrate.svg": "2a514f34945acb4591c89c0d0071c69bbea69f3023f5a823f27a0ab9af7bbf7b",
+  "assets/manifest.json": "6b29e8ff305a626edaeb19a457f343d17d84fe0e0674a118d8b0ab8e0b47f842",
+  "references/01-hero.png": "3d17ff503d0596efa812d0c688079432a356f6d648a7a31db2a78a706aa806e3",
+  "references/02-examples.png": "7d6c76219c2204420a59193ebf6d71e67fe48f3e9a2ec05700b937078e7d6d0a",
+  "references/03-review.png": "daf736d5b8e752a3747da4b18d17fade3f29ed9b27e29f06e05e5eef20ce0d56",
+  "references/04-install.png": "9a953c2f3a6dcb6d6ce1d35e5aa01f9461623b0d9c41f5c273695e52d8ac4ea7",
+  "references/05-footer-composition.png": "1493271e0d82cf85d8a6f0d6a943b31ebe634f0f155016c34f2fa818a15d5ee2",
+  "references/provenance.json": "13b0081d7794207c8212bc35f018f8c77bf9d3586394a07d6f8d297a70d68b22"
+}

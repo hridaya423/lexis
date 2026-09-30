@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/sync-install-routes.mjs && next dev",
+    "build": "node scripts/sync-install-routes.mjs && next build",
+    "sync:installers": "node scripts/sync-install-routes.mjs",
     "start": "next start",
     "lint": "eslint",
     "lexis": "node lexis/src/index.mjs",

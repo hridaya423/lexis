@@ -1,0 +1,96 @@
+{
+  "heading-hero.svg": {
+    "viewBox": [
+      0,
+      0,
+      1157,
+      366
+    ],
+    "text": "In your own words.",
+    "reference": "01-hero.png",
+    "sourceBounds": [
+      75,
+      183,
+      1232,
+      549
+    ],
+    "method": "Thresholded ink geometry, merged horizontal runs; no embedded raster",
+    "pathRectangles": 2159
+  },
+  "heading-examples.svg": {
+    "viewBox": [
+      0,
+      0,
+      992,
+      108
+    ],
+    "text": "What needs doing?",
+    "reference": "02-examples.png",
+    "sourceBounds": [
+      78,
+      137,
+      1070,
+      245
+    ],
+    "method": "Thresholded ink geometry, merged horizontal runs; no embedded raster",
+    "pathRectangles": 1682
+  },
+  "heading-review.svg": {
+    "viewBox": [
+      0,
+      0,
+      954,
+      315
+    ],
+    "text": "The last word is yours.",
+    "reference": "03-review.png",
+    "sourceBounds": [
+      76,
+      253,
+      1030,
+      568
+    ],
+    "method": "Thresholded ink geometry, merged horizontal runs; no embedded raster",
+    "pathRectangles": 1703
+  },
+  "heading-install.svg": {
+    "viewBox": [
+      0,
+      0,
+      574,
+      362
+    ],
+    "text": "Make it your terminal.",
+    "reference": "04-install.png",
+    "sourceBounds": [
+      80,
+      205,
+      654,
+      567
+    ],
+    "method": "Thresholded ink geometry, merged horizontal runs; no embedded raster",
+    "pathRectangles": 1815
+  },
+  "footer-wordmark.svg": {
+    "viewBox": [
+      0,
+      0,
+      759.3,
+      264.3
+    ],
+    "text": "lexis",
+    "method": "Natural-proportion bold grotesk sampled into regular square cells",
+    "cells": 3468,
+    "reference": "05-footer-composition.png",
+    "adaptation": "Full uncropped wordmark, as requested; no squashing"
+  },
+  "lcd-substrate.svg": {
+    "viewBox": [
+      0,
+      0,
+      6,
+      6
+    ],
+    "purpose": "Optional subtle repeated background tile; never scale with viewport"
+  }
+}

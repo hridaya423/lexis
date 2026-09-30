@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { COUNT_LINES, FIXTURES, type FixtureId } from "@/components/lexis-fixtures";
 import { selectExample, usePromptState } from "@/components/lexis-prompt-state";
@@ -91,8 +91,7 @@ export function LexisExampleSelector() {
   const { selectedExample } = usePromptState();
   const [exploring, setExploring] = useState(false);
   const [pinned, setPinned] = useState(false);
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const keyboardSelection = useRef(false);
+  const [keyboardSelection, setKeyboardSelection] = useState(false);
   const reduceMotion = useReducedMotion();
 
   const activeIndex = Math.max(
@@ -110,11 +109,12 @@ export function LexisExampleSelector() {
     if (event.key === "End") next = TABS.length - 1;
     if (next >= 0) {
       event.preventDefault();
-      keyboardSelection.current = true;
+      setKeyboardSelection(true);
       setExploring(false);
       setPinned(false);
       selectExample(TABS[next].id);
-      tabRefs.current[next]?.focus();
+      const tabs = event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+      tabs[next]?.focus();
     }
   }
 
@@ -145,15 +145,12 @@ export function LexisExampleSelector() {
               type="button"
               role="tab"
               id={`ex-tab-${tab.id}`}
-              ref={(el) => {
-                tabRefs.current[i] = el;
-              }}
               className={styles.exTab}
               aria-selected={i === activeIndex}
               aria-controls="ex-panel"
               tabIndex={i === activeIndex ? 0 : -1}
               onClick={(event) => {
-                keyboardSelection.current = event.detail === 0;
+                setKeyboardSelection(event.detail === 0);
                 setExploring(false);
                 setPinned(false);
                 selectExample(tab.id);
@@ -166,7 +163,7 @@ export function LexisExampleSelector() {
                   className={styles.exMarker}
                   aria-hidden="true"
                   transition={
-                    reduceMotion || keyboardSelection.current
+                    reduceMotion || keyboardSelection
                       ? { duration: 0 }
                       : { type: "spring", duration: 0.5, bounce: 0.2 }
                   }

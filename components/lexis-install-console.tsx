@@ -263,9 +263,10 @@ export function LexisInstallConsole() {
                 <p>
                   Run <code>curl -fsSL {baseUrl}/install.sh | bash</code> in
                   your terminal. The installer sets up a local inference
-                  runtime, writes config, and installs shell hooks. Runtime is
-                  chosen automatically: MLX on Apple Silicon, llama.cpp on
-                  Intel and CPU-only Linux, vLLM on Linux with NVIDIA.
+                  runtime, writes config, and installs shell hooks. The runtime
+                  is a pinned llama.cpp build, chosen automatically: Metal on
+                  Apple Silicon, Vulkan or CUDA on Linux/Windows, CPU
+                  elsewhere.
                 </p>
                 <h3>Windows</h3>
                 <p>

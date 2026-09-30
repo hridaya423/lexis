@@ -1,0 +1,37 @@
+{
+  "01-hero.png": {
+    "generationFile": "exec-b30ab968-1a74-4e12-9970-411cf001e01a.png",
+    "dimensions": [
+      1586,
+      992
+    ]
+  },
+  "02-examples.png": {
+    "generationFile": "exec-3c17c064-af89-4652-9268-f8493c9773bc.png",
+    "dimensions": [
+      1586,
+      992
+    ]
+  },
+  "03-review.png": {
+    "generationFile": "exec-e5e635e9-076b-40a7-bb8d-c7812f21e4a3.png",
+    "dimensions": [
+      1586,
+      992
+    ]
+  },
+  "04-install.png": {
+    "generationFile": "exec-15acdfe8-e2ce-4612-8b5d-fe1cf0313c9c.png",
+    "dimensions": [
+      1586,
+      992
+    ]
+  },
+  "05-footer-composition.png": {
+    "generationFile": "exec-11ec981d-5e77-434f-9af1-14b74e748f7c.png",
+    "dimensions": [
+      1586,
+      992
+    ]
+  }
+}

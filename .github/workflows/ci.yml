@@ -1,0 +1,54 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [20, 22]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: lexis tests
+        working-directory: lexis
+        run: npm test
+      - name: installer route embeds fresh
+        run: node scripts/sync-install-routes.mjs --check
+      - name: snippet syntax (bash)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash -n lexis/src/shell/snippets/bash.sh && bash -n lexis/src/shell/snippets/bash.lx.sh
+      - name: snippet syntax (zsh)
+        if: runner.os != 'Windows'
+        run: |
+          if command -v zsh >/dev/null; then zsh -n lexis/src/shell/snippets/zsh.zsh && zsh -n lexis/src/shell/snippets/zsh.lx.zsh; fi
+      - name: snippet syntax (fish)
+        if: runner.os != 'Windows'
+        run: |
+          if command -v fish >/dev/null; then fish -n lexis/src/shell/snippets/fish.fish 2>/dev/null || fish --no-execute lexis/src/shell/snippets/fish.fish; fi
+      - name: snippet syntax (powershell)
+        run: |
+          pwsh -NoProfile -NonInteractive -Command "[void][System.Management.Automation.Language.Parser]::ParseFile('lexis/src/shell/snippets/powershell.ps1',[ref]\$null,[ref]\$errors); if (\$errors) { \$errors | ForEach-Object { Write-Error \$_.Message }; exit 1 }"
+        shell: pwsh
+
+  apple-fm-helper:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build helper
+        working-directory: platform/apple-fm-helper
+        run: swift build -c release
+      - name: helper availability smoke
+        working-directory: platform/apple-fm-helper
+        run: .build/release/lexis-apple-fm availability | tee /dev/stderr | grep -q '"ok"'
+      - name: swift tests
+        working-directory: platform/apple-fm-helper
+        run: swift test

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lexis material proof</title>
+<link rel="stylesheet" href="/app/lexis-lcd.module.css" />
+<link rel="stylesheet" href="/app/lexis-lcd-sections.module.css" />
+<style>
+  @font-face {
+    font-family: "Departure Mono";
+    src: url("/app/fonts/DepartureMono-1.500.woff2") format("woff2");
+    font-weight: 400;
+  }
+  html { background: #c7e6a5; }
+  html[data-lexis-theme="dark"] { background: #172610; }
+  body { margin: 0; }
+  .page { min-height: 0; }
+  .proofWrap { padding: 48px var(--gutter); display: grid; gap: 56px; }
+  .proofLabel { font-family: var(--lcd-font); font-size: 13px; color: var(--lcd-ink); opacity: .7; margin: 0 0 14px; }
+  .proofRow { max-width: 1480px; }
+  /* compact harness classes that reuse the real primitives */
+  .demoRail { display: grid; grid-template-columns: 62px 1fr 100px 1.2fr 179px 62px; align-items: center; gap: calc(14 * var(--u)); min-height: calc(140 * var(--u)); padding-block: calc(18 * var(--u)); }
+  .demoScreen { min-height: calc(89 * var(--u)); display: flex; align-items: center; padding-inline: calc(20 * var(--u)); font-family: var(--lcd-font); font-size: max(16px, calc(30 * var(--u))); }
+  .demoBridge { height: calc(60 * var(--u)); display: grid; place-items: center; }
+  .demoKey { height: calc(86 * var(--u)); }
+  .demoKeySm { width: calc(96 * var(--u)); height: calc(56 * var(--u)); min-width: 64px; min-height: 44px; }
+  .demoSocket { display: grid; place-items: center; width: calc(468 * var(--u)); height: calc(232 * var(--u)); }
+  .demoBig { width: calc(430 * var(--u)); height: calc(200 * var(--u)); }
+  .demoScrew { justify-self: center; }
+  .swatch { font-family: var(--lcd-font); font-size: 12px; }
+  @media (max-width: 700px) {
+    .demoRail { grid-template-columns: 1fr; min-height: 0; padding: 16px; row-gap: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="page" data-scope="light">
+  <div class="proofWrap">
+    <div class="proofRow">
+      <p class="proofLabel">single-window rail (hero proportions)</p>
+      <div class="metal demoRail">
+        <span class="screw demoScrew"></span>
+        <div class="screen demoScreen"><code>show my largest files</code></div>
+        <span></span><span></span>
+        <span class="socket"><button class="coral demoKey" aria-label="Return">
+          <svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M32 7V25H7M15 17L7 25L15 33" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/></svg></button></span>
+        <span class="screw demoScrew"></span>
+      </div>
+    </div>
+
+    <div class="proofRow">
+      <p class="proofLabel">two-window workflow rail + bridge</p>
+      <div class="metal demoRail">
+        <span class="screw demoScrew"></span>
+        <div class="screen demoScreen"><code>list all python files</code></div>
+        <div class="demoBridge"><svg viewBox="0 0 46 34" width="40"><path d="M2 17H38M26 5L38 17L26 29" stroke="currentColor" fill="none" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter"/></svg></div>
+        <div class="screen demoScreen"><code>find . -name "*.py"</code></div>
+        <span class="socket"><button class="coral demoKey" aria-label="Return"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M32 7V25H7M15 17L7 25L15 33" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/></svg></button>
+        <span class="screw demoScrew"></span>
+      </div>
+    </div>
+
+    <div class="proofRow">
+      <p class="proofLabel">small key on metal face + countersunk screw detail</p>
+      <div class="metal" style="display:flex; align-items:center; gap: 40px; padding: calc(24 * var(--u)) calc(40 * var(--u)); min-height: 120px;">
+        <span class="screw"></span>
+        <span class="socket"><button class="coral demoKeySm" aria-label="Return"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true" style="width:55%"><path d="M32 7V25H7M15 17L7 25L15 33" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/></svg></button></span>
+        <span class="screw"></span>
+      </div>
+    </div>
+
+    <div class="proofRow">
+      <p class="proofLabel">closing key socket</p>
+      <div class="metal demoSocket">
+        <span class="socket"><a class="coral demoBig" href="#"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true" style="width:22%"><path d="M33 6V24H6M16 15L6 24L16 33" stroke="currentColor" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"/></svg></a></span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

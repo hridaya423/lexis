@@ -1,6 +1,7 @@
 param(
-  [string]$Profile = "",
   [string]$HookMode = "",
+  [string]$Provider = "",
+  [string]$Model = "",
   [string]$InstallSource = ""
 )
 
@@ -170,29 +171,6 @@ function Resolve-InstallSource {
   return "@hridyacodes/lexis"
 }
 
-function Choose-Profile {
-  if ($Profile -in @("light", "balanced", "heavy")) {
-    return $Profile
-  }
-
-  if ($env:LEXIS_PROFILE -in @("light", "balanced", "heavy")) {
-    return $env:LEXIS_PROFILE
-  }
-
-  $answer = Read-Host "Model profile [light/balanced/heavy] (default: balanced)"
-  if ([string]::IsNullOrWhiteSpace($answer)) {
-    return "balanced"
-  }
-
-  $value = $answer.Trim().ToLowerInvariant()
-  if ($value -in @("light", "balanced", "heavy")) {
-    return $value
-  }
-
-  Log "Invalid profile '$value'. Using balanced."
-  return "balanced"
-}
-
 function Choose-HookMode {
   if ($HookMode -in @("auto", "lx")) {
     return $HookMode
@@ -236,11 +214,16 @@ if (-not $lexisCommand) {
   throw "'lexis' command not found after install (npm prefix: $prefix)"
 }
 
-$selectedProfile = Choose-Profile
 $selectedHookMode = Choose-HookMode
 
-Log "Running setup (profile=$selectedProfile, hook-mode=$selectedHookMode)"
-& $lexisCommand setup --profile $selectedProfile --hook-mode $selectedHookMode --enable-web-search --web-provider mcp | Out-Host
+$setupArgs = @("setup", "--hook-mode", $selectedHookMode)
+$useProvider = if ($Provider) { $Provider } else { $env:LEXIS_PROVIDER }
+$useModel = if ($Model) { $Model } else { $env:LEXIS_MODEL }
+if ($useProvider) { $setupArgs += @("--provider", $useProvider) }
+if ($useModel) { $setupArgs += @("--model", $useModel) }
+
+Log "Running setup (hook-mode=$selectedHookMode)"
+& $lexisCommand @setupArgs | Out-Host
 if ($LASTEXITCODE -ne 0) {
   throw "lexis setup failed"
 }

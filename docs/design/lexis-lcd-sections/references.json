@@ -1,0 +1,37 @@
+[
+  {
+    "path": "../lexis-lcd/section-concepts/02-how-it-works.png",
+    "width": 1585,
+    "height": 992,
+    "bytes": 2287308,
+    "sha256": "260772a3a606bf4daf7b826c1c44f1fa75094f2017dba36ef1a96ab8b9a8ceee"
+  },
+  {
+    "path": "../lexis-lcd/section-concepts/03-example-tasks.png",
+    "width": 1586,
+    "height": 992,
+    "bytes": 2494312,
+    "sha256": "362a290062a12c356ea014f0e2f0454af1a7923b845491c8e2233e0c781d330c"
+  },
+  {
+    "path": "../lexis-lcd/section-concepts/04-command-review.png",
+    "width": 1586,
+    "height": 992,
+    "bytes": 2024969,
+    "sha256": "ed7da77927127e519482a526e53646956250729d39e87917e20cbf7669428354"
+  },
+  {
+    "path": "../lexis-lcd/section-concepts/05-installation.png",
+    "width": 1586,
+    "height": 992,
+    "bytes": 2157652,
+    "sha256": "7a377e636258176ed799a9fdbea12c5bf0acc1869506b3b61bcee11c9c11f473"
+  },
+  {
+    "path": "../lexis-lcd/section-concepts/06-closing.png",
+    "width": 1586,
+    "height": 992,
+    "bytes": 2382732,
+    "sha256": "3083e602ec449cae31fbb5016208f143a8a644f1e856bb358c7108edaa6d2ddb"
+  }
+]

@@ -1,0 +1,85 @@
+{
+  "reference": {
+    "file": "reference.png",
+    "sha256": "b1296a55e3fce333d71649c5754d459ff9e48659940987d80f6debd5e3e92d20",
+    "width": 1586,
+    "height": 992
+  },
+  "assets": [
+    {
+      "file": "DepartureMono-1.500.woff2",
+      "bytes": 22496,
+      "sha256": "5b4fed1daa90708aa9c6ee1190abca9dc22164a1c1def0020386e46b61038cfb"
+    },
+    {
+      "file": "DepartureMono-LICENSE.txt",
+      "bytes": 4357,
+      "sha256": "b65e42750f3cb65437a97f4dfd781c58f199259949db2341012be60e32500e83"
+    },
+    {
+      "file": "headline-map.json",
+      "bytes": 3977,
+      "sha256": "93a67d13ae9b1018903ad4f7689e17239b8136faf7e77cfb26a1121fb431f1d8"
+    },
+    {
+      "file": "headline-pixels.svg",
+      "bytes": 52160,
+      "sha256": "6d1dbcb971415b0e36170f0619012ef9047e8e9970085b53876c387c60ddb8b4"
+    },
+    {
+      "file": "keycap-coral-mobile.svg",
+      "bytes": 733,
+      "sha256": "e6afc1afb74d36883e7001c83dc27c2ad0e5d964b7e2e217a3deefb18dbfc3f0"
+    },
+    {
+      "file": "keycap-coral.svg",
+      "bytes": 742,
+      "sha256": "146cab73c27f39e07e85b8e5efbafc0b2821cacc2be6589f045330ac26b3ef00"
+    },
+    {
+      "file": "lcd-grid.svg",
+      "bytes": 277,
+      "sha256": "f7e057a12ab8d5509ef2dd177fbf65f2bd2699ef35418fadb2697a3d63c59052"
+    },
+    {
+      "file": "rail-center.svg",
+      "bytes": 3703,
+      "sha256": "7814733530f3f29745eacdd44a743197dd1cd6fbbf9950af7f193dca9ea61c0d"
+    },
+    {
+      "file": "rail-full.svg",
+      "bytes": 3702,
+      "sha256": "295406289171d23d821742293687709605815011d7ddd14293d992a33cd16453"
+    },
+    {
+      "file": "rail-left.svg",
+      "bytes": 3698,
+      "sha256": "42b2cbc2c6000806aa2732d5a1b8c35a1eaadb28c2d9c3891b783f74fd39e50a"
+    },
+    {
+      "file": "rail-mobile-center.svg",
+      "bytes": 2866,
+      "sha256": "b01c9f558e295d4a99e1588ce16f76889d761fcd046b7dd27199f989f19a673b"
+    },
+    {
+      "file": "rail-mobile-left.svg",
+      "bytes": 2863,
+      "sha256": "87178062facc2973c659cc6bc81e687fb3be64f381c72d90ece002fa8e5aca7c"
+    },
+    {
+      "file": "rail-mobile-right.svg",
+      "bytes": 2867,
+      "sha256": "ef1a6332ca8af38d46e355a73f3e4545c3acc0b6f6c8fc5ad804ba46a63e23c5"
+    },
+    {
+      "file": "rail-right.svg",
+      "bytes": 3703,
+      "sha256": "897157afaad89877620d6d735531e7ed07d7a323d2c21a7d7f38686f2f2f7b06"
+    },
+    {
+      "file": "return-arrow.svg",
+      "bytes": 204,
+      "sha256": "8c1d4f2099556d1cda45b6781c5704437a4a8d88832fb4a9c897ee75a0ae5fa7"
+    }
+  ]
+}

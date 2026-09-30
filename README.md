@@ -27,17 +27,13 @@ If you self-host the website, these endpoints are served directly by the app:
 - `/install.sh`
 - `/win.ps1`
 
-The installer sets up local inference runtime, writes config, and installs shell hooks.
-Runtime selection is automatic:
+The installer installs Node.js if needed, installs the `lexis` CLI, then runs `lexis setup`: a guided flow that picks a provider, downloads the llama.cpp runtime and a model, installs shell hooks, and verifies the whole path end-to-end.
 
-- macOS (Apple Silicon): MLX
-- macOS (Intel): llama.cpp
-- Linux + NVIDIA: vLLM
-- Linux CPU-only: llama.cpp
-- Windows: llama.cpp
+Runtime selection is automatic (prebuilt, pinned llama.cpp release — no Python, no venv):
 
-You do not need `npm` to use Lexis after installation.
-
+- macOS (Apple Silicon): Metal
+- macOS (Intel): CPU
+- Linux / Windows: CUDA when a supported NVIDIA driver is present, else Vulkan, else CPU
 
 During setup, Lexis asks how you want to use it:
 
@@ -72,30 +68,29 @@ lx show node and npm versions
 ```bash
 lx doctor
 lx config show
-lx config set-model <model-id>
-lx config set-hook-mode auto
-lx config set-hook-mode lx
+lx model use llama-server
+lx model download qwen2.5-coder-3b
 lx hooks uninstall
 ```
 
 ## Safety
 
-- Risk is model-driven.
+- A deterministic policy engine sets a risk floor the model cannot lower.
+- Anything the engine cannot prove read-only requires confirmation.
 - Low-confidence plans require confirmation.
-- Critical plans require double confirmation before execution.
+- Critical plans require typed `YES` + `EXECUTE` — no flag bypasses them.
 - Planning always includes detected platform/shell context, so Windows and Unix commands can differ.
 
 ## Web Retrieval (No API Key Required)
 
-Lexis uses MCP web search by default and can pull page content into model context when needed.
+Lexis can pull web context into planning when needed. The default provider is `builtin` (in-process DuckDuckGo); `mcp` is available for an external server.
 
 ## Session Controls
 
 In a hooked shell:
 
-- `exit` disables Lexis for the current terminal session (instead of closing your shell).
-- `uninstall` (no args) removes Lexis hooks, package, runtime venv, and configured model cache.
-- You can also run `lx uninstall --yes`.
+- `lx off` pauses Lexis for the current terminal session; `lx on` resumes.
+- `lx uninstall` removes hooks, config, runtime, and downloaded models.
 
 For full command options, run:
 

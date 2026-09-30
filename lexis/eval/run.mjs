@@ -60,7 +60,9 @@ async function main() {
   const config = await loadConfig();
   const model = args["model-file"] || args.model || (args.provider === "apple-fm" ? "apple-on-device" : config.model);
   if (args["model-file"] || args.model) config.model = model;
-  const systemPrompt = plain ? PLAIN_SYSTEM_PROMPT : await loadSystemPrompt();
+  const systemPrompt = plain
+    ? (args["prompt-file"] ? await fs.readFile(args["prompt-file"], "utf8") : PLAIN_SYSTEM_PROMPT)
+    : await loadSystemPrompt();
   const { cases, sha256: datasetHash } = await loadDataset(args.dataset);
   const platform = args.platform === "windows" || args.platform === "unix" ? args.platform : (machine.platform === "win32" ? "windows" : "unix");
   const shell = args.platform === "windows" ? "powershell" : (args.platform === "unix" ? "sh" : machine.shell);
@@ -93,7 +95,7 @@ async function main() {
       try {
         if (plain) {
           const res = await providerImpl.plan(
-            { systemPrompt, userPrompt: `${testCase.intent}\n(Platform: ${platform}, shell: ${shell})`, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true },
+            { systemPrompt, userPrompt: args.bare ? testCase.intent : `${testCase.intent}\n(Platform: ${platform}, shell: ${shell})`, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true },
             { config }
           );
           outText = res?.text || "";

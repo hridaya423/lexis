@@ -86,7 +86,7 @@ export async function runCommand(runArgs, { dryRunOnly = false, memory = true } 
   }
 
   const spinner = makeSpinner(providerId, model, options);
-  const planOnce = (userPrompt, web) => generatePlan({
+  const planOnce = (userPrompt, web, task) => generatePlan({
     providerImpl: provider,
     providerId,
     model,
@@ -96,6 +96,7 @@ export async function runCommand(runArgs, { dryRunOnly = false, memory = true } 
     webContext: web,
     config,
     timeoutMs: estimateTimeoutMs(model),
+    task,
   });
   let plan;
   try {
@@ -143,11 +144,11 @@ export async function runCommand(runArgs, { dryRunOnly = false, memory = true } 
   const quiet = Boolean(options.quiet);
   const askAt = config.execution?.askConfirmationAt || "moderate";
 
-  const replan = async (suffix, withWeb = true, replace = false) => {
+  const replan = async (suffix, withWeb = true, replace = false, task) => {
     const before = plan.commands.map((c) => c.command).join("\n");
     spinner.start();
     try {
-      plan = await planOnce(replace ? suffix : `${modelPrompt}${suffix}`, withWeb ? webContext : []);
+      plan = await planOnce(replace ? suffix : `${modelPrompt}${suffix}`, withWeb ? webContext : [], task);
       return plan.commands.map((c) => c.command).join("\n") !== before;
     } catch {
       return false;
@@ -329,7 +330,7 @@ export async function runCommand(runArgs, { dryRunOnly = false, memory = true } 
       if (failed.stderrTail?.trim()) process.stderr.write(ui.dim(`  ${errLine}\n`));
       process.stderr.write(ui.dim(`  failed — replanning with the error\n`));
       await audit({ type: "retry", prompt, failedCommand: failed.command, exitCode: failed.exitCode });
-      if (await replan(`\n(the command \`${failed.command}\` failed — ${errLine}. give the corrected command)`)) {
+      if (await replan(`$ ${failed.command}\n${errLine}`, false, true, "fixcmd")) {
         continue;
       }
     }

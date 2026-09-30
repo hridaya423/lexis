@@ -2,9 +2,9 @@ import { parsePlanFromText, validatePlan } from "./plan-schema.mjs";
 import { buildUserPrompt } from "./prompt.mjs";
 import { catalogEntry } from "./runtime/models.mjs";
 
-export const PLAIN_SYSTEM_PROMPT = `You translate a user's request into exactly one shell command.
-Reply with ONLY the command — no explanation, no markdown, no backticks.
-If no safe single command exists, reply with: echo "needs manual review"`;
+export const PLAIN_SYSTEM_PROMPT = `You are a bash command generator. Given a natural language request, output only the bash command that accomplishes it. No explanation, no markdown fences.`;
+
+export const FIXCMD_SYSTEM_PROMPT = `You fix broken bash commands. Given a failed command and its error output, output only the corrected command. No explanation.`;
 
 
 export async function generatePlan({
@@ -18,6 +18,7 @@ export async function generatePlan({
   config,
   timeoutMs,
   onResult,
+  task,
 }) {
   const entry = catalogEntry(model);
   const plain = entry?.format === "plain";
@@ -31,8 +32,9 @@ export async function generatePlan({
       : /linux/i.test(context?.os || "")
         ? "Linux (GNU)"
         : context?.platform || "unix";
-  let prompt = plain ? `${userPrompt}\n(Platform: ${osHint}, shell: ${context?.shell || "sh"})`
-                     : buildUserPrompt({ userPrompt, context, webContext, providerId });
+  let prompt = plain
+    ? (task === "fixcmd" ? userPrompt : `${userPrompt}\n(Platform: ${osHint}, shell: ${context?.shell || "sh"})`)
+    : buildUserPrompt({ userPrompt, context, webContext, providerId });
   if (plain && webContext?.length && entry?.webContext !== false) {
     const r = webContext[0];
     prompt += `\n\nReference: ${r.title} — ${r.url}\n${String(r.content || "").slice(0, 600)}`;
@@ -44,7 +46,7 @@ export async function generatePlan({
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const res = await providerImpl.plan(
-        { systemPrompt: plain ? PLAIN_SYSTEM_PROMPT : systemPrompt, userPrompt: prompt, model, maxTokens, timeoutMs, raw: plain },
+        { systemPrompt: plain ? (task === "fixcmd" ? FIXCMD_SYSTEM_PROMPT : PLAIN_SYSTEM_PROMPT) : systemPrompt, userPrompt: prompt, model, maxTokens, timeoutMs, raw: plain },
         { config }
       );
       onResult?.({ usage: res?.usage, timings: res?.timings, attempt });

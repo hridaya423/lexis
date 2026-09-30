@@ -1,17 +1,19 @@
+![lexis](https://raw.githubusercontent.com/hridaya423/lexis/main/assets/lexis-banner.png)
+
 # Lexis
 
 Ask in plain language. See exactly what will happen. Run it without giving up control of your terminal.
 
-Lexis plans shell commands from natural language, shows you the plan with a deterministic risk assessment, and executes only what you approve. It runs fully on-device by default — no cloud account, no Python, no permanent background services.
+Lexis plans shell commands from natural language, shows you the plan with a deterministic risk assessment, and executes only what you approve. It runs fully on-device by default: no cloud account, no Python, no permanent background services.
 
 ## Install
 
 ```bash
 # macOS / Linux
-curl -fsSL https://lexis.app/install.sh | bash
+curl -fsSL https://lexis.hridya.tech/install.sh | bash
 
 # Windows (PowerShell)
-irm https://lexis.app/win.ps1 | iex
+irm https://lexis.hridya.tech/win.ps1 | iex
 ```
 
 Or from source / npm:
@@ -25,8 +27,8 @@ lexis setup
 
 | Provider | Where it runs | Download | Best for |
 | --- | --- | --- | --- |
-| `llama-server` | prebuilt llama.cpp, on-device | ~1–4 GB model | default — Metal, Vulkan, CUDA, CPU |
-| `apple-fm` | Apple Foundation Models, on-device | 0 MB | macOS 26+ with Apple Intelligence (experimental — weaker on command planning) |
+| `llama-server` | prebuilt llama.cpp, on-device | ~1–4 GB model | default (Metal, Vulkan, CUDA, CPU) |
+| `apple-fm` | Apple Foundation Models, on-device | 0 MB | macOS 26+ with Apple Intelligence (experimental, weaker on command planning) |
 | `ollama` | your existing Ollama | reuses Ollama models | if you already run Ollama |
 | `openai-compat` | any OpenAI-compatible endpoint | none | LM Studio, remote servers, BYOK |
 
@@ -45,12 +47,12 @@ lx model stop            # stop the local server (it also self-stops when idle)
 
 | Model | Pass | Warm p50 | Role |
 | --- | --- | --- | --- |
-| kitty-bash-0.5b | 72% | ~0.1s | **default** — 0.4 GB, unix only |
-| qwen3-linuxcmd-4b | 81% | ~0.4s | opt-in upgrade (`lx model use`) — unix **and** windows, best measured |
+| kitty-bash-0.5b | 72% | ~0.1s | **default** (0.4 GB, unix only) |
+| qwen3-linuxcmd-4b | 81% | ~0.4s | opt-in upgrade (`lx model use`), unix **and** windows, best measured |
 
 Both emit one bare command (`format: plain`); multi-step intents come back
 as `a && b` chains, which policy inspects as a whole. The ~46-model bake-off
-(`eval/reports/`) retired the old schema catalog — kitty owns the speed/RAM
+(`eval/reports/`) retired the old schema catalog: kitty owns the speed/RAM
 floor, linuxcmd owns accuracy.
 
 ## Shell integration
@@ -74,10 +76,10 @@ Auto mode deliberately does **not** override `exit`, and `kill`/`install` only r
 
 Routing rules in auto mode:
 
-- Real commands, flags, and paths pass straight to the shell — `gh --version` missing stays `gh: command not found`, never rewritten.
+- Real commands, flags, and paths pass straight to the shell: `gh --version` missing stays `gh: command not found`, never rewritten.
 - Everything else (plain English, including inputs zsh can't parse like `hi?` or `what's on port 3000`) is planned by the model.
 - Read-only commands run immediately; anything else shows a one-key card (`enter` run · `e` edit · `esc` cancel). Critical risk needs the word `yes`.
-- Hooks only engage on a real TTY — agent-spawned `zsh -ic` / piped shells get plain `command not found`.
+- Hooks only engage on a real TTY; agent-spawned `zsh -ic` / piped shells get plain `command not found`.
 
 ```bash
 LEXIS_TIMING=1 lx list files   # per-phase timing on stderr

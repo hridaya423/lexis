@@ -1,3 +1,5 @@
+![lexis](assets/lexis-banner.png)
+
 # Lexis
 
 Lexis is a local-first terminal assistant: install once, then type natural language in your shell.
@@ -29,7 +31,7 @@ If you self-host the website, these endpoints are served directly by the app:
 
 The installer installs Node.js if needed, installs the `lexis` CLI, then runs `lexis setup`: a guided flow that picks a provider, downloads the llama.cpp runtime and a model, installs shell hooks, and verifies the whole path end-to-end.
 
-Runtime selection is automatic (prebuilt, pinned llama.cpp release — no Python, no venv):
+Runtime selection is automatic (prebuilt, pinned llama.cpp release, no Python, no venv):
 
 - macOS (Apple Silicon): Metal
 - macOS (Intel): CPU
@@ -40,7 +42,7 @@ During setup, Lexis asks how you want to use it:
 - `auto`: route natural-language commands directly in terminal
 - `lx`: only run when you explicitly call `lx ...`
 
-## How It Works After Install
+## How it works after install
 
 1. Open a new terminal.
 2. If you chose `auto`, type normal English directly.
@@ -63,13 +65,13 @@ lx install pnpm
 lx show node and npm versions
 ```
 
-## Everyday Commands
+## Everyday commands
 
 ```bash
 lx doctor
 lx config show
 lx model use llama-server
-lx model download qwen2.5-coder-3b
+lx model download qwen3-linuxcmd-4b
 lx hooks uninstall
 ```
 
@@ -78,14 +80,14 @@ lx hooks uninstall
 - A deterministic policy engine sets a risk floor the model cannot lower.
 - Anything the engine cannot prove read-only requires confirmation.
 - Low-confidence plans require confirmation.
-- Critical plans require typed `YES` + `EXECUTE` — no flag bypasses them.
+- Critical plans require typed `YES` + `EXECUTE`; no flag bypasses them.
 - Planning always includes detected platform/shell context, so Windows and Unix commands can differ.
 
-## Web Retrieval (No API Key Required)
+## Web retrieval (no API key required)
 
 Lexis can pull web context into planning when needed. The default provider is `builtin` (in-process DuckDuckGo); `mcp` is available for an external server.
 
-## Session Controls
+## Session controls
 
 In a hooked shell:
 

@@ -40,7 +40,7 @@ export function rcFilesForShell(shell) {
 export async function readSnippet(shell, mode) {
   const file = SNIPPET_FILES[`${shell}:${mode}`];
   if (!file) throw new Error(`No snippet for ${shell}:${mode}`);
-  return fs.readFile(path.join(snippetsDir(), file), "utf8");
+  return (await fs.readFile(path.join(snippetsDir(), file), "utf8")).replace(/\r\n/g, "\n");
 }
 
 export async function installHooks({ mode = "auto", shells } = {}) {

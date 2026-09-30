@@ -36,16 +36,21 @@ export async function ensureReady(config, { onProgress } = {}) {
   await ensureServer(config, { onProgress });
 }
 
-export function buildChatBody({ systemPrompt, userPrompt, maxTokens, raw = false }) {
+export function buildChatBody({ systemPrompt, userPrompt, maxTokens, raw = false, shots = null, temperature = 0 }) {
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...(shots || []).flatMap((s) => [
+      { role: "user", content: s.request },
+      { role: "assistant", content: s.answer },
+    ]),
+    { role: "user", content: userPrompt },
+  ];
   const body = {
     model: "lexis",
     stream: false,
-    temperature: 0,
+    temperature,
     max_tokens: maxTokens,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
+    messages,
   };
   if (!raw) {
     body.response_format = {
@@ -71,9 +76,9 @@ export async function chatCompletion(state, body, timeoutMs = 60000) {
   return response.json();
 }
 
-export async function plan({ systemPrompt, userPrompt, maxTokens, timeoutMs, raw = false }, { config } = {}) {
+export async function plan({ systemPrompt, userPrompt, maxTokens, timeoutMs, raw = false, shots, temperature }, { config } = {}) {
   const state = await ensureServer(config);
-  const payload = await chatCompletion(state, buildChatBody({ systemPrompt, userPrompt, maxTokens, raw }), timeoutMs);
+  const payload = await chatCompletion(state, buildChatBody({ systemPrompt, userPrompt, maxTokens, raw, shots, temperature }), timeoutMs);
   const message = payload?.choices?.[0]?.message || {};
   const text = message.content || "";
   if (!text.trim()) {

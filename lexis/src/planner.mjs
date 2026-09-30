@@ -46,7 +46,7 @@ export async function generatePlan({
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const res = await providerImpl.plan(
-        { systemPrompt: plain ? (task === "fixcmd" ? FIXCMD_SYSTEM_PROMPT : PLAIN_SYSTEM_PROMPT) : systemPrompt, userPrompt: prompt, model, maxTokens, timeoutMs, raw: plain },
+        { systemPrompt: plain ? (task === "fixcmd" ? FIXCMD_SYSTEM_PROMPT : PLAIN_SYSTEM_PROMPT) : systemPrompt, userPrompt: prompt, model, maxTokens, timeoutMs, raw: plain, temperature: attempt > 0 ? 0.4 : 0 },
         { config }
       );
       onResult?.({ usage: res?.usage, timings: res?.timings, attempt });
@@ -68,7 +68,7 @@ export async function generatePlan({
 function wrapPlainCommand(text, platform) {
   const command = String(text || "")
     .split("\n").map((l) => l.trim()).filter((l) => l && !/^```/.test(l))[0] || "";
-  if (!command) throw new Error("Model produced no command");
+  if (!command || !/[\p{L}\p{N}$]/u.test(command)) throw new Error("Model produced no command");
   return {
     summary: "single command",
     overall_risk: "low",
@@ -80,7 +80,7 @@ function wrapPlainCommand(text, platform) {
 
 function isRetriable(error) {
   const m = String(error?.message || "");
-  return /json|empty response|unterminated|expected|timed out|timeout|econnrefused|fetch failed/i.test(m);
+  return /json|empty response|no command|unterminated|expected|timed out|timeout|econnrefused|fetch failed/i.test(m);
 }
 
 export function estimateMaxTokens(userPrompt, webContext) {

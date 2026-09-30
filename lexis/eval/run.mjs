@@ -37,9 +37,16 @@ async function loadDataset(name) {
   return { cases, sha256: crypto.createHash("sha256").update(raw).digest("hex").slice(0, 16) };
 }
 
+function firstLine(text) {
+  return String(text || "").split("\n").map((l) => l.trim()).filter((l) => l && !/^```/.test(l))[0] || "";
+}
+
+function commandShaped(cmd) {
+  return /[\p{L}\p{N}$]/u.test(cmd);
+}
+
 function plainPlan(text, platform) {
-  const command = String(text || "")
-    .split("\n").map((l) => l.trim()).filter((l) => l && !/^```/.test(l))[0] || "";
+  const command = firstLine(text);
   return {
     summary: "single command",
     overall_risk: "low",
@@ -64,6 +71,7 @@ async function main() {
     ? (args["prompt-file"] ? await fs.readFile(args["prompt-file"], "utf8") : PLAIN_SYSTEM_PROMPT)
     : await loadSystemPrompt();
   const { cases, sha256: datasetHash } = await loadDataset(args.dataset);
+  const shots = args["shots-file"] ? JSON.parse(await fs.readFile(args["shots-file"], "utf8")) : null;
   const platform = args.platform === "windows" || args.platform === "unix" ? args.platform : (machine.platform === "win32" ? "windows" : "unix");
   const shell = args.platform === "windows" ? "powershell" : (args.platform === "unix" ? "sh" : machine.shell);
 
@@ -94,14 +102,37 @@ async function main() {
       let outText = "";
       try {
         if (plain) {
-          const res = await providerImpl.plan(
-            { systemPrompt, userPrompt: args.bare ? testCase.intent : `${testCase.intent}\n(Platform: ${platform}, shell: ${shell})`, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true },
-            { config }
-          );
-          outText = res?.text || "";
-          usage = res?.usage;
-          timings = res?.timings;
-          plan = plainPlan(outText, platform);
+          const up = args.bare ? testCase.intent : `${testCase.intent}\n(Platform: ${platform}, shell: ${shell})`;
+          const votes = Math.max(1, Number(args.vote) || 1);
+          if (votes > 1) {
+            const counts = new Map();
+            for (let v = 0; v < votes; v += 1) {
+              const r = await providerImpl.plan(
+                { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots, temperature: Number(args.temp) || 0.5 },
+                { config }
+              );
+              const cmd = plainPlan(r?.text || "", platform).commands[0].command;
+              counts.set(cmd, (counts.get(cmd) || 0) + 1);
+            }
+            const winner = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+            plan = plainPlan(winner, platform);
+            outText = winner;
+          } else {
+            let res = await providerImpl.plan(
+              { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots },
+              { config }
+            );
+            if (!commandShaped(firstLine(res?.text))) {
+              res = await providerImpl.plan(
+                { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots, temperature: 0.4 },
+                { config }
+              );
+            }
+            outText = res?.text || "";
+            usage = res?.usage;
+            timings = res?.timings;
+            plan = plainPlan(outText, platform);
+          }
         } else {
           plan = await generatePlan({
             providerImpl,

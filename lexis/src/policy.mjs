@@ -116,9 +116,11 @@ const CRITICAL_PATTERNS = [
   { re: /\bgit\s+push\b[^|;]*(--force|-f\b)[^|;]*\b(main|master|production|prod)\b/i, reason: "force push to a primary branch" },
   { re: /\b(shutdown|poweroff|halt|reboot|Stop-Computer|Restart-Computer)\b/i, reason: "system power operation" },
   { re: /\bkill(all)?\s+-9?\s+-?1\b|\bkill\s+-9\s+-1\b/i, reason: "kill all processes" },
-  { re: /\bchmod\s+(-[a-zA-Z]*R[a-zA-Z]*\s+)?(777|666|a\+rwx)\b[^|;]*\s(\/|~|\$HOME|\*)(\s|\/|$)/i, reason: "recursive world-writable permissions on a broad path" },
+  { re: /\bchmod\s+(-[a-zA-Z]*R[a-zA-Z]*\s+)?(777|666|a\+rwx)\b[^|;]*\s(\/|~|\$HOME|\*|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private)\b)/i, reason: "recursive world-writable permissions on a broad path" },
   { re: /\bcipher\s+\/w:/i, reason: "secure wipe of free space" },
   { re: /\breg\s+(add|delete)\b[^|;]*\\(Run|RunOnce)\b/i, reason: "persistence via registry Run key" },
+  { re: /\brm\s+-[a-zA-Z]*[rf][a-zA-Z]*\s*["']?(\/|~|\$HOME|\*|\/tmp|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private))(?=["'\s;|$*\/]|$)/i, reason: "recursive delete of a protected path" },
+  { re: /\bfind\s+["']?(\/|~|\$HOME|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private))(?=[\s"'\/])[^|;]*-exec(dir)?\s+rm\b/i, reason: "recursive delete of a protected path via find" },
 ];
 
 const CRITICAL_RM_TARGETS = /^(\/|\/\*|~|~\/|~\/\*|\$HOME|\$HOME\/|\$HOME\/\*|\.\.?|\.\.\/|\*|\/(etc|usr|bin|sbin|var|System|Library|Applications|Users|opt|root|boot|home)\/?.*)$/;
@@ -155,6 +157,8 @@ const HIGH_PATTERNS = [
   { re: /\breg\s+(add|delete|import)\b/i, reason: "registry modification" },
   { re: /\bmsiexec\b/i, reason: "Windows installer execution" },
   { re: /\bfind\b[^|;]*(-delete|-exec(dir)?\s+(rm|mv|chmod|chown)\b)/i, reason: "find deleting/mutating matched files" },
+  { re: /\b(shred|srm|wipe|gshred)\b/i, reason: "secure file destruction" },
+  { re: /\b(chmod|chown|chgrp)\b[^|;]*-R[^|;]*\s(\/|~|\$HOME|\*|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private)\/?)\s*$/i, reason: "recursive permission/ownership change on a protected path" },
   { re: /\b(crontab|at|schtasks)\b[^|;]*(-r|\/delete|\/create|\/change)/i, reason: "scheduled task modification" },
   { re: />\s*(~\/\.(bashrc|zshrc|profile|bash_profile|zprofile)|\/etc\/|\$PROFILE)/i, reason: "write to shell startup or system config" },
   { re: /\b(brew|apt|apt-get|dnf|yum|pacman|zypper|apk|winget|choco|scoop)\s+(uninstall|remove|purge|erase|autoremove)\b/i, reason: "package removal" },
@@ -183,6 +187,8 @@ const MODERATE_PATTERNS = [
   { re: /\btee\b/i, reason: "file write" },
   { re: /\b(brew\s+services\s+(start|stop|restart)|launchctl\s+(load|unload|bootstrap|bootout|kickstart))/i, reason: "service control" },
   { re: /\bdscacheutil\s+-flushcache\b/i, reason: "system cache flush" },
+  { re: /\bhistory\s+-[a-zA-Z]*[cw]/i, reason: "shell history modification" },
+  { re: /\|\s*crontab\b|\bcrontab\s+(-[re]\b|[^-\s])/i, reason: "scheduled task install" },
 ];
 
 const ELEVATION_RE = /\b(sudo|doas|runas|pkexec|Start-Process\b[^|;]*-Verb\s+RunAs)\b/i;

@@ -3,6 +3,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "../src/config.mjs";
 import { loadSystemPrompt } from "../src/prompt.mjs";
@@ -56,6 +57,65 @@ function plainPlan(text, platform) {
   };
 }
 
+const STOPWORDS = new Set(["the","a","an","my","me","this","that","to","of","in","on","for","is","it","and","or","i","do","all","show","get","list","print","find","what","how"]);
+
+function pickShots(intent, pool, k) {
+  const words = new Set(intent.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w && !STOPWORDS.has(w)));
+  return pool
+    .map((s) => {
+      const sw = s.request.toLowerCase().split(/[^\p{L}\p{N}]+/u);
+      return { s, score: sw.filter((w) => words.has(w)).length };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k)
+    .map((x) => x.s);
+}
+
+function cmdHeads(cmd) {
+  return cmd
+    .split(/\|\||&&|\||;/)
+    .map((seg) => seg.trim().split(/\s+/).filter((w) => !/^[A-Z_]+=/.test(w) && w !== "sudo" && w !== "env")[0])
+    .filter(Boolean);
+}
+
+function missingBins(cmd) {
+  let miss = 0;
+  for (const head of cmdHeads(cmd)) {
+    if (/^[/~.]|\(|\$/.test(head)) continue; // paths, subshells, expansions — not binaries
+    try {
+      execFileSync("bash", ["-c", `command -v -- ${JSON.stringify(head)}`], { stdio: "ignore" });
+    } catch {
+      miss += 1;
+    }
+  }
+  return miss;
+}
+
+function syntaxBad(cmd) {
+  try {
+    execFileSync("bash", ["-n", "-c", cmd], { stdio: "ignore" });
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+function meanLogprob(res) {
+  const toks = res?.logprobs?.content;
+  if (!Array.isArray(toks) || !toks.length) return null;
+  return toks.reduce((a, t) => a + (t.logprob ?? 0), 0) / toks.length;
+}
+
+function scoreCandidate(text, res) {
+  const cmd = firstLine(text);
+  let score = meanLogprob(res) ?? 0;
+  if (!commandShaped(cmd)) score -= 5;
+  if (syntaxBad(cmd)) score -= 6;
+  score -= 4 * missingBins(cmd);
+  return score;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const providerImpl = PROVIDERS[args.provider];
@@ -72,7 +132,13 @@ async function main() {
     : await loadSystemPrompt();
   const { cases, sha256: datasetHash } = await loadDataset(args.dataset);
   const shots = args["shots-file"] ? JSON.parse(await fs.readFile(args["shots-file"], "utf8")) : null;
-  const sample = args.sample ? JSON.parse(args.sample) : null;
+  const shotPool = args["retrieve-file"] ? JSON.parse(await fs.readFile(args["retrieve-file"], "utf8")) : null;
+  const retrieveK = Math.max(1, Number(args["retrieve-k"]) || 4);
+  const bon = Math.max(0, Number(args.bon) || 0);
+  const cascadeModel = args.cascade || null;
+  const cascadeThresh = Number(args["cascade-thresh"] ?? -0.5);
+  const sample = JSON.parse(args.sample || "{}");
+  if (bon > 1 || cascadeModel) Object.assign(sample, { logprobs: true });
   const platform = args.platform === "windows" || args.platform === "unix" ? args.platform : (machine.platform === "win32" ? "windows" : "unix");
   const shell = args.platform === "windows" ? "powershell" : (args.platform === "unix" ? "sh" : machine.shell);
 
@@ -103,15 +169,34 @@ async function main() {
       let outText = "";
       try {
         if (plain) {
-          const up = args.bare ? testCase.intent : `${testCase.intent}\n(Platform: ${platform}, shell: ${shell})`;
+          const suffix = args.bare ? "" : `\n(Platform: ${platform}, shell: ${shell})`;
+          const up = args.re2
+            ? `${testCase.intent}\nRead the request again: ${testCase.intent}${suffix}`
+            : `${testCase.intent}${suffix}`;
+          const caseShots = shotPool ? pickShots(testCase.intent, shotPool, retrieveK) : shots;
+          const genOnce = (mdl, temp) => providerImpl.plan(
+            { systemPrompt, userPrompt: up, model: mdl, maxTokens: 80, timeoutMs: estimateTimeoutMs(mdl), raw: true, shots: caseShots, temperature: temp, sample },
+            { config }
+          );
           const votes = Math.max(1, Number(args.vote) || 1);
-          if (votes > 1) {
+          if (bon > 1) {
+            const cands = [];
+            for (let v = 0; v < bon; v += 1) {
+              const r = await genOnce(model, Number(args.temp) || 0.4);
+              cands.push({ text: r?.text || "", res: r, score: scoreCandidate(r?.text, r) });
+            }
+            cands.sort((a, b) => b.score - a.score);
+            const best = cands[0];
+            if (cascadeModel && (meanLogprob(best.res) ?? -9) < cascadeThresh) {
+              const r2 = await genOnce(cascadeModel, 0);
+              best.text = r2?.text || "";
+            }
+            outText = best.text;
+            plan = plainPlan(outText, platform);
+          } else if (votes > 1) {
             const counts = new Map();
             for (let v = 0; v < votes; v += 1) {
-              const r = await providerImpl.plan(
-                { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots, temperature: Number(args.temp) || 0.5, sample },
-                { config }
-              );
+              const r = await genOnce(model, Number(args.temp) || 0.5);
               const cmd = plainPlan(r?.text || "", platform).commands[0].command;
               counts.set(cmd, (counts.get(cmd) || 0) + 1);
             }
@@ -119,15 +204,11 @@ async function main() {
             plan = plainPlan(winner, platform);
             outText = winner;
           } else {
-            let res = await providerImpl.plan(
-              { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots, sample },
-              { config }
-            );
-            if (!commandShaped(firstLine(res?.text))) {
-              res = await providerImpl.plan(
-                { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots, temperature: 0.4, sample },
-                { config }
-              );
+            let res = await genOnce(model, 0);
+            if (cascadeModel && (meanLogprob(res) ?? -9) < cascadeThresh) {
+              res = await genOnce(cascadeModel, 0);
+            } else if (!commandShaped(firstLine(res?.text))) {
+              res = await genOnce(model, 0.4);
             }
             outText = res?.text || "";
             usage = res?.usage;

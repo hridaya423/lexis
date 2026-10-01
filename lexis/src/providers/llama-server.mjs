@@ -90,7 +90,7 @@ export async function plan({ systemPrompt, userPrompt, maxTokens, timeoutMs, raw
         : "llama-server returned an empty response"
     );
   }
-  return { text, usage: payload?.usage, timings: payload?.timings };
+  return { text, usage: payload?.usage, timings: payload?.timings, logprobs: payload?.choices?.[0]?.logprobs };
 }
 
 export async function stop() {

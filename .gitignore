@@ -46,3 +46,4 @@ runs/
 training/artifacts/
 training/data/
 .build/
+lexis/training/__pycache__/

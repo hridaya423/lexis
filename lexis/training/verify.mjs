@@ -61,7 +61,9 @@ async function sshWin(ps, timeout = 30000) {
 }
 
 // ---------- flag db ----------
-const FLAGDB = fs.existsSync(FLAGDB_PATH) ? JSON.parse(fs.readFileSync(FLAGDB_PATH, "utf8")) : {};
+const FLAGDB_RAW = fs.existsSync(FLAGDB_PATH) ? JSON.parse(fs.readFileSync(FLAGDB_PATH, "utf8")) : {};
+const FLAGDB = Object.fromEntries(Object.entries(FLAGDB_RAW).map(([o, m]) =>
+  [o, Object.fromEntries(Object.entries(m).map(([h, f]) => [h, new Set(f)]))]));
 function flagsOf(cmd) {
   return [...String(cmd).matchAll(/(?:^|\s)(-{1,2}[A-Za-z][\w-]*)/g)].map((m) => m[1].replace(/^-+/, "-").replace(/^--/, "-"));
 }
@@ -75,7 +77,7 @@ function flagCheck(osKey, head, cmd) {
       if (!/^-[A-Za-z]/.test(w) || w.startsWith("--") && w.length < 3) continue;
       if (/^-{1,2}[A-Za-z]/.test(w) || /^--[a-z]/.test(w)) {
         const key = w.split("=")[0];
-        if (!db.has(key) && ![...db].some((f) => key.startsWith(f) && f.length > 2)) return `bad:${key}`;
+        if (!db.has(key) && ![...db.keys()].some((f) => key.startsWith(f) && f.length > 2)) return `bad:${key}`;
       }
     }
   }

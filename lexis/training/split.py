@@ -71,7 +71,9 @@ def main():
     rows = []
     for line in open(VERIFIED, encoding="utf-8"):
         try:
-            rows.append(json.loads(line))
+            r = json.loads(line)
+            if r.get("os"):  # verify.mjs writes rejected rows with os:[]
+                rows.append(r)
         except Exception:
             pass
     print(f"verified in: {len(rows)}", file=sys.stderr)

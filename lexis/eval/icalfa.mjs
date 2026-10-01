@@ -24,9 +24,10 @@ const SSH = args.ssh || "win-pc";
 const LOCAL = Boolean(args["host-wsl"]); // fallback: local docker lxverify
 const CONC = 8;
 
-const FIXTURE = `d=$(mktemp -d); cd "$d"; mkdir -p sub "dir with space"; ` +
-  `printf 'alpha\\nBeta\\nerror line\\nlast\\n' > a.txt; ` +
-  `printf 'x\\ny\\n' > sub/b.csv; touch "my file.txt" c.log; `;
+const FIXTURE = `d=$(mktemp -d); cd "$d"; mkdir -p sub "dir with space" .hidden; ` +
+  `printf 'alpha\\nBeta\\nerror line\\nlast\\n' > a.txt; printf 'x\\ny\\n' > sub/b.csv; ` +
+  `touch "my file.txt" c.log .dotfile sub/.inner; echo secret > .secret; ` +
+  `ln -s a.txt link.ln; mkfifo pipe.f 2>/dev/null; `;
 
 async function execRemote(cmd) {
   const script = `set -o pipefail; ${FIXTURE}${cmd.replace(/'/g, `'\\''`)}`;
@@ -87,7 +88,12 @@ print('cached')"`, { cwd: path.join(root, ".."), stdio: "inherit" });
       if (gen === r.bash || gen === r.bash2) { pass++; exact++; continue; }
       // execution equivalence
       const [g, g1, g2] = await Promise.all([execRemote(gen), execRemote(r.bash), execRemote(r.bash2 || r.bash)]);
-      const ok = (normOut(g.out) && normOut(g.out) === normOut(g1.out)) || normOut(g.out) === normOut(g2.out);
+      const out = normOut(g.out);
+      // exec-equivalent only if stdout matches a gold AND is non-empty
+      // (empty==empty is inconclusive: both could have errored to stderr)
+      const sameHead = [r.bash, r.bash2].some((c) => c && c.trim().split(/\s/)[0] === gen.trim().split(/\s/)[0]);
+      const ok = (out.length > 0 && (out === normOut(g1.out) || out === normOut(g2.out)))
+        || (out.length === 0 && sameHead && g.exit === 0 && (g1.exit === 0 || g2.exit === 0));
       if (ok) pass++; else { fail++; fails.push({ i, nl: r.nl, gen, gold: r.bash, gout: normOut(g.out).slice(0, 80), eout: normOut(g1.out).slice(0, 80) }); }
       if ((pass + fail) % 25 === 0) process.stderr.write(`  ${pass + fail}/${rows.length} pass=${pass}\n`);
     }

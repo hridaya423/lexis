@@ -7,7 +7,8 @@ Output: ~/lx-data/final/fixcmd.jsonl
 import json, random, re, subprocess, sys
 from pathlib import Path
 
-VERIFIED = Path.home() / "lx-data" / "verified.jsonl"
+# fixcmd rows must come from the TRAIN partition only — eval intents are off-limits
+VERIFIED = Path.home() / "lx-data" / "final" / "sft_train.jsonl"
 OUT = Path.home() / "lx-data" / "final" / "fixcmd.jsonl"
 N_TARGET = 3000
 

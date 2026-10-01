@@ -4,9 +4,13 @@ import { catalogEntry } from "./runtime/models.mjs";
 
 export const PLAIN_SYSTEM_PROMPT = `You are a bash command generator. Given a natural language request, output only the bash command that accomplishes it. No explanation, no markdown fences.`;
 
+export const PLAIN_PWSH_PROMPT = `You are a PowerShell command generator. Given a natural language request, output only the PowerShell command that accomplishes it. No explanation, no markdown fences.`;
+
 export const FIXCMD_SYSTEM_PROMPT = `You fix broken bash commands. Given a failed command and its error output, output only the corrected command. No explanation.`;
 
-const PLAIN_GRAMMAR = "root ::= [a-zA-Z0-9_./$~-] [^\\n]*";
+const PLAIN_GRAMMAR_UNIX = "root ::= [a-zA-Z0-9_./$~-(] [^\\n]*";
+// pwsh commands can open with ( [ & " ' $ @ as well as cmdlet names
+const PLAIN_GRAMMAR_PWSH = "root ::= [^\\n]+";
 
 const PLAIN_SHOTS = {
   unix: [["print the working directory", "pwd"],
@@ -64,10 +68,11 @@ export async function generatePlan({
   const attempts = providerImpl.capabilities?.structuredOutput && !plain ? 1 : 2;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
+      const isPwsh = /power|pwsh/i.test(String(context?.shell));
       const res = await providerImpl.plan(
-        { systemPrompt: plain ? (task === "fixcmd" ? FIXCMD_SYSTEM_PROMPT : PLAIN_SYSTEM_PROMPT) : systemPrompt, userPrompt: prompt, model, maxTokens, timeoutMs, raw: plain, temperature: attempt > 0 ? 0.4 : 0,
+        { systemPrompt: plain ? (task === "fixcmd" ? FIXCMD_SYSTEM_PROMPT : isPwsh ? PLAIN_PWSH_PROMPT : PLAIN_SYSTEM_PROMPT) : systemPrompt, userPrompt: prompt, model, maxTokens, timeoutMs, raw: plain, temperature: attempt > 0 ? 0.4 : 0,
           shots: plain && entry?.shots && task !== "fixcmd" ? plainShots(osHint, context?.shell || "sh") : null,
-          sample: plain ? { grammar: PLAIN_GRAMMAR } : null },
+          sample: plain ? { grammar: isPwsh ? PLAIN_GRAMMAR_PWSH : PLAIN_GRAMMAR_UNIX } : null },
         { config }
       );
       onResult?.({ usage: res?.usage, timings: res?.timings, attempt });

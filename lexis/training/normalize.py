@@ -12,6 +12,14 @@ RAW = Path.home() / "lx-data" / "raw"
 OUT = Path.home() / "lx-data" / "candidates.jsonl"
 
 _ws = re.compile(r"\s+")
+
+# resolved license labels (HF dataset cards / repos), replacing harvest placeholders
+LICENSE_FIX = {
+    "nl2sh-alfa": "mit", "bash-6k": "apache-2.0", "cmdline-sugg": "bsd-3-clause-clear",
+    "bash-cmds": "mit", "nl2shell-v3": "apache-2.0",
+    "nl2bash": "unlisted", "nl2bash-custom": "unlisted", "linux-balanced": "unlisted",
+    "toolmaxx": "unlisted", "nl2cmd": "unlisted",
+}
 BAD_CMD = re.compile(r"```|<[^>]*>|^#|\bthat\b.*\bcommand\b", re.I)
 GOOD_START = re.compile(r"^[\w$~.({'\"`]|\[|& |! ?", re.I)
 NON_SHELL_INTENT = re.compile(r"^(write|explain|what is|how does|create a function|fix this code)\b", re.I)
@@ -48,12 +56,13 @@ def main():
                     dropped += 1
                     continue
                 seen.add(key)
+                src = r.get("source") or f.stem
                 row = {
                     "intent": intent, "command": cmd,
                     "os_hint": r.get("os_hint") or "any-unix",
                     "shell": r.get("shell") or "bash",
-                    "source": r.get("source") or f.stem,
-                    "license": r.get("license") or "unknown",
+                    "source": src,
+                    "license": LICENSE_FIX.get(src.split(":")[0], r.get("license") or "unknown"),
                     "weight": float(r.get("weight") or 1.0),
                     "task": r.get("task") or "nl2cmd",
                 }

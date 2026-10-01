@@ -168,11 +168,13 @@ async function main() {
   if (winRows.length) {
     const probe = await sshWin('"ok"');
     if (probe.ok) {
+      const todoIdx = new Map(todo.map((r, i) => [r, i]));
       for (let i = 0; i < winRows.length; i += 150) {
         const chunk = winRows.slice(i, i + 150);
-        const payload = Buffer.from(JSON.stringify(chunk.map((r, j) => ({ j, c: r.command }))), "utf8").toString("base64");
-        const res = await sshWin(`$d=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${payload}'))|ConvertFrom-Json; foreach($r in $d){ $e=$null; [void][System.Management.Automation.Language.Parser]::ParseInput($r.c,[ref]$null,[ref]$e); if($e.Count){"BAD $($r.j)"}else{"OK $($r.j)"} }`, 120000);
-        for (const l of res.out.split(/\r?\n/)) { const m = /^(OK|BAD) (\d+)/.exec(l.trim()); if (m) winSyntax.set(`${i + Number(m[2])}`, m[1] === "OK"); }
+        // key by the row's index in todo, not the windows-subset index
+        const payload = Buffer.from(JSON.stringify(chunk.map((r) => ({ k: todoIdx.get(r), c: r.command }))), "utf8").toString("base64");
+        const res = await sshWin(`$d=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${payload}'))|ConvertFrom-Json; foreach($r in $d){ $e=$null; [void][System.Management.Automation.Language.Parser]::ParseInput($r.c,[ref]$null,[ref]$e); if($e.Count){"BAD $($r.k)"}else{"OK $($r.k)"} }`, 120000);
+        for (const l of res.out.split(/\r?\n/)) { const m = /^(OK|BAD) (\d+)/.exec(l.trim()); if (m) winSyntax.set(Number(m[2]), m[1] === "OK"); }
       }
       console.error(`windows syntax: ${winRows.length} parsed remotely`);
     } else console.error("win-pc unreachable — windows rows skip syntax/bin gates (kept, flagged)");
@@ -226,7 +228,7 @@ async function main() {
       const v = { syntax: null, heads: {}, flags: "skip", exec: null };
 
       if (isWin) {
-        v.syntax = winSyntax.size ? (winSyntax.get(k) !== false) : null;
+        v.syntax = winSyntax.has(k) ? winSyntax.get(k) : null;
         if (binMaps.windows) for (const h of cmdHeads(r.command)) v.heads[h] = binMaps.windows[h] ?? "unknown";
       } else {
         v.syntax = await syntaxUnix(r.command);
@@ -240,7 +242,8 @@ async function main() {
       const pol = applyPolicyToPlan({ commands: [{ command: r.command, intent: "", risk: "low", requires_confirmation: false, platform: isWin ? "windows" : "unix" }] }, { shell: isWin ? "powershell" : "bash" });
 
       const osPasses = [];
-      const headFails = (osK) => cmdHeads(r.command).filter((h) => v.heads[`${osK}:${h}`] === false);
+      // unknown heads FAIL (a head we can't confirm on that OS is not verified)
+      const headFails = (osK) => cmdHeads(r.command).filter((h) => v.heads[`${osK}:${h}`] !== true);
       if (!isWin && v.syntax) {
         for (const osK of ["darwin", "linux"]) {
           const hinted = r.os_hint === osK || r.os_hint === "any-unix" || r.os_hint === "any";
@@ -251,8 +254,14 @@ async function main() {
           if (missing.length === 0 && fc !== `bad` && !String(fc).startsWith("bad:")) osPasses.push(osK);
         }
       } else if (isWin) {
-        const missing = Object.values(v.heads).filter((x) => x === false).length;
-        if ((v.syntax !== false) && missing === 0) osPasses.push("windows");
+        const bad = cmdHeads(r.command).filter((h) => v.heads[h] !== true).length;
+        if (v.syntax === true && bad === 0) {
+          osPasses.push("windows");
+        } else if (v.syntax === null && winSyntax.size === 0) {
+          // win-pc unreachable: keep the row but flag it — re-verify when online
+          v.winUnverified = true;
+          if (bad === 0) osPasses.push("windows");
+        }
       }
 
       if (osPasses.length && DO_EXEC && execIdx.has(k)) {

@@ -36,7 +36,7 @@ export async function ensureReady(config, { onProgress } = {}) {
   await ensureServer(config, { onProgress });
 }
 
-export function buildChatBody({ systemPrompt, userPrompt, maxTokens, raw = false, shots = null, temperature = 0 }) {
+export function buildChatBody({ systemPrompt, userPrompt, maxTokens, raw = false, shots = null, temperature = 0, sample = null }) {
   const messages = [
     { role: "system", content: systemPrompt },
     ...(shots || []).flatMap((s) => [
@@ -51,6 +51,7 @@ export function buildChatBody({ systemPrompt, userPrompt, maxTokens, raw = false
     temperature,
     max_tokens: maxTokens,
     messages,
+    ...(sample || {}),
   };
   if (!raw) {
     body.response_format = {
@@ -76,9 +77,9 @@ export async function chatCompletion(state, body, timeoutMs = 60000) {
   return response.json();
 }
 
-export async function plan({ systemPrompt, userPrompt, maxTokens, timeoutMs, raw = false, shots, temperature }, { config } = {}) {
+export async function plan({ systemPrompt, userPrompt, maxTokens, timeoutMs, raw = false, shots, temperature, sample }, { config } = {}) {
   const state = await ensureServer(config);
-  const payload = await chatCompletion(state, buildChatBody({ systemPrompt, userPrompt, maxTokens, raw, shots, temperature }), timeoutMs);
+  const payload = await chatCompletion(state, buildChatBody({ systemPrompt, userPrompt, maxTokens, raw, shots, temperature, sample }), timeoutMs);
   const message = payload?.choices?.[0]?.message || {};
   const text = message.content || "";
   if (!text.trim()) {

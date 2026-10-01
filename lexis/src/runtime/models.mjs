@@ -30,6 +30,7 @@ export const MODEL_CATALOG = [
     platforms: ["unix"],
     dialectHint: false,
     webContext: false,
+    shots: true,
   },
 ];
 

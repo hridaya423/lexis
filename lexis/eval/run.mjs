@@ -72,6 +72,7 @@ async function main() {
     : await loadSystemPrompt();
   const { cases, sha256: datasetHash } = await loadDataset(args.dataset);
   const shots = args["shots-file"] ? JSON.parse(await fs.readFile(args["shots-file"], "utf8")) : null;
+  const sample = args.sample ? JSON.parse(args.sample) : null;
   const platform = args.platform === "windows" || args.platform === "unix" ? args.platform : (machine.platform === "win32" ? "windows" : "unix");
   const shell = args.platform === "windows" ? "powershell" : (args.platform === "unix" ? "sh" : machine.shell);
 
@@ -108,7 +109,7 @@ async function main() {
             const counts = new Map();
             for (let v = 0; v < votes; v += 1) {
               const r = await providerImpl.plan(
-                { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots, temperature: Number(args.temp) || 0.5 },
+                { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots, temperature: Number(args.temp) || 0.5, sample },
                 { config }
               );
               const cmd = plainPlan(r?.text || "", platform).commands[0].command;
@@ -119,12 +120,12 @@ async function main() {
             outText = winner;
           } else {
             let res = await providerImpl.plan(
-              { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots },
+              { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots, sample },
               { config }
             );
             if (!commandShaped(firstLine(res?.text))) {
               res = await providerImpl.plan(
-                { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots, temperature: 0.4 },
+                { systemPrompt, userPrompt: up, model, maxTokens: 80, timeoutMs: estimateTimeoutMs(model), raw: true, shots, temperature: 0.4, sample },
                 { config }
               );
             }

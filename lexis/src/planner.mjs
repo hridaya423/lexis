@@ -6,6 +6,24 @@ export const PLAIN_SYSTEM_PROMPT = `You are a bash command generator. Given a na
 
 export const FIXCMD_SYSTEM_PROMPT = `You fix broken bash commands. Given a failed command and its error output, output only the corrected command. No explanation.`;
 
+const PLAIN_GRAMMAR = "root ::= [^ \\n{] [^\\n]*";
+
+const PLAIN_SHOTS = {
+  unix: [["print the working directory", "pwd"],
+         ["count running processes", "ps aux | wc -l"],
+         ["save the date to today.txt", "date > today.txt"],
+         ["show the first 5 lines of README.md", "head -n 5 README.md"]],
+  windows: [["print the working directory", "Get-Location"],
+            ["count running processes", "(Get-Process).Count"],
+            ["save the date to today.txt", "Get-Date > today.txt"],
+            ["show the first 5 lines of README.md", "Get-Content -TotalCount 5 README.md"]],
+};
+
+function plainShots(osHint, shell) {
+  const set = /power|pwsh|cmd\.exe/i.test(String(shell)) ? PLAIN_SHOTS.windows : PLAIN_SHOTS.unix;
+  return set.map(([request, answer]) => ({ request: `${request}\n(Platform: ${osHint}, shell: ${shell})`, answer }));
+}
+
 
 export async function generatePlan({
   providerImpl,
@@ -46,7 +64,9 @@ export async function generatePlan({
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const res = await providerImpl.plan(
-        { systemPrompt: plain ? (task === "fixcmd" ? FIXCMD_SYSTEM_PROMPT : PLAIN_SYSTEM_PROMPT) : systemPrompt, userPrompt: prompt, model, maxTokens, timeoutMs, raw: plain, temperature: attempt > 0 ? 0.4 : 0 },
+        { systemPrompt: plain ? (task === "fixcmd" ? FIXCMD_SYSTEM_PROMPT : PLAIN_SYSTEM_PROMPT) : systemPrompt, userPrompt: prompt, model, maxTokens, timeoutMs, raw: plain, temperature: attempt > 0 ? 0.4 : 0,
+          shots: plain && entry?.shots && task !== "fixcmd" ? plainShots(osHint, context?.shell || "sh") : null,
+          sample: plain ? { grammar: PLAIN_GRAMMAR } : null },
         { config }
       );
       onResult?.({ usage: res?.usage, timings: res?.timings, attempt });

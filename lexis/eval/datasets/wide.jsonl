@@ -1,6 +1,6 @@
 {"id":"v01","platform":"unix","intent":"copy this folder and everything in it to ~/backup","expect":{"anyOfRegex":["cp\\s+(-R|-r|-a).*~/backup|ditto.*backup","rsync\\s+-a.*backup"],"maxCommands":3}}
 {"id":"v02","platform":"unix","intent":"rename notes.txt to notes.md","expect":{"anyOfRegex":["mv\\s+notes\\.txt\\s+notes\\.md","mv\\s+['\"]?notes"],"maxCommands":2}}
-{"id":"v03","platform":"unix","intent":"delete all empty directories under here","expect":{"anyOfRegex":["find\\\\s+.*-type\\\\s+d.*-empty.*(-delete|-exec\\\\s+(rmdir|rm))","find\\\\s+.*-empty.*-type\\\\s+d.*-delete"],"maxCommands":3}}
+{"id":"v03","platform":"unix","intent":"delete all empty directories under here","expect":{"anyOfRegex":["find\\s+.*-type\\s+d.*-empty.*(-delete|-exec\\s+(rmdir|rm))","find\\s+.*-empty.*-type\\s+d.*-delete"],"maxCommands":3}}
 {"id":"v04","platform":"unix","intent":"make a symlink to ~/target called link","expect":{"anyOfRegex":["ln\\s+-s\\s+.*target.*link","ln\\s+-s"],"maxCommands":2}}
 {"id":"v05","platform":"unix","intent":"how many files are in this directory","expect":{"anyOfRegex":["ls\\s+.*\\|\\s*wc\\s+-l","find\\s+.*-type\\s+f.*\\|\\s*wc\\s+-l","find\\s+.*wc\\s+-l","ls\\s+-1.*\\|\\s*wc"],"maxCommands":3,"readonly":true}}
 {"id":"v06","platform":"unix","intent":"show the newest file in this directory","expect":{"anyOfRegex":["ls\\s+-[a-z]*t.*\\|\\s*head","ls\\s+-lt","find\\s+.*-newer","stat"],"maxCommands":3,"readonly":true}}
@@ -15,19 +15,19 @@
 {"id":"v15","platform":"unix","intent":"remove duplicate lines from list.txt","expect":{"anyOfRegex":["sort\\s+.*\\|\\s*uniq","awk\\s+.*seen","sort\\s+-u"],"maxCommands":3}}
 {"id":"v16","platform":"unix","intent":"watch the end of error.log as it grows","expect":{"anyOfRegex":["tail\\s+-[fF]\\s+.*error\\.log","tail\\s+-f"],"maxCommands":2,"readonly":true}}
 {"id":"v17","platform":"unix","intent":"compare file1.txt and file2.txt","expect":{"anyOfRegex":["diff\\s+file1\\.txt\\s+file2\\.txt","diff\\s+.*file1.*file2","git\\s+diff.*file"],"maxCommands":2,"readonly":true}}
-{"id":"v18","platform":"unix","intent":"strip blank lines from output.txt","expect":{"anyOfRegex":["grep\\s+-v\\s+.*\\^\\$","sed\\s+.*\\^\\$.*d","awk\\s+.*NF","grep\\s+.*\\\\S"],"maxCommands":3}}
+{"id":"v18","platform":"unix","intent":"strip blank lines from output.txt","expect":{"anyOfRegex":["grep\\s+-v\\s+.*\\^\\$","sed\\s+.*\\^\\$.*d","awk\\s+.*NF","grep\\s+.*\\S"],"maxCommands":3}}
 {"id":"v19","platform":"unix","intent":"create archive.zip containing the src folder","expect":{"anyOfRegex":["zip\\s+(-r.*)?archive\\.zip.*src","zip\\s+-r"],"maxCommands":2}}
 {"id":"v20","platform":"unix","intent":"extract archive.tar.gz here","expect":{"anyOfRegex":["tar\\s+(-[a-z]*x[a-z]*|xzf|.*xf).*archive\\.tar\\.gz","tar\\s+.*x.*archive"],"maxCommands":2}}
-{"id":"v21","platform":"unix","intent":"list what's inside backup.tar without extracting","expect":{"anyOfRegex":["tar\\\\s+(-[a-z]*t[a-z]*|tf|.*tf).*backup\\\\.tar","tar\\\\s+.*t.*backup"],"maxCommands":2}}
+{"id":"v21","platform":"unix","intent":"list what's inside backup.tar without extracting","expect":{"anyOfRegex":["tar\\s+(-[a-z]*t[a-z]*|tf|.*tf).*backup\\.tar","tar\\s+.*t.*backup"],"maxCommands":2}}
 {"id":"v22","platform":"unix","intent":"compress bigfile.log with gzip","expect":{"anyOfRegex":["gzip\\s+.*bigfile\\.log","gzip\\s+bigfile","zstd|xz\\s+bigfile"],"maxCommands":2}}
 {"id":"v23","platform":"unix","intent":"ping google.com four times","expect":{"anyOfRegex":["ping\\s+-c\\s*4.*google\\.com","ping\\s+.*-c.*google"],"maxCommands":2,"readonly":true}}
 {"id":"v24","platform":"unix","intent":"download https://example.com/file.zip to disk","expect":{"anyOfRegex":["curl\\s+(-O|-o|-LO?)[^|]*file\\.zip","wget\\s+.*file\\.zip","curl\\s+.*file\\.zip"],"mustNotMatch":["\\|\\s*(ba|z)?sh"],"maxCommands":2}}
 {"id":"v25","platform":"unix","intent":"look up the dns records for example.com","expect":{"anyOfRegex":["dig\\s+.*example\\.com","nslookup\\s+example\\.com","host\\s+example\\.com"],"maxCommands":2,"readonly":true}}
 {"id":"v26","platform":"unix","intent":"show my local ip address","expect":{"anyOfRegex":["ifconfig\\s+.*\\|\\s*grep.*inet|ip\\s+(addr|a).*inet","ipconfig\\s+getifaddr","hostname\\s+-I","ip\\s+route.*get"],"maxCommands":3,"readonly":true}}
-{"id":"v27","platform":"unix","intent":"fetch the headers for https://example.com","expect":{"anyOfRegex":["curl\\\\s+(-I|-i|--head)[^|]*example\\\\.com","curl\\\\s+-sI","curl\\\\s+.*-I"],"maxCommands":2}}
+{"id":"v27","platform":"unix","intent":"fetch the headers for https://example.com","expect":{"anyOfRegex":["curl\\s+(-I|-i|--head)[^|]*example\\.com","curl\\s+-sI","curl\\s+.*-I"],"maxCommands":2}}
 {"id":"v28","platform":"unix","intent":"post json data to https://api.example.com/submit","expect":{"anyOfRegex":["curl\\s+.*-X\\s*POST","curl\\s+.*-d\\s+.*api\\.example\\.com","curl\\s+.*--data"],"maxCommands":3}}
-{"id":"v29","platform":"unix","intent":"test if port 443 on example.com is reachable","expect":{"anyOfRegex":["nc\\\\s+(-z|-zv)[^|]*example\\\\.com.*443","nc\\\\s+.*443","curl\\\\s+.*example\\\\.com:443","telnet","ncat|/dev/tcp"],"maxCommands":3}}
-{"id":"v30","platform":"unix","intent":"show all ssh processes","expect":{"anyOfRegex":["ps\\\\s+.*(grep|aux).*ssh","pgrep\\\\s+.*ssh","ps\\\\s+.*ssh"],"maxCommands":2}}
+{"id":"v29","platform":"unix","intent":"test if port 443 on example.com is reachable","expect":{"anyOfRegex":["nc\\s+(-z|-zv)[^|]*example\\.com.*443","nc\\s+.*443","curl\\s+.*example\\.com:443","telnet","ncat|/dev/tcp"],"maxCommands":3}}
+{"id":"v30","platform":"unix","intent":"show all ssh processes","expect":{"anyOfRegex":["ps\\s+.*(grep|aux).*ssh","pgrep\\s+.*ssh","ps\\s+.*ssh"],"maxCommands":2}}
 {"id":"v31","platform":"unix","intent":"kill process 4242","expect":{"anyOfRegex":["kill\\s+(-9\\s+)?4242","kill\\s+4242"],"maxCommands":2}}
 {"id":"v32","platform":"unix","intent":"show the top processes by cpu usage","expect":{"anyOfRegex":["ps\\s+.*sort.*cpu|ps\\s+.*-o.*cpu|top\\s+.*-o.*cpu|top\\s+-b.*head|htop","ps\\s+aux.*head"],"maxCommands":3,"readonly":true}}
 {"id":"v33","platform":"unix","intent":"run myscript.sh in the background","expect":{"anyOfRegex":["(nohup\\s+)?\\./?myscript\\.sh\\s*&","nohup.*myscript","myscript\\.sh\\s*&"],"maxCommands":2}}
@@ -50,7 +50,7 @@
 {"id":"v50","platform":"unix","intent":"how much free memory do I have","expect":{"anyOfRegex":["free\\s+(-h|-m)?|vm_stat|top\\s+.*mem|vmstat|cat\\s+/proc/meminfo|memory_pressure","hw.*memsize"],"maxCommands":3,"readonly":true}}
 {"id":"v51","platform":"unix","intent":"show the machine hostname","expect":{"anyOfRegex":["hostname(\\s|$)","uname\\s+-n","scutil.*HostName|hostnamectl"],"maxCommands":2,"readonly":true}}
 {"id":"v52","platform":"unix","intent":"who am I logged in as","expect":{"anyOfRegex":["whoami|id\\s+-un|who\\s+am\\s+i|echo\\s+\\$USER","id"],"maxCommands":2,"readonly":true}}
-{"id":"v53","platform":"unix","intent":"what time zone is this machine set to","expect":{"anyOfRegex":["timedatectl|cat\\\\s+/etc/timezone|systemsetup.*timezone|readlink\\\\s+/etc/localtime|date\\\\s+\\\\+%Z|sudo\\\\s+systemsetup"],"maxCommands":3}}
+{"id":"v53","platform":"unix","intent":"what time zone is this machine set to","expect":{"anyOfRegex":["timedatectl|cat\\s+/etc/timezone|systemsetup.*timezone|readlink\\s+/etc/localtime|date\\s+\\+%Z|sudo\\s+systemsetup"],"maxCommands":3}}
 {"id":"v54","platform":"unix","intent":"prevent the machine from sleeping while I work","expect":{"anyOfRegex":["caffeinate","systemd-inhibit|xset|pmset\\s+.*sleep\\s+0"],"maxCommands":3}}
 {"id":"v55","platform":"unix","intent":"show all mounted disks","expect":{"anyOfRegex":["df\\s+(-h)?|mount\\s*\\|","lsblk|diskutil\\s+list|findmnt"],"maxCommands":3,"readonly":true}}
 {"id":"v56","platform":"unix","intent":"copy this text to the clipboard: hello world","expect":{"anyOfRegex":["echo.*hello.*\\|\\s*(pbcopy|xclip|xsel|wl-copy|clip)","printf.*\\|\\s*pbcopy","pbcopy|xclip|xsel|wl-copy"],"maxCommands":3}}

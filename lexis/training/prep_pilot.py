@@ -5,7 +5,7 @@ Balances OS coverage (up to --per-os rows per primary OS) so the pilot tests
 whether unified conditioning works rather than replaying linux dominance.
 Writes chat-format rows compatible with sft_train_chat.jsonl.
 """
-import argparse, hashlib, json, random, re
+import argparse, json, random, re
 from collections import defaultdict
 from pathlib import Path
 
@@ -24,12 +24,8 @@ def norm(s):
 def chatfmt(r):
     shell = r.get("shell") or "bash"
     sys_p = SYS_PWSH if shell == "powershell" else SYS_BASH
-    drop = int(hashlib.sha1(("drop:" + norm(r["intent"])).encode()).hexdigest()[:6], 16) % 100 < 15
-    if drop:
-        user = r["intent"]
-    else:
-        os_hint = next((OS_HINT[o] for o in r["os"] if o in OS_HINT), "unix")
-        user = f"{r['intent']}\n(Platform: {os_hint}, shell: {shell})"
+    os_hint = next((OS_HINT[o] for o in r["os"] if o in OS_HINT), "unix")
+    user = f"{r['intent']}\n(Platform: {os_hint}, shell: {shell})"
     return {"messages": [{"role": "system", "content": sys_p},
                          {"role": "user", "content": user},
                          {"role": "assistant", "content": r["command"]}]}

@@ -92,6 +92,23 @@ function flagCheck(osKey, head, cmd) {
 }
 
 // ---------- binary existence maps ----------
+// feed head list on stdin — argv interpolation breaks on quotes/$ in junk heads
+async function probeStdin(cmd, heads, timeout = 120000) {
+  const out = {};
+  try {
+    const r = await new Promise((resolve, reject) => {
+      const p = execFile(cmd[0], cmd.slice(1), { timeout, maxBuffer: 32 << 20 },
+        (e, stdout) => e && !stdout ? reject(e) : resolve(stdout || ""));
+      p.stdin.on("error", () => {});
+      p.stdin.end(heads.join("\n") + "\n");
+    });
+    for (const l of r.split(/\r?\n/)) { const m = /^(YES|NO) (.+)$/.exec(l.trim()); if (m) out[m[2]] = m[1] === "YES"; }
+  } catch {}
+  return out;
+}
+
+const PROBE_SH = 'while IFS= read -r h; do [ -n "$h" ] && { command -v "$h" >/dev/null 2>&1 && echo "YES $h" || echo "NO $h"; }; done';
+
 async function mapHeads(heads, osKey) {
   const out = {};
   if (!heads.length) return out;
@@ -100,15 +117,12 @@ async function mapHeads(heads, osKey) {
     return true;
   });
   if (osKey === "darwin") {
-    const res = await sh(`for h in ${heads.map((h) => `"${h.replace(/"/g, "")}"`).join(" ")}; do command -v "$h" >/dev/null 2>&1 && echo "YES $h" || echo "NO $h"; done`);
-    for (const l of res.out.split("\n")) { const m = /^(YES|NO) (.+)$/.exec(l); if (m) out[m[2]] = m[1] === "YES"; }
+    Object.assign(out, await probeStdin(["bash", "-c", PROBE_SH], heads));
   } else if (osKey === "linux") {
     await ensureLinuxBox();
-    // batch via docker exec loop
-    const list = heads.map((h) => `"${h.replace(/"/g, "")}"`).join(" ");
-    const res = await sh(`docker exec lxverify bash -c 'for h in ${list}; do command -v "$h" >/dev/null 2>&1 && echo "YES $h" || echo "NO $h"; done'`, { timeout: 120000 });
-    for (const l of res.out.split("\n")) { const m = /^(YES|NO) (.+)$/.exec(l); if (m) out[m[2]] = m[1] === "YES"; }
+    Object.assign(out, await probeStdin(["docker", "exec", "-i", "lxverify", "bash", "-c", PROBE_SH], heads));
   } else if (osKey === "windows") {
+    // heads are junk-tolerant: strip ps-hostile chars, send as literal array
     const list = heads.map((h) => `'${h.replace(/'/g, "")}'`).join(",");
     const r = await sshWin(`$h=@(${list}); foreach($x in $h){ if(Get-Command $x -ErrorAction SilentlyContinue){"YES $x"}else{"NO $x"} }`, 180000);
     for (const l of r.out.split(/\r?\n/)) { const m = /^(YES|NO) (.+)$/.exec(l.trim()); if (m) out[m[2]] = m[1] === "YES"; }
@@ -257,10 +271,10 @@ async function main() {
         const bad = cmdHeads(r.command).filter((h) => v.heads[h] !== true).length;
         if (v.syntax === true && bad === 0) {
           osPasses.push("windows");
-        } else if (v.syntax === null && winSyntax.size === 0) {
-          // win-pc unreachable: keep the row but flag it — re-verify when online
+        } else if (winSyntax.size === 0) {
+          // win-pc unreachable: gates unverifiable — keep the row flagged for re-verify
           v.winUnverified = true;
-          if (bad === 0) osPasses.push("windows");
+          osPasses.push("windows");
         }
       }
 

@@ -140,9 +140,16 @@ async function main() {
   const cascadeThresh = Number(args["cascade-thresh"] ?? -0.5);
   const sample = JSON.parse(args.sample || "{}");
   if (bon > 1 || cascadeModel) Object.assign(sample, { logprobs: true });
-  const platform = args.platform === "windows" || args.platform === "unix" ? args.platform : (machine.platform === "win32" ? "windows" : "unix");
-  const shell = args.platform === "windows" ? "powershell" : (args.platform === "unix" ? "sh" : machine.shell);
   const osArg = ["darwin", "linux", "windows"].includes(args.os) ? args.os : null;
+  // --os retargets the prompt context, not just case selection: the suffix must
+  // claim the OS the model should generate for (what prod sends on that host)
+  const platform = args.platform === "windows" || args.platform === "unix" ? args.platform
+    : osArg === "windows" ? "windows"
+    : (machine.platform === "win32" ? "windows" : "unix");
+  const shell = args.platform === "windows" || osArg === "windows" ? "powershell"
+    : (args.platform === "unix" ? "sh" : machine.shell);
+  const targetOsName = osArg === "windows" ? "Windows" : osArg === "darwin" ? `macOS ${machine.osRelease}`
+    : osArg === "linux" ? "Linux" : `${machine.platformName} ${machine.osRelease}`;
   const hostOs = machine.platform === "darwin" ? "darwin" : machine.platform === "win32" ? "windows" : "linux";
   const caseOs = (c) => c.os || (c.platform === "windows" ? "windows" : c.platform === "unix" ? "any-unix" : "any");
   const osOk = (c) => {
@@ -173,7 +180,7 @@ async function main() {
     const context = {
       platform,
       shell,
-      os: args.platform === "windows" ? "Windows" : `${machine.platformName} ${machine.osRelease}`,
+      os: targetOsName,
       cwd: process.cwd(),
     };
 
@@ -203,7 +210,9 @@ async function main() {
           plan = res;
           outText = res?.commands?.[0]?.command || "";
         } else if (plain) {
-          const suffix = args.bare ? "" : `\n(Platform: ${platform}, shell: ${shell})`;
+          // same hint production's generatePlan derives from context.os
+          const osHint = /darwin|macos/i.test(targetOsName) ? "macOS (BSD)" : /linux/i.test(targetOsName) ? "Linux (GNU)" : platform;
+          const suffix = args.bare ? "" : `\n(Platform: ${osHint}, shell: ${shell})`;
           const up = args.re2
             ? `${testCase.intent}\nRead the request again: ${testCase.intent}${suffix}`
             : `${testCase.intent}${suffix}`;

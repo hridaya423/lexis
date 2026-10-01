@@ -13,11 +13,14 @@ Data lives outside the repo at `~/lx-data/`. Order:
    `ssh win-pc`), flag allowlists, sampled exec, policy tags
    → `verified.jsonl` (+ `verified-synth.jsonl` for pack rows)
    needs: docker up with `lxverify` container, win-pc reachable for windows gates
-6. `fixcmd.py` — corrupt verified cmds, capture real stderr in docker →
-   `final/fixcmd.jsonl`
-7. `split.py` — decon vs holdout, dedupe, source-cap balance, hash-splits →
-   `final/sft_{train,val,test}.jsonl` (Format A) + `*_chat.jsonl` (Format B)
-   + `final/dpo.jsonl` + `final/sources.json`
+6. `split.py` — junk+license gates, decon vs ALL eval sets (holdout, core, wide,
+   ALFA test; exact intent + 4-shingle), dedupe, source-cap balance, UNION-FIND
+   family splits (shared intent OR shared command = same split) →
+   `final/sft_{train,val,test}.jsonl` (Format A) + `*_chat.jsonl` (Format B,
+   production prompt shape incl. platform suffix) + `final/dpo.jsonl`
+   (train intents only) + `final/sources.json`
+7. `fixcmd.py` — corrupt TRAIN commands, capture real stderr in docker →
+   `final/fixcmd.jsonl` (must run after split.py; reads sft_train only)
 
 Eval set: `merge-holdout.py` merges `~/lx-data/holdout-shards/shard-*.jsonl` →
 `~/lx-data/holdout.jsonl` (frozen, sha in `holdout.sha256`, copy into

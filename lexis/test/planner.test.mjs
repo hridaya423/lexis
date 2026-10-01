@@ -182,6 +182,42 @@ test("cross-platform plain model (qwen3-linuxcmd-4b) runs on Windows", async () 
   assert.equal(plan.commands[0].platform, "windows");
 });
 
+test("powershell context gets pwsh system prompt and permissive grammar", async () => {
+  const calls = [];
+  const impl = { capabilities: {}, plan: async (req) => { calls.push(req); return { text: "(Get-Process).Count\n" }; } };
+  await generatePlan({
+    providerImpl: impl,
+    providerId: "llama-server",
+    model: "qwen3-linuxcmd-4b",
+    systemPrompt: "s",
+    userPrompt: "count running processes",
+    context: { platform: "windows", shell: "powershell", cwd: "/" },
+    config: {},
+    timeoutMs: 5000,
+  });
+  assert.match(calls[0].systemPrompt, /PowerShell command generator/);
+  assert.match(calls[0].userPrompt, /\(Platform: .*, shell: powershell\)/);
+  // pwsh grammar allows ( [ & " ' openers that the unix grammar rejects
+  assert.equal(calls[0].sample.grammar, "root ::= [^\\n]+");
+});
+
+test("unix context gets bash system prompt and restricted grammar", async () => {
+  const calls = [];
+  const impl = { capabilities: {}, plan: async (req) => { calls.push(req); return { text: "pwd\n" }; } };
+  await generatePlan({
+    providerImpl: impl,
+    providerId: "llama-server",
+    model: "qwen3-linuxcmd-4b",
+    systemPrompt: "s",
+    userPrompt: "print working directory",
+    context: { platform: "unix", shell: "zsh", cwd: "/" },
+    config: {},
+    timeoutMs: 5000,
+  });
+  assert.match(calls[0].systemPrompt, /bash command generator/);
+  assert.equal(calls[0].sample.grammar, "root ::= [a-zA-Z0-9_./$~-(] [^\\n]*");
+});
+
 test("unix-only plain model (kitty-bash-0.5b) refuses on Windows", async () => {
   const impl = { capabilities: {}, plan: async () => ({ text: "ls" }) };
   await assert.rejects(

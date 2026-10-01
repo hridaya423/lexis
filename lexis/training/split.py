@@ -92,10 +92,8 @@ SYS_PWSH = "You are a PowerShell command generator. Given a natural language req
 OS_HINT = {"darwin": "macOS (BSD)", "linux": "Linux (GNU)", "windows": "windows"}
 
 
-def prod_user(intent, r, rng01):
-    """Production prompt shape; ~15% of rows drop the platform suffix."""
-    if rng01 < 0.15:
-        return intent
+def prod_user(intent, r):
+    """Production prompt shape — platform suffix present."""
     oses = r.get("os") or []
     os_hint = next((OS_HINT[o] for o in oses if o in OS_HINT), "unix")
     return f"{intent}\n(Platform: {os_hint}, shell: {r.get('shell') or 'bash'})"
@@ -104,9 +102,7 @@ def prod_user(intent, r, rng01):
 def chatfmt(intent, command, r):
     shell = r.get("shell") or "bash"
     sys_p = SYS_PWSH if shell == "powershell" else SYS_BASH
-    # deterministic per-row suffix-drop via row hash
-    drop = int(hashlib.sha1(("drop:" + norm(intent)).encode()).hexdigest()[:6], 16) % 100 < 15
-    user = intent if drop else prod_user(intent, r, 1)
+    user = prod_user(intent, r)
     return {"messages": [
         {"role": "system", "content": sys_p},
         {"role": "user", "content": user},
@@ -126,10 +122,20 @@ def main():
                 pass
     print(f"verified in: {len(rows)}", file=sys.stderr)
 
-    # junk gates: unresolved placeholders, prose-as-command
+    # junk gates: unresolved placeholders, prose-as-command, unresolved licenses
+    # unlisted/unknown = no license found -> drop. "mixed" survives only when the
+    # row's sub-source is the cc-by-4.0 component (tldr), not unlisted nl2bash.
+    def license_ok(r):
+        lic = r.get("license") or "unknown"
+        if lic in ("unlisted", "unknown", "check-repo", "paper"):
+            return False
+        if lic == "mixed":
+            return "tldr" in (r.get("source") or "")
+        return True
+
     before = len(rows)
-    rows = [r for r in rows if not PLACEHOLDER.search(r["command"]) and not prose_like(r["command"])]
-    print(f"junk filter: dropped {before - len(rows)} placeholder/prose rows", file=sys.stderr)
+    rows = [r for r in rows if not PLACEHOLDER.search(r["command"]) and not prose_like(r["command"]) and license_ok(r)]
+    print(f"junk filter: dropped {before - len(rows)} placeholder/prose/license rows", file=sys.stderr)
 
     # decon: exact intent or shared 4-shingle with ANY eval set
     clean, contam = [], []
@@ -201,7 +207,6 @@ def main():
         print(f"{name}: {len(arr)}", file=sys.stderr)
 
     # DPO pairs from TRAIN rows only — eval prompts must never reach training files
-    train_keys = {norm(r["intent"]) for r in splits["train"]}
     with open(FINAL / "dpo.jsonl", "w", encoding="utf-8") as f:
         n = 0
         for r in splits["train"]:

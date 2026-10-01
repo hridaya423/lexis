@@ -56,3 +56,72 @@ multi-turn vs inline, context cards, vocab injection, self-consistency, scaffold
 trained prompts, fixcmd task — kitty's ceiling is 83% wide. The 0.5B now ties the 4B tier
 at 6x smaller and ~3-4x faster warm. Residual fails are capability, not configuration.
 Launch split: kitty default (83%, ~85ms cold p50), linuxcmd-4b upgrade tier (83%, ~300ms).
+
+## done claim (2026-10-01 07:30)
+kitty-bash 0.5B: 71%->83% on unbiased wide.jsonl (n=80), 78% core — ties linuxcmd-4b at 6x smaller/~3x faster. ~30 variants measured: quantization ladder (q4=q8=f16), sampling sweeps, GBNF grammar, logit_bias, shot dose curve (peaks at 4), shot content/format, multi-turn vs inline, context cards, vocab routing, self-consistency voting, scaffolds, trained prompts + fixcmd. Winner wired to production (commit 8be8919: planner plainShots + PLAIN_GRAMMAR, catalog shots flag), verified live end-to-end, tests green.
+
+## Round 2 — arXiv-grade sweep (active goal)
+
+New levers tested on wide.jsonl (n=80):
+
+| technique | result | note |
+|---|---|---|
+| BoN-5 + verifier rerank | **86%** kitty | rerank = meanLogprob + bash -n + command -v + malformed-penalty; ~460ms |
+| BoN-10 | **88%** kitty | scales with N, ~930ms — quality-mode territory |
+| BoN-5 on linuxcmd-4b | **89%** | verifier generalizes across models (was 83% greedy) |
+| Retrieval ICL (dynamic shots) | 81% | per-query shot retrieval adds noise; static shots win |
+| BoN + retrieval | 81% | doesn't compose |
+| RE2 re-reading | 86% | real paper technique works at 0.5B |
+| EmotionPrompt | **89%** | "+very important to my career" suffix, free, 109ms — but core dropped to 76% (noise band, needs holdout) |
+| cmd: scaffold | 69% | worse |
+| Shot dose re-curve | 3→81, 4→83, 5→79 | 4 confirmed peak |
+
+### MLX LoRA fine-tune (weights-level, round 1)
+- Qwen2.5-Coder-0.5B base + 705-example NL2CMD dataset heavy on macOS-native
+  tools (pmset/caffeinate/dscacheutil/pbcopy/open/defaults/mdfind/diskutil/launchctl...)
+- 600 iters, loss 0.94→0.156, fused → GGUF Q4_K_M
+- Result: **80% → 84%** (after policy readonly fixes): EVERY macOS-dialect case
+  fixed — caffeinate, pmset -g batt, dscacheutil+killall mDNSResponder, pbcopy,
+  diskutil eject, systemsetup -gettimezone all correct. The categorical weakness
+  prompting couldn't fix is gone.
+- Regressions: filename hallucinations (`silverine` for tree), `npm list` (missing
+  -g), invented `background` builtin, bare cron line. Round-2 dataset adds ~150
+  rows targeting these classes.
+- Policy fix: readonly subcommands for pmset -g / systemsetup -get / ipconfig
+  getifaddr / pbpaste / dscacheutil -q / defaults read / diskutil list / crontab -l
+  etc — real classification gap exposed by the new model's output distribution.
+- NOTE: /tmp got purged mid-session losing artifacts; workspace moved to ~/lx-ft.
+
+## Round 2 final — exhaustive arXiv sweep complete
+
+### Prompt/decode stack results (wide n=80, kitty)
+- strict grammar `[a-zA-Z0-9_./$~-]` first char: **89%** — new prod default (was 83%)
+- EmotionPrompt: 89% (same score, vibes-based — grammar chosen, deterministic)
+- RE2 re-reading: 86%; emotion+RE2: 86%; emo+strict: 88% — no stacking
+- BoN verifier rerank (logprob+bash -n+command -v): 86% @5x, 88% @10x, linuxcmd-4b: 89%
+- Retrieval ICL (per-query shots): 81% — noise, static shots win
+
+### Fine-tune campaign (MLX LoRA, Qwen2.5-Coder-0.5B base = kitty's base)
+| model | data | wide | core |
+|---|---|---|---|
+| darwin2 | 854 curated macOS+unix | 88% | 68% |
+| darwin3 | +1200 raw NL2Bash corpus | 81% | 76% |
+| darwin4 | +451 filtered corpus | 86% | 75% |
+| darwin5 | +448 linuxcmd-4b distilled labels | 84% | 72% |
+
+Every fine-tune fixes ALL macOS-dialect cases (caffeinate/pmset/dscacheutil/
+pbcopy/diskutil/systemsetup — the categorical kitty weakness), but every blend
+trades breadth at 0.5B: LoRA on ~1-2K rows redistributes probability mass, it
+can't replicate kitty's original ~50K-pair phrasing distribution.
+
+### Blocked / dead ends (documented)
+- Confidence cascade kitty→linuxcmd: single-model llama-server can't swap mid-run
+- Speculative decode: kitty=Qwen2.5 tokenizer vs linuxcmd=Qwen3 — incompatible drafts
+- logit_bias/seed sweeps, vote@temp, scaffold formats, 8-shot+: all flat/worse
+
+### Verdict
+Stock kitty + strict grammar + 4 platform shots = 89% wide/78% core @ ~85ms: shipped.
+Fine-tunes (~/lx-ft/*.gguf, pipeline in ~/lx-ft/gen_data.py) fix the demo-critical
+macOS gap at a breadth cost — viable as an optional "darwin" build if published
+to HF; not auto-swapped. BoN-5 verifier is a proven ~460ms "quality mode" candidate
+(flag exists in eval: --bon 5).

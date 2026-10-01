@@ -6,7 +6,7 @@ export const PLAIN_SYSTEM_PROMPT = `You are a bash command generator. Given a na
 
 export const FIXCMD_SYSTEM_PROMPT = `You fix broken bash commands. Given a failed command and its error output, output only the corrected command. No explanation.`;
 
-const PLAIN_GRAMMAR = "root ::= [^ \\n{] [^\\n]*";
+const PLAIN_GRAMMAR = "root ::= [a-zA-Z0-9_./$~-] [^\\n]*";
 
 const PLAIN_SHOTS = {
   unix: [["print the working directory", "pwd"],

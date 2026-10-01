@@ -12,6 +12,7 @@ import { applyPolicyToPlan, RISK_SCORE } from "../src/policy.mjs";
 import { PROVIDERS } from "../src/providers/index.mjs";
 import { getMachine } from "../src/machine.mjs";
 import { LLAMA_CPP_TAG } from "../src/runtime/llama-release.mjs";
+import { execCheck, execWanted } from "./exec-judge.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
@@ -120,7 +121,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const providerImpl = PROVIDERS[args.provider];
   if (!providerImpl) throw new Error(`unknown provider ${args.provider}`);
-  const plain = Boolean(args.plain);
+  const plain = Boolean(args.plain) || Boolean(args.prod);
   const repeat = Math.max(1, Number(args.repeat) || 1);
 
   const machine = getMachine();
@@ -141,6 +142,22 @@ async function main() {
   if (bon > 1 || cascadeModel) Object.assign(sample, { logprobs: true });
   const platform = args.platform === "windows" || args.platform === "unix" ? args.platform : (machine.platform === "win32" ? "windows" : "unix");
   const shell = args.platform === "windows" ? "powershell" : (args.platform === "unix" ? "sh" : machine.shell);
+  const osArg = ["darwin", "linux", "windows"].includes(args.os) ? args.os : null;
+  const hostOs = machine.platform === "darwin" ? "darwin" : machine.platform === "win32" ? "windows" : "linux";
+  const caseOs = (c) => c.os || (c.platform === "windows" ? "windows" : c.platform === "unix" ? "any-unix" : "any");
+  const osOk = (c) => {
+    if (!osArg) return true;
+    const o = caseOs(c);
+    return o === osArg || o === "any" || (o === "any-unix" && osArg !== "windows");
+  };
+  const execOs = (c) => {
+    const o = caseOs(c);
+    return o === "any" || o === "any-unix" ? hostOs : o;
+  };
+  // --prod: route plain models through generatePlan so eval prompt == production prompt
+  const prodEntry = args.prod
+    ? { format: "plain", platforms: ["unix", "windows"], dialectHint: args["dialect-hint"] ? true : false, webContext: false, shots: !args["no-shots"] }
+    : null;
 
   const readyStart = Date.now();
   await providerImpl.ensureReady?.(config, { onProgress: (m) => process.stderr.write(`  ${m}\n`) });
@@ -151,6 +168,7 @@ async function main() {
     if (args.limit && i >= Number(args.limit)) break;
     if (args.platform && testCase.platform && testCase.platform !== args.platform) continue;
     if (testCase.platform && testCase.platform !== "all" && testCase.platform !== platform && !testCase.allowCrossPlatform) continue;
+    if (!osOk(testCase)) continue;
     if (plain && testCase.plain === false) continue;
     const context = {
       platform,
@@ -168,7 +186,23 @@ async function main() {
       let timings = null;
       let outText = "";
       try {
-        if (plain) {
+        if (prodEntry) {
+          const res = await generatePlan({
+            providerImpl,
+            providerId: args.provider,
+            model,
+            systemPrompt,
+            userPrompt: testCase.intent,
+            context,
+            webContext: [],
+            config,
+            timeoutMs: estimateTimeoutMs(model),
+            onResult: (r) => { usage = r.usage; timings = r.timings; },
+            entry: prodEntry,
+          });
+          plan = res;
+          outText = res?.commands?.[0]?.command || "";
+        } else if (plain) {
           const suffix = args.bare ? "" : `\n(Platform: ${platform}, shell: ${shell})`;
           const up = args.re2
             ? `${testCase.intent}\nRead the request again: ${testCase.intent}${suffix}`
@@ -268,15 +302,22 @@ async function main() {
         checks.readonly = pol.readonly === expect.readonly;
       }
     }
+
+    if (expect.exec && execWanted(args.exec, execOs(testCase)) && commands.length) {
+      const r = await execCheck(commands[0], expect.exec, execOs(testCase));
+      if (r.pass !== null) checks.execOk = r.pass;
+      if (r.pass !== true && r.detail) checks.execDetail = String(r.detail).slice(0, 120);
+    }
     } catch (e) {
                   error = error || `harness: ${e.message}`;
       checks.harnessOk = false;
     }
 
-    const pass = Object.values(checks).every(Boolean) && !error;
+    const pass = Object.entries(checks).filter(([k]) => k !== "execDetail").every(([, v]) => Boolean(v)) && !error;
     const latencies = runs.map((r) => r.latencyMs);
     results.push({
       id: testCase.id,
+      os: caseOs(testCase),
       intent: testCase.intent,
       pass,
       error,
@@ -294,6 +335,13 @@ async function main() {
   }
 
   const passed = results.filter((r) => r.pass).length;
+  const byOs = {};
+  for (const r of results) {
+    const k = r.os || "unknown";
+    byOs[k] = byOs[k] || { total: 0, passed: 0 };
+    byOs[k].total += 1;
+    if (r.pass) byOs[k].passed += 1;
+  }
   const cold = results.map((r) => r.coldMs).filter((v) => v != null).sort((a, b) => a - b);
   const warm = results.flatMap((r) => r.warmMs).sort((a, b) => a - b);
   const pick = (arr, q) => arr[Math.min(arr.length - 1, Math.floor(arr.length * q))] || 0;
@@ -315,6 +363,7 @@ async function main() {
     total: results.length,
     passed,
     passRate: results.length ? passed / results.length : 0,
+    byOs,
     coldP50Ms: pick(cold, 0.5),
     coldP95Ms: pick(cold, 0.95),
     warmP50Ms: pick(warm, 0.5),

@@ -37,8 +37,9 @@ export async function generatePlan({
   timeoutMs,
   onResult,
   task,
+  entry: entryOverride,
 }) {
-  const entry = catalogEntry(model);
+  const entry = entryOverride || catalogEntry(model);
   const plain = entry?.format === "plain";
   if (plain && context?.platform && !(entry.platforms || ["unix"]).includes(context.platform)) {
     throw new Error(`${model} only produces ${(entry.platforms || ["unix"]).join("/")} single commands — pick a schema model for ${context.platform}.`);

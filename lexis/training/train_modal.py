@@ -23,10 +23,11 @@ image = (
         "accelerate", "bitsandbytes", "sentencepiece", "gguf", "huggingface_hub",
     )
     .run_commands(
-        # llama.cpp source for convert_hf_to_gguf.py + release binary for quantize
+        # llama.cpp source for convert_hf_to_gguf.py + release binary for quantize.
+        # (do NOT pip install its requirements.txt — it pins a different torch)
         "git clone --depth 1 https://github.com/ggml-org/llama.cpp /opt/llama.cpp",
-        "pip install -r /opt/llama.cpp/requirements.txt || true",
-        f"cd /opt && curl -L {LLAMA_URL} -o llama.tar.gz && tar xzf llama.tar.gz && cp build/bin/llama-quantize /usr/local/bin/ || find . -name llama-quantize -exec cp {{}} /usr/local/bin/ \\;",
+        "pip install protobuf",
+        f"cd /opt && curl -L {LLAMA_URL} -o llama.tar.gz && tar xzf llama.tar.gz && find /opt -name llama-quantize -type f -exec cp {{}} /usr/local/bin/ \\; && llama-quantize --help | head -1",
     )
 )
 

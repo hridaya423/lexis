@@ -61,6 +61,13 @@ async function sshWin(ps, timeout = 30000) {
 }
 
 // ---------- flag db ----------
+// heads that always pass existence: shell keywords/builtins + known
+// distro-specific tools absent from the ubuntu fixture container
+const ALWAYS_OK = new Set(
+  ("if then else elif fi for while until do done case esac function select time { } [ ] test while foreach try catch trap break continue return exit shift wait source alias unalias export readonly local set unset eval exec cd pwd echo printf true false sudo env command builtin xargs " +
+   "dnf yum pacman zypper snap flatpak rpm urpmi xbps-install nix-env emerge apk dnf5 microdnf pacman-key yay paru " +
+   "foreach where measure tee% select-object while-object").split(" "));
+
 const FLAGDB_RAW = fs.existsSync(FLAGDB_PATH) ? JSON.parse(fs.readFileSync(FLAGDB_PATH, "utf8")) : {};
 const FLAGDB = Object.fromEntries(Object.entries(FLAGDB_RAW).map(([o, m]) =>
   [o, Object.fromEntries(Object.entries(m).map(([h, f]) => [h, new Set(f)]))]));
@@ -88,6 +95,10 @@ function flagCheck(osKey, head, cmd) {
 async function mapHeads(heads, osKey) {
   const out = {};
   if (!heads.length) return out;
+  heads = heads.filter((h) => {
+    if (ALWAYS_OK.has(h)) { out[h] = true; return false; }
+    return true;
+  });
   if (osKey === "darwin") {
     const res = await sh(`for h in ${heads.map((h) => `"${h.replace(/"/g, "")}"`).join(" ")}; do command -v "$h" >/dev/null 2>&1 && echo "YES $h" || echo "NO $h"; done`);
     for (const l of res.out.split("\n")) { const m = /^(YES|NO) (.+)$/.exec(l); if (m) out[m[2]] = m[1] === "YES"; }
@@ -176,17 +187,24 @@ async function main() {
       if (hinted) hs.forEach((h) => headsByOs[o].add(h));
     }
   }
+  const HEADS_CACHE = path.join(DATA, "headmap.json");
+  let cached = {};
+  try { cached = JSON.parse(fs.readFileSync(HEADS_CACHE, "utf8")); } catch {}
   const binMaps = {};
   for (const o of ["darwin", "linux", "windows"]) {
+    const known = cached[o] || {};
     const heads = [...headsByOs[o]];
-    if (!heads.length) { binMaps[o] = {}; continue; }
-    if (o === "windows" && winSyntax.size === 0 && !(await sshWin('"ok"')).ok) { binMaps[o] = null; continue; }
-    const map = {};
-    for (let i = 0; i < heads.length; i += 400) {
-      Object.assign(map, await mapHeads(heads.slice(i, i + 400), o));
-      console.error(`${o} heads ${Math.min(i + 400, heads.length)}/${heads.length}`);
+    if (!heads.length) { binMaps[o] = known; continue; }
+    if (o === "windows" && winSyntax.size === 0 && !(await sshWin('"ok"')).ok) { binMaps[o] = known; continue; }
+    const map = { ...known };
+    const fresh = heads.filter((h) => !(h in map));
+    for (let i = 0; i < fresh.length; i += 400) {
+      Object.assign(map, await mapHeads(fresh.slice(i, i + 400), o));
+      console.error(`${o} heads ${Math.min(i + 400, fresh.length)}/${fresh.length}`);
     }
     binMaps[o] = map;
+    cached[o] = map;
+    fs.writeFileSync(HEADS_CACHE, JSON.stringify(cached));
   }
 
   // exec sample selection for linux/darwin

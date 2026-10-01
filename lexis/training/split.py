@@ -59,9 +59,13 @@ def load_holdout_keys():
     return keys, sh_keys
 
 
-def chatfmt(intent, command):
+SYS_BASH = "You are a bash command generator. Given a natural language request, output only the bash command that accomplishes it. No explanation, no markdown fences."
+SYS_PWSH = "You are a PowerShell command generator. Given a natural language request, output only the PowerShell command that accomplishes it. No explanation, no markdown fences."
+
+
+def chatfmt(intent, command, shell="bash"):
     return {"messages": [
-        {"role": "system", "content": "You are a bash command generator. Given a natural language request, output only the bash command that accomplishes it. No explanation, no markdown fences."},
+        {"role": "system", "content": SYS_PWSH if shell == "powershell" else SYS_BASH},
         {"role": "user", "content": intent},
         {"role": "assistant", "content": command}]}
 
@@ -69,13 +73,14 @@ def chatfmt(intent, command):
 def main():
     hold_int, hold_sh = load_holdout_keys()
     rows = []
-    for line in open(VERIFIED, encoding="utf-8"):
-        try:
-            r = json.loads(line)
-            if r.get("os"):  # verify.mjs writes rejected rows with os:[]
-                rows.append(r)
-        except Exception:
-            pass
+    for vf in sorted(DATA.glob("verified*.jsonl")):
+        for line in open(vf, encoding="utf-8"):
+            try:
+                r = json.loads(line)
+                if r.get("os"):  # verify.mjs writes rejected rows with os:[]
+                    rows.append(r)
+            except Exception:
+                pass
     print(f"verified in: {len(rows)}", file=sys.stderr)
 
     # decon: exact intent or 4-shingle overlap with holdout intent
@@ -104,6 +109,24 @@ def main():
     counts = {o: len(v) for o, v in by_os.items()}
     print("pre-balance os counts:", counts, file=sys.stderr)
 
+    # balance: cap any single source at 35% of total rows (keeps cli-1m from
+    # swamping pack/tldr rows the way it swamped kitty's breadth)
+    rng0 = random.Random(9)
+    src_groups = defaultdict(list)
+    for r in rows:
+        src_groups[r.get("source", "?")].append(r)
+    cap = int(0.35 * len(rows))
+    kept = []
+    for src, grp in src_groups.items():
+        if len(grp) > cap:
+            grp.sort(key=lambda r: -r.get("weight", 1))
+            kept.extend(grp[:cap])
+        else:
+            kept.extend(grp)
+    dropped_bal = len(rows) - len(kept)
+    rows = kept
+    print(f"balance: capped at {cap}/source, dropped {dropped_bal}", file=sys.stderr)
+
     splits = {"train": [], "val": [], "test": []}
     for r in rows:
         splits[split_of(r["intent"])].append(r)
@@ -118,7 +141,7 @@ def main():
                        "os": r.get("os"), "shell": r.get("shell"), "weight": r.get("weight", 1),
                        "source": r.get("source")}
                 a.write(json.dumps(rec, ensure_ascii=False) + "\n")
-                b.write(json.dumps(chatfmt(r["intent"], r["command"]), ensure_ascii=False) + "\n")
+                b.write(json.dumps(chatfmt(r["intent"], r["command"], r.get("shell")), ensure_ascii=False) + "\n")
         print(f"{name}: {len(arr)}", file=sys.stderr)
 
     # dpo pairs from harvest (rejected column survives normalization)

@@ -92,15 +92,48 @@ SYS_PWSH = "You are a PowerShell command generator. Given a natural language req
 OS_HINT = {"darwin": "macOS (BSD)", "linux": "Linux (GNU)", "windows": "windows"}
 
 
+def pct(s, salt):
+    return int(hashlib.sha1(f"{salt}:{s}".encode()).hexdigest()[:8], 16) % 100
+
+
+# cli-1m appends shell names to intents ("using zsh: ...", "(fish shell)", "in PowerShell")
+# while the command stays bash — that contradicts the production suffix, so strip them
+SHELL_TAG = re.compile(r"^using (?:zsh|bash|fish|nushell|oils)\s*:\s*|\s*\((?:fish|oils|nushell|zsh|bash) shell\)|\s+in powershell\b", re.I)
+MANGLED_FLAG = re.compile(r"(?<![\w/.-])-[A-Za-z]--[a-z]")  # tldr {{-L|--last}} expanded as "-L--last"
+BARE_BREW = re.compile(r"^brew (?:un)?install \S+$|^brew info \S+$")
+BREW_CAP = 1500
+
+
+def clean_row(r):
+    """Return the row with intent/shell/prompt-OS normalized, or None to drop it."""
+    src, cmd = r.get("source") or "", r["command"].strip()
+    # cli-1m cross_shell "powershell" subset: 1 cmdlet in ~28K rows, the rest are bash
+    if src == "cli-1m-x" or r.get("shell") == "cmd":
+        return None
+    if MANGLED_FLAG.search(cmd) or cmd.startswith(("tldr ", "`")) or cmd.split()[0].lower() == "mimikatz":
+        return None
+    if src == "cmdline-sugg" and re.match(r"(fix|correct)\b", r["intent"], re.I):
+        return None
+    intent = SHELL_TAG.sub("", r["intent"]).strip().rstrip(":").strip()
+    if len(intent) < 4 or (" " not in intent and len(intent) > 15):
+        return None
+    cmd = re.sub(r"^PS(?: [A-Z]:\\[^>]*)?> ", "", cmd)
+    oses = r["os"]
+    # a row valid on darwin AND linux is shown under one platform, picked 50/50
+    pos = oses[0] if len(oses) == 1 else oses[pct(intent, "os") % len(oses)]
+    # production sends the user's real shell: zsh is the macOS default
+    shell = "powershell" if pos == "windows" else ("zsh" if pct(intent, "sh") < 75 else "bash") if pos == "darwin" \
+        else ("bash" if pct(intent, "sh") < 85 else "zsh")
+    return {**r, "intent": intent, "command": cmd, "shell": shell, "prompt_os": pos}
+
+
 def prod_user(intent, r):
     """Production prompt shape — platform suffix present."""
-    oses = r.get("os") or []
-    os_hint = next((OS_HINT[o] for o in oses if o in OS_HINT), "unix")
-    return f"{intent}\n(Platform: {os_hint}, shell: {r.get('shell') or 'bash'})"
+    return f"{intent}\n(Platform: {OS_HINT[r['prompt_os']]}, shell: {r['shell']})"
 
 
 def chatfmt(intent, command, r):
-    shell = r.get("shell") or "bash"
+    shell = r["shell"]
     sys_p = SYS_PWSH if shell == "powershell" else SYS_BASH
     user = prod_user(intent, r)
     return {"messages": [
@@ -136,6 +169,13 @@ def main():
     before = len(rows)
     rows = [r for r in rows if not PLACEHOLDER.search(r["command"]) and not prose_like(r["command"]) and license_ok(r)]
     print(f"junk filter: dropped {before - len(rows)} placeholder/prose/license rows", file=sys.stderr)
+    before = len(rows)
+    rows = [c for c in map(clean_row, rows) if c]
+    print(f"quality filter: dropped {before - len(rows)} mislabeled/mangled/junk rows", file=sys.stderr)
+    brew = [r for r in rows if BARE_BREW.match(r["command"])]
+    keep = set(map(id, sorted(brew, key=lambda r: pct(r["intent"], "brew"))[:BREW_CAP]))
+    rows = [r for r in rows if not BARE_BREW.match(r["command"]) or id(r) in keep]
+    print(f"brew cap: {len(brew)} bare brew install/uninstall/info -> {BREW_CAP}", file=sys.stderr)
 
     # decon: exact intent or shared 4-shingle with ANY eval set
     clean, contam = [], []
@@ -200,7 +240,7 @@ def main():
              open(FINAL / f"sft_{name}_chat.jsonl", "w", encoding="utf-8") as b:
             for r in arr:
                 rec = {"intent": r["intent"], "command": r["command"],
-                       "os": r.get("os"), "shell": r.get("shell"), "weight": r.get("weight", 1),
+                       "os": r.get("os"), "prompt_os": r["prompt_os"], "shell": r["shell"], "weight": r.get("weight", 1),
                        "source": r.get("source"), "license": r.get("license")}
                 a.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 b.write(json.dumps(chatfmt(r["intent"], r["command"], r), ensure_ascii=False) + "\n")

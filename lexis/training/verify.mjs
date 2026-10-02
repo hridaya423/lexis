@@ -37,7 +37,7 @@ function cmdHeads(cmd) {
     .split(/\|\||&&|\||;/)
     .map((seg) => seg.trim().split(/\s+/).filter((w) => !/^[A-Za-z_]+=/.test(w) && w !== "sudo" && w !== "env" && w !== "command" && w !== "builtin")[0])
     .filter(Boolean)
-    .filter((h) => !/^[/~.$({]/.test(h));
+    .filter((h) => !/^[/~.$({"'[@&-]/.test(h));
 }
 
 async function sh(script, opts = {}) {
@@ -65,7 +65,7 @@ async function sshWin(ps, timeout = 30000) {
 // distro-specific tools absent from the ubuntu fixture container
 const ALWAYS_OK = new Set(
   ("if then else elif fi for while until do done case esac function select time { } [ ] test while foreach try catch trap break continue return exit shift wait source alias unalias export readonly local set unset eval exec cd pwd echo printf true false sudo env command builtin xargs " +
-   "dnf yum pacman zypper snap flatpak rpm urpmi xbps-install nix-env emerge apk dnf5 microdnf pacman-key yay paru " +
+   "dnf yum pacman zypper snap flatpak rpm urpmi xbps-install nix-env emerge apk dnf5 microdnf pacman-key yay paru scoop " +
    "foreach where measure tee% select-object while-object").split(" "));
 
 const FLAGDB_RAW = fs.existsSync(FLAGDB_PATH) ? JSON.parse(fs.readFileSync(FLAGDB_PATH, "utf8")) : {};
@@ -183,14 +183,17 @@ async function main() {
     const probe = await sshWin('"ok"');
     if (probe.ok) {
       const todoIdx = new Map(todo.map((r, i) => [r, i]));
-      for (let i = 0; i < winRows.length; i += 150) {
-        const chunk = winRows.slice(i, i + 150);
+      // payload is base64'd twice (json, then utf16 -EncodedCommand): 150 rows blew
+      // the 32K windows command-line limit and those chunks failed silently
+      for (let i = 0; i < winRows.length; i += 30) {
+        const chunk = winRows.slice(i, i + 30);
         // key by the row's index in todo, not the windows-subset index
         const payload = Buffer.from(JSON.stringify(chunk.map((r) => ({ k: todoIdx.get(r), c: r.command }))), "utf8").toString("base64");
         const res = await sshWin(`$d=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${payload}'))|ConvertFrom-Json; foreach($r in $d){ $e=$null; [void][System.Management.Automation.Language.Parser]::ParseInput($r.c,[ref]$null,[ref]$e); if($e.Count){"BAD $($r.k)"}else{"OK $($r.k)"} }`, 120000);
+        if (!res.ok) console.error(`windows syntax chunk ${i} failed: ${String(res.err).slice(0, 120)}`);
         for (const l of res.out.split(/\r?\n/)) { const m = /^(OK|BAD) (\d+)/.exec(l.trim()); if (m) winSyntax.set(Number(m[2]), m[1] === "OK"); }
       }
-      console.error(`windows syntax: ${winRows.length} parsed remotely`);
+      console.error(`windows syntax: ${winSyntax.size}/${winRows.length} parsed remotely`);
     } else console.error("win-pc unreachable — windows rows skip syntax/bin gates (kept, flagged)");
   }
 

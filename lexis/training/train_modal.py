@@ -2,32 +2,48 @@
 """Modal SFT pilot for lx-cmd.
 
 Trains Qwen2.5-Coder-0.5B / 1.5B (LoRA r=64, response-only loss, 1 epoch) on a
-chat-format JSONL, merges, converts to GGUF, quantizes Q4_K_M, and drops the
-artifact on the `lx-models` volume.
+chat-format JSONL, merges, converts to GGUF, quantizes Q4_K_M + Q8_0, and drops
+the artifacts on the `lx-models` volume.
 
   modal run train_modal.py --model Qwen/Qwen2.5-Coder-0.5B-Instruct \
-      --data pilot.jsonl --out lx-pilot-0.5b
+      --data sft_train_chat.jsonl --out lx-05b
 
-Pull the result: modal volume get lx-models lx-pilot-0.5b-q4_k_m.gguf ./
+CPU smoke run (no GPU credits):
+
+  modal run train_modal.py --cpu --model Qwen/Qwen2.5-Coder-0.5B-Instruct \
+      --data sft_train_chat.jsonl --limit 64 --max-steps 4 --out smoke
+
+Pull the result: modal volume get lx-models lx-05b-q4_k_m.gguf ./
 """
 import modal
 
 TAG = "b11056"
 LLAMA_URL = f"https://github.com/ggml-org/llama.cpp/releases/download/{TAG}/llama-{TAG}-bin-ubuntu-x64.tar.gz"
+QUANTIZE_BIN = f"/opt/llama-{TAG}/llama-quantize"
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("git", "curl", "tar", "unzip")
     .pip_install(
-        "torch", "trl==0.21.0", "transformers", "peft", "datasets",
-        "accelerate", "bitsandbytes", "sentencepiece", "gguf", "huggingface_hub",
+        "torch",
+        "trl==0.21.0",
+        "transformers==4.56.2",
+        "peft==0.17.1",
+        "accelerate==1.10.1",
+        "datasets==4.0.0",
+        "bitsandbytes",
+        "sentencepiece",
+        "gguf",
+        "huggingface_hub",
     )
     .run_commands(
         # llama.cpp source for convert_hf_to_gguf.py + release binary for quantize.
         # (do NOT pip install its requirements.txt — it pins a different torch)
         "git clone --depth 1 https://github.com/ggml-org/llama.cpp /opt/llama.cpp",
         "pip install protobuf",
-        f"cd /opt && curl -L {LLAMA_URL} -o llama.tar.gz && tar xzf llama.tar.gz && find /opt -name llama-quantize -type f -exec cp {{}} /usr/local/bin/ \\; && llama-quantize --help | head -1",
+        f"cd /opt && curl -L {LLAMA_URL} -o llama.tar.gz && tar xzf llama.tar.gz "
+        f"&& ln -sf {QUANTIZE_BIN} /usr/local/bin/llama-quantize "
+        "&& llama-quantize --help | head -1",
     )
 )
 
@@ -36,9 +52,12 @@ vol = modal.Volume.from_name("lx-models", create_if_missing=True)
 data_vol = modal.Volume.from_name("lx-data", create_if_missing=True)
 
 
-@app.function(gpu="A10G", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
-def train(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 2e-4):
-    import json, os, subprocess
+def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16):
+    import glob
+    import json
+    import os
+    import subprocess
+
     from datasets import Dataset
     from transformers import AutoTokenizer
     from trl import SFTConfig, SFTTrainer
@@ -52,21 +71,35 @@ def train(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr:
         return {"prompt": prompt, "completion": msgs[-1]["content"] + eos}
 
     rows = [json.loads(l) for l in open(f"/data/{data_name}") if l.strip()]
+    if limit:
+        rows = rows[:limit]
     ds = Dataset.from_list([to_pc(r) for r in rows])
     print(f"dataset: {len(ds)} rows")
 
+    val_rows = [json.loads(l) for l in open("/data/sft_val_chat.jsonl") if l.strip()]
+    val_ds = Dataset.from_list([to_pc(r) for r in val_rows]).shuffle(seed=7)
+    val_ds = val_ds.select(range(min(2000, len(val_ds))))
+    print(f"eval: {len(val_ds)} rows")
+
+    output_dir = f"/models/ckpt/{out_name}"
     cfg = SFTConfig(
-        output_dir="/tmp/ckpt",
+        output_dir=output_dir,
         num_train_epochs=epochs,
+        max_steps=max_steps,
         learning_rate=lr,
         per_device_train_batch_size=16,
         gradient_accumulation_steps=4,
         max_length=1024,
         completion_only_loss=True,
         packing=False,
-        bf16=True,
+        bf16=use_bf16,
         logging_steps=25,
-        save_strategy="no",
+        save_strategy="steps",
+        save_steps=200,
+        save_total_limit=2,
+        eval_strategy="steps",
+        eval_steps=200,
+        per_device_eval_batch_size=16,
         report_to=[],
         seed=7,
     )
@@ -75,10 +108,32 @@ def train(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr:
         model=model_id,
         args=cfg,
         train_dataset=ds,
+        eval_dataset=val_ds,
         peft_config=LoraConfig(r=64, lora_alpha=128, lora_dropout=0.0,
                                target_modules="all-linear", task_type="CAUSAL_LM"),
     )
-    trainer.train()
+
+    batch = next(iter(trainer.get_train_dataloader()))
+    ids = batch["input_ids"][0]
+    if "labels" in batch:
+        mask = batch["labels"][0] != -100
+    else:
+        mask = batch["completion_mask"][0].bool()
+    supervised = tok.decode(ids[mask])
+    completions = {r["messages"][-1]["content"] + eos for r in rows}
+    print(f"supervised tokens (batch row 0): {supervised!r}")
+    if supervised not in completions:
+        raise RuntimeError(f"masking mismatch: supervised={supervised!r} is not a bare completion")
+
+    ckpts = sorted(glob.glob(f"{output_dir}/checkpoint-*"),
+                   key=lambda p: int(p.rsplit("-", 1)[1]))
+    resume = ckpts[-1] if ckpts else None
+    if resume:
+        print(f"resuming from {resume}")
+    trainer.train(resume_from_checkpoint=resume)
+
+    metrics = trainer.evaluate()
+    print(f"eval loss: {metrics.get('eval_loss')}")
 
     merged = "/tmp/merged"
     trainer.model.merge_and_unload().save_pretrained(merged)
@@ -87,13 +142,29 @@ def train(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr:
     gguf_f16 = f"/models/{out_name}-f16.gguf"
     subprocess.run(["python3", "/opt/llama.cpp/convert_hf_to_gguf.py", merged,
                     "--outfile", gguf_f16, "--outtype", "f16"], check=True)
-    subprocess.run(["llama-quantize", gguf_f16, f"/models/{out_name}-q4_k_m.gguf", "Q4_K_M"], check=True)
+    for quant in ("q4_k_m", "q8_0"):
+        subprocess.run(["llama-quantize", gguf_f16, f"/models/{out_name}-{quant}.gguf",
+                        quant.upper()], check=True)
     os.remove(gguf_f16)
     vol.commit()
-    print(f"wrote /models/{out_name}-q4_k_m.gguf")
+    print(f"wrote /models/{out_name}-q4_k_m.gguf and /models/{out_name}-q8_0.gguf")
+
+
+@app.function(gpu="A10G", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
+def train(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 2e-4,
+          max_steps: int = -1, limit: int = 0):
+    _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16=True)
+
+
+@app.function(cpu=8, timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
+def train_cpu(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 2e-4,
+              max_steps: int = -1, limit: int = 0):
+    _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16=False)
 
 
 @app.local_entrypoint()
-def main(model: str = "Qwen/Qwen2.5-Coder-0.5B-Instruct", data: str = "pilot.jsonl",
-         out: str = "lx-pilot", epochs: float = 1.0, lr: float = 2e-4):
-    train.remote(model, data, out, epochs, lr)
+def main(model: str = "Qwen/Qwen2.5-Coder-0.5B-Instruct", data: str = "sft_train_chat.jsonl",
+         out: str = "lx-pilot", epochs: float = 1.0, lr: float = 2e-4,
+         cpu: bool = False, max_steps: int = -1, limit: int = 0):
+    fn = train_cpu if cpu else train
+    fn.remote(model, data, out, epochs, lr, max_steps, limit)

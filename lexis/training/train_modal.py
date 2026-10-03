@@ -52,7 +52,7 @@ vol = modal.Volume.from_name("lx-models", create_if_missing=True)
 data_vol = modal.Volume.from_name("lx-data", create_if_missing=True)
 
 
-def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16):
+def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16, eval_data, full):
     import glob
     import json
     import os
@@ -62,6 +62,7 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
     from transformers import AutoTokenizer
     from trl import SFTConfig, SFTTrainer
 
+    lr = lr or (2e-5 if full else 2e-4)
     tok = AutoTokenizer.from_pretrained(model_id)
     eos = tok.eos_token or "<|endoftext|>"
 
@@ -76,7 +77,7 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
     ds = Dataset.from_list([to_pc(r) for r in rows])
     print(f"dataset: {len(ds)} rows")
 
-    val_rows = [json.loads(l) for l in open("/data/sft_val_chat.jsonl") if l.strip()]
+    val_rows = [json.loads(l) for l in open(f"/data/{eval_data}") if l.strip()]
     val_ds = Dataset.from_list([to_pc(r) for r in val_rows]).shuffle(seed=7)
     val_ds = val_ds.select(range(min(2000, len(val_ds))))
     print(f"eval: {len(val_ds)} rows")
@@ -100,17 +101,21 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
         eval_strategy="steps",
         eval_steps=200,
         per_device_eval_batch_size=16,
+        gradient_checkpointing=full,
         report_to=[],
         seed=7,
     )
-    from peft import LoraConfig
+    peft_config = None
+    if not full:
+        from peft import LoraConfig
+        peft_config = LoraConfig(r=64, lora_alpha=128, lora_dropout=0.0,
+                                 target_modules="all-linear", task_type="CAUSAL_LM")
     trainer = SFTTrainer(
         model=model_id,
         args=cfg,
         train_dataset=ds,
         eval_dataset=val_ds,
-        peft_config=LoraConfig(r=64, lora_alpha=128, lora_dropout=0.0,
-                               target_modules="all-linear", task_type="CAUSAL_LM"),
+        peft_config=peft_config,
     )
 
     batch = next(iter(trainer.get_train_dataloader()))
@@ -136,7 +141,10 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
     print(f"eval loss: {metrics.get('eval_loss')}")
 
     merged = "/tmp/merged"
-    trainer.model.merge_and_unload().save_pretrained(merged)
+    if full:
+        trainer.model.save_pretrained(merged)
+    else:
+        trainer.model.merge_and_unload().save_pretrained(merged)
     tok.save_pretrained(merged)
 
     gguf_f16 = f"/models/{out_name}-f16.gguf"
@@ -151,20 +159,21 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
 
 
 @app.function(gpu="A10G", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
-def train(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 2e-4,
-          max_steps: int = -1, limit: int = 0):
-    _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16=True)
+def train(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 0.0,
+          max_steps: int = -1, limit: int = 0, eval_data: str = "sft_val_chat.jsonl", full: bool = False):
+    _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, True, eval_data, full)
 
 
 @app.function(cpu=8, timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
-def train_cpu(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 2e-4,
-              max_steps: int = -1, limit: int = 0):
-    _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16=False)
+def train_cpu(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 0.0,
+              max_steps: int = -1, limit: int = 0, eval_data: str = "sft_val_chat.jsonl", full: bool = False):
+    _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, False, eval_data, full)
 
 
 @app.local_entrypoint()
 def main(model: str = "Qwen/Qwen2.5-Coder-0.5B-Instruct", data: str = "sft_train_chat.jsonl",
-         out: str = "lx-pilot", epochs: float = 1.0, lr: float = 2e-4,
-         cpu: bool = False, max_steps: int = -1, limit: int = 0):
+         out: str = "lx-pilot", epochs: float = 1.0, lr: float = 0.0,
+         cpu: bool = False, max_steps: int = -1, limit: int = 0,
+         eval_data: str = "sft_val_chat.jsonl", full: bool = False):
     fn = train_cpu if cpu else train
-    fn.remote(model, data, out, epochs, lr, max_steps, limit)
+    fn.remote(model, data, out, epochs, lr, max_steps, limit, eval_data, full)

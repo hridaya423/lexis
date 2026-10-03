@@ -144,11 +144,16 @@ const READONLY_SUBCOMMANDS = {
 
 const LINE_CRITICAL = [
   { re: /:\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:/, reason: "fork bomb" },
+  { re: /\b(curl|wget)\b[^|;]*\|\s*(sudo\s+)?(sh|bash|zsh|fish|pwsh|powershell|python|python3|node)\b/i, reason: "remote script piped to interpreter" },
+  { re: /\b(iwr|irm|Invoke-(WebRequest|RestMethod))\b[^|;]*\|\s*(iex|Invoke-Expression|powershell|pwsh)\b/i, reason: "remote script piped to interpreter" },
+  { re: /(\b(source|bash|sh|zsh)\s+|(^|\s)\.\s+)<\(\s*(curl|wget|iwr|irm|Invoke-(WebRequest|RestMethod))\b/i, reason: "remote script via process substitution" },
+  { re: /\b(bash|sh|zsh|fish|powershell|pwsh)\b[^|;]*-[cC]\s+[^|;]*\$\(\s*(curl|wget|iwr|irm|Invoke-(WebRequest|RestMethod))\b/i, reason: "remote script via command substitution" },
+  { re: /\b(iex|Invoke-Expression|Start-Process)\b[^|;]*\b(DownloadString|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|Net\.WebClient)\b|-(Command|File)\b[^|;]*\bDownloadString\b|\b(DownloadString|Net\.WebClient)\b[^|;]*\|\s*(iex|Invoke-Expression|powershell|pwsh)\b/i, reason: "remote script executed via DownloadString" },
+  { re: /(^|\||;)\s*Get-Process\s*\|\s*Stop-Process\b/i, reason: "terminate every process" },
 ];
 
 const LINE_HIGH = [
-  { re: /\b(curl|wget)\b[^|;]*\|\s*(sudo\s+)?(sh|bash|zsh|fish|pwsh|powershell|python|python3|node)\b/i, reason: "remote script piped to interpreter" },
-  { re: /\b(iwr|irm|Invoke-(WebRequest|RestMethod))\b[^|;]*\|\s*(iex|Invoke-Expression|powershell|pwsh)\b/i, reason: "remote script piped to interpreter" },
+  { re: /(Get-ChildItem|gci|dir|ls)\b[^|;]*\|\s*Remove-Item\b/i, reason: "bulk deletion via pipeline" },
   { re: /\b(base64|openssl\s+enc|certutil)\b[^|;]*(-d|-decode|--decode)[^|;]*\|\s*(sh|bash|zsh|pwsh|powershell|iex)\b/i, reason: "encoded payload piped to interpreter" },
   { re: /\b(powershell|pwsh)\b[^|;]*-e(nc|nc|ncodedcommand)?\s+[a-zA-Z0-9+/=]{8,}/i, reason: "encoded PowerShell command" },
   { re: /\$\(\s*(curl|wget|iwr|irm)\b/i, reason: "command substitution over the network" },
@@ -162,7 +167,13 @@ const CRITICAL_PATTERNS = [
   { re: /\bdd\b[^|;]*\bof=\s*\/dev\//i, reason: "raw write to a block device" },
   { re: /\bgit\s+push\b[^|;]*(--force|-f\b)[^|;]*\b(main|master|production|prod)\b/i, reason: "force push to a primary branch" },
   { re: /(^|[;&|(]\s*|\bsudo\s+|\bsystemctl\s+)(shutdown|poweroff|halt|reboot)\b|\b(Stop-Computer|Restart-Computer)\b/i, reason: "system power operation" },
-  { re: /\bkill(all)?\s+-9?\s+-?1\b|\bkill\s+-9\s+-1\b/i, reason: "kill all processes" },
+  { re: /\bkillall5\b|\bkill(all)?\s+(-\w+\s+)*-1\s*$/i, reason: "kill all processes" },
+  { re: /\bpkill\s+(-9|-KILL|-SIGKILL)\s*$/i, reason: "kill all processes" },
+  { re: /\btaskkill\b(?![^|;]*\/(im|pid)\b)[^|;]*\/f\b/i, reason: "force kill all processes" },
+  { re: /\bStop-Process\b[^|;]*-Name\s+["']?\*["']?/i, reason: "kill all processes" },
+  { re: /\b(chmod|chown|chgrp|chflags)\b[^|;]*-[a-zA-Z]*R[^|;]*\s["']?(\/(?=[\s"'*]|$)|~|\$HOME|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private)\b|C:\\|\$env:SystemRoot|%SystemRoot%)/i, reason: "recursive permission/ownership change on a protected path" },
+  { re: /\bfind\s+["']?(\/(?=[\s"'*]|$)|~|\$HOME|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private)\b)[^|;]*-exec(dir)?\s+(chmod|chown|chgrp)\b/i, reason: "recursive permission/ownership change on a protected path via find" },
+  { re: /\b(icacls|takeown)\b(?=[^|;]*\/(t|r)\b)(?=[^|;]*(C:\\|\$env:SystemRoot|%SystemRoot%))/i, reason: "recursive permission/ownership change on system directories" },
   { re: /\bchmod\s+(-[a-zA-Z]*R[a-zA-Z]*\s+)?(777|666|a\+rwx)\b[^|;]*\s(\/|~|\$HOME|\*|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private)\b)/i, reason: "recursive world-writable permissions on a broad path" },
   { re: /\bcipher\s+\/w:/i, reason: "secure wipe of free space" },
   { re: /\breg\s+(add|delete)\b[^|;]*\\(Run|RunOnce)\b/i, reason: "persistence via registry Run key" },
@@ -171,7 +182,7 @@ const CRITICAL_PATTERNS = [
 ];
 
 const CRITICAL_RM_TARGETS = /^(\/|\/\*|~|~\/|~\/\*|\$HOME|\$HOME\/|\$HOME\/\*|\.\.?|\.\.\/|\*|\/(etc|usr|bin|sbin|var|System|Library|Applications|Users|opt|root|boot|home)\/?.*)$/;
-const REMOVE_ITEM_CRITICAL = /^(C:\\?|C:\\Windows.*|\$env:SystemRoot.*|%USERPROFILE%\\?$|%USERPROFILE%\\?\*|~\\?$|~\\?\*|~\$)$/;
+const REMOVE_ITEM_CRITICAL = /^(C:\\?|C:\\Windows.*|\$env:SystemRoot.*|%USERPROFILE%\\?$|%USERPROFILE%\\?\*|\$env:USERPROFILE.*|\$HOME.*|C:\\Users(\\[^\\;|"'*]+)?|~\\?$|~\\?\*|~\$)$/;
 const RM_HEAD_RE = /^(rm|Remove-Item|rd|rmdir|del|erase)$/i;
 
 function rmTargetRisk(segment) {
@@ -190,6 +201,9 @@ function rmTargetRisk(segment) {
       return { risk: "critical", reason: "recursive delete of /" };
     }
   }
+  if (targets.some((t) => /^(\.\.?[\\/]?)?\*(\.\*)?$/.test(t.replace(/^["']|["']$/g, "")))) {
+    return { risk: "high", reason: "wildcard bulk deletion" };
+  }
   if (isRecurse || isForce) return { risk: "high", reason: "recursive or forced deletion" };
   return { risk: "moderate", reason: "file deletion" };
 }
@@ -204,13 +218,28 @@ const HIGH_PATTERNS = [
   { re: /\breg\s+(add|delete|import)\b/i, reason: "registry modification" },
   { re: /\bmsiexec\b/i, reason: "Windows installer execution" },
   { re: /\bfind\b[^|;]*(-delete|-exec(dir)?\s+(rm|mv|chmod|chown)\b)/i, reason: "find deleting/mutating matched files" },
+  { re: /\bxargs\b[^|;]*\brm\b/i, reason: "bulk deletion via xargs" },
+  { re: /\bgit\s+push\b[^|;]*(--force\b|-f\b|\s\+\S)/i, reason: "force push" },
+  { re: /\bcrontab\s+(-(?!l\b)\S*|[^-\s|]\S*)/i, reason: "scheduled task install" },
+  { re: /\bsystemctl\b[^|;]*\senable\b/i, reason: "service persistence" },
+  { re: /\blaunchctl\s+(--\w+\s+)*(load|bootstrap|enable)\b/i, reason: "service persistence" },
+  { re: /\btee\b[^|;]*(\$PROFILE|(\/etc\/|~[\/\\]?\.|\$HOME\/\.)(bashrc|zshrc|profile|bash_profile|zprofile|Microsoft\.PowerShell))/i, reason: "write to shell startup file" },
+  { re: /\bsed\b[^|;]*-i\b[^|;]*(\/etc\/|~\/\.|\$HOME\/\.)(bashrc|zshrc|profile|bash_profile|zprofile)/i, reason: "edit shell startup file in place" },
+  { re: /\b(Set-Content|Add-Content|Out-File)\b[^|;]*\$PROFILE/i, reason: "write to shell startup file" },
+  { re: /\b(New|Set|Remove)-ItemProperty\b[^|;]*CurrentVersion\\Run/i, reason: "persistence via registry Run key" },
+  { re: /\b(Register|New)-ScheduledTask\b/i, reason: "scheduled task install" },
+  { re: /\bosascript\b[^|;]*\blogin\s+item\b/i, reason: "login item persistence" },
+  { re: /\bpfctl\s+-\w*d\b/i, reason: "firewall disable" },
+  { re: /\bsocketfilterfw\b[^|;]*--setglobalstate\s+off/i, reason: "firewall disable" },
+  { re: /\bSet-NetFirewall\w*\b[^|;]*(-Enabled\s+(False|\$false|0)\b|-Disabl\w*)|\bDisable-NetFirewall\w*/i, reason: "firewall disable" },
+  { re: /\bchmod\b[^|;]*\s(\/|"\/"|'\/')\s*$/i, reason: "permission change on filesystem root" },
   { re: /\b(shred|srm|wipe|gshred)\b/i, reason: "secure file destruction" },
   { re: /\b(chmod|chown|chgrp)\b[^|;]*-R[^|;]*\s(\/|~|\$HOME|\*|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private)\/?)\s*$/i, reason: "recursive permission/ownership change on a protected path" },
   { re: /\b(crontab|at|schtasks)\b[^|;]*(-r|\/delete|\/create|\/change)/i, reason: "scheduled task modification" },
   { re: />\s*(~\/\.(bashrc|zshrc|profile|bash_profile|zprofile)|\/etc\/|\$PROFILE)/i, reason: "write to shell startup or system config" },
   { re: /\b(brew|apt|apt-get|dnf|yum|pacman|zypper|apk|winget|choco|scoop)\s+(uninstall|remove|purge|erase|autoremove)\b/i, reason: "package removal" },
   { re: /\bnpm\s+(uninstall|remove|rm)\s+(-g|--global)/i, reason: "global package removal" },
-  { re: /\bmkfifo\b|\bln\s+-s\b[^|;]*\s\/(etc|usr|bin|sbin|System)/i, reason: "filesystem object in a system path" },
+  { re: /\bmkfifo\b|\bln\s+-s\b[^|;]*\s\/(etc|usr|bin|sbin|System|Library)|\bNew-Item\b[^|;]*SymbolicLink[^|;]*(C:\\Windows|\$env:SystemRoot)/i, reason: "filesystem object in a system path" },
   { re: /\buseradd|userdel|usermod|passwd|visudo|adduser|deluser\b/i, reason: "user account modification" },
   { re: /\biptables|ufw|firewall-cmd|netsh\b[^|;]*(advfirewall|firewall)/i, reason: "firewall modification" },
 ];
@@ -236,6 +265,8 @@ const MODERATE_PATTERNS = [
   { re: /\bdscacheutil\s+-flushcache\b/i, reason: "system cache flush" },
   { re: /\bhistory\s+-[a-zA-Z]*[cw]/i, reason: "shell history modification" },
   { re: /\|\s*crontab\b|\bcrontab\s+(-[re]\b|[^-\s])/i, reason: "scheduled task install" },
+  { re: /\s--password=\S+|\b(mysql|mysqldump|mysqladmin|mariadb)\b[^|;]*\s-p[^\s|;]+|\s\/P:[^\s|;]+|-pass\s+pass:[^\s|;]+/i, reason: "secret on the command line" },
+  { re: /\bfuser\b[^|;]*-[a-zA-Z]*k\b/i, reason: "kill processes using a resource" },
 ];
 
 const ELEVATION_RE = /\b(sudo|doas|runas|pkexec|Start-Process\b[^|;]*-Verb\s+RunAs)\b/i;
@@ -308,6 +339,16 @@ function innerCommandOf(head, args) {
     const m = args.match(/-(exec|execdir)\s+(.+?)\s*(;|\+|$)/s);
     if (m) return m[2];
     return null;
+  }
+  if (head === "start-process") {
+    const am = args.match(/-ArgumentList\s+("([^"]*)"|'([^']*)'|(\S+))/i);
+    const rest = args
+      .replace(/-ArgumentList\s+("([^"]*)"|'([^']*)'|(\S+))/i, " ")
+      .replace(/-\w+\s+("[^"]*"|'[^']*')|-\w+/g, " ");
+    const prog = (rest.match(/\S+/) || [])[0];
+    if (am && prog) return `${prog} ${am[2] || am[3] || am[4] || ""}`;
+    if (am) return am[2] || am[3] || am[4] || null;
+    return prog || null;
   }
   if (head === "ssh" || head === "sudo" || head === "doas") {
     const m = args.match(/("[^"]+"|'[^']+'|\S+)\s*$/);
@@ -441,7 +482,11 @@ export function analyzeCommand(command, { shell = "sh" } = {}) {
   const tags = new Set();
   const reasons = [];
   for (const { re, reason } of LINE_CRITICAL) {
-    if (re.test(text)) return { risk: "critical", readonly: false, tags: ["critical"], reasons: [reason] };
+    if (re.test(text)) {
+      const tags = ["critical"];
+      if (/remote script|encoded/i.test(reason)) tags.push("remote-or-encoded");
+      return { risk: "critical", readonly: false, tags, reasons: [reason] };
+    }
   }
   for (const { re, reason } of LINE_HIGH) {
     if (re.test(text)) {

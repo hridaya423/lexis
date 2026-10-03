@@ -198,7 +198,7 @@ test("powershell context gets pwsh system prompt and permissive grammar", async 
   assert.match(calls[0].systemPrompt, /PowerShell command generator/);
   assert.match(calls[0].userPrompt, /\(Platform: .*, shell: powershell\)/);
   // pwsh grammar allows ( [ & " ' openers that the unix grammar rejects
-  assert.equal(calls[0].sample.grammar, "root ::= [^\\n]+");
+  assert.equal(calls[0].sample.grammar, "root ::= [^\\n` \\t] [^\\n]*");
 });
 
 test("unix context gets bash system prompt and restricted grammar", async () => {

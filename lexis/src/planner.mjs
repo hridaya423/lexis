@@ -10,7 +10,7 @@ export const FIXCMD_SYSTEM_PROMPT = `You fix broken bash commands. Given a faile
 
 const PLAIN_GRAMMAR_UNIX = "root ::= [a-zA-Z0-9_./$~-(] [^\\n]*";
 // pwsh commands can open with ( [ & " ' $ @ as well as cmdlet names
-const PLAIN_GRAMMAR_PWSH = "root ::= [^\\n]+";
+const PLAIN_GRAMMAR_PWSH = "root ::= [^\\n` \\t] [^\\n]*";
 
 const PLAIN_SHOTS = {
   unix: [["print the working directory", "pwd"],

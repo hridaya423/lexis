@@ -140,7 +140,7 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
     metrics = trainer.evaluate()
     print(f"eval loss: {metrics.get('eval_loss')}")
 
-    merged = "/tmp/merged"
+    merged = f"/models/hf/{out_name}"
     if full:
         trainer.model.save_pretrained(merged)
     else:
@@ -150,12 +150,18 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
     gguf_f16 = f"/models/{out_name}-f16.gguf"
     subprocess.run(["python3", "/opt/llama.cpp/convert_hf_to_gguf.py", merged,
                     "--outfile", gguf_f16, "--outtype", "f16"], check=True)
-    for quant in ("q4_k_m", "q8_0"):
-        subprocess.run(["llama-quantize", gguf_f16, f"/models/{out_name}-{quant}.gguf",
-                        quant.upper()], check=True)
-    os.remove(gguf_f16)
+    calib = "/tmp/calib.txt"
+    with open(calib, "w") as f:
+        for r in rows[:2000]:
+            f.write(tok.apply_chat_template(r["messages"], tokenize=False) + "\n")
+    imatrix = f"/models/{out_name}-imatrix.dat"
+    subprocess.run([f"/opt/llama-{TAG}/llama-imatrix", "-m", gguf_f16, "-f", calib,
+                    "-o", imatrix, "-c", "512", "-t", "8"], check=True)
+    for quant in ("q4_k_m", "q5_k_m", "q6_k", "q8_0"):
+        subprocess.run(["llama-quantize", "--imatrix", imatrix, gguf_f16,
+                        f"/models/{out_name}-{quant}.gguf", quant.upper()], check=True)
     vol.commit()
-    print(f"wrote /models/{out_name}-q4_k_m.gguf and /models/{out_name}-q8_0.gguf")
+    print(f"wrote /models/{out_name}-{{f16,q4_k_m,q5_k_m,q6_k,q8_0}}.gguf")
 
 
 @app.function(gpu="A10G", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)

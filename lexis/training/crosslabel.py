@@ -65,7 +65,7 @@ def usage_db(os_name):
     db = {}
     for h in USAGE_TOOLS:
         try:
-            text = subprocess.run(run(f"command -v {h} >/dev/null && {{ {h} --lx-bogus-flag; {h} --help; }} </dev/null 2>&1"), capture_output=True, text=True, timeout=10).stdout
+            text = subprocess.run(run(f"command -v {h} >/dev/null && {{ {h} --lx-bogus-flag; {h} --help{" all" if h == "ps" else ""}; }} </dev/null 2>&1"), capture_output=True, text=True, timeout=10).stdout
         except subprocess.TimeoutExpired:
             continue
         if not text.strip():

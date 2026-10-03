@@ -74,21 +74,40 @@ const FLAGDB = Object.fromEntries(Object.entries(FLAGDB_RAW).map(([o, m]) =>
 function flagsOf(cmd) {
   return [...String(cmd).matchAll(/(?:^|\s)(-{1,2}[A-Za-z][\w-]*)/g)].map((m) => m[1].replace(/^-+/, "-").replace(/^--/, "-"));
 }
-function flagCheck(osKey, head, cmd) {
-  const db = FLAGDB[osKey]?.[head];
-  if (!db) return "skip";
-  for (const seg of String(cmd).split(/\|\||&&|\||;/)) {
-    const words = seg.trim().split(/\s+/);
-    if (words[0] !== head) continue;
+// usage dbs (crosslabel.py usage_db: option-definition lines only) beat flagdb's whole-man-page scrape
+const USAGE = Object.fromEntries(["darwin", "linux"].map((o) => {
+  try {
+    const db = JSON.parse(fs.readFileSync(path.join(DATA, `${o}_usage.json`), "utf8"));
+    return [o, Object.fromEntries(Object.entries(db).map(([h, d]) =>
+      [h, new Set([...d.short.map((c) => `-${c}`), ...d.long.map((l) => `--${l}`)])]))];
+  } catch { return [o, {}]; }
+}));
+const SINGLE_DASH_LONG = new Set(["find", "java", "ffmpeg", "ffprobe", "openssl", "xcodebuild", "magick", "convert", "iptables", "ip", "tc", "gcc", "clang", "go", "dd"]);
+function flagCheck(osKey, _head, cmd) {
+  let checked = false;
+  for (const seg of String(cmd).replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, "Q").split(/\|\||&&|\||;/)) {
+    const words = seg.trim().split(/\s+/).filter((w) => w !== "sudo" && !/^[A-Za-z_]+=/.test(w));
+    const head = words[0];
+    const db = USAGE[osKey]?.[head] || FLAGDB[osKey]?.[head];
+    if (!db || SINGLE_DASH_LONG.has(head)) continue;
+    checked = true;
     for (const w of words.slice(1)) {
-      if (!/^-[A-Za-z]/.test(w) || w.startsWith("--") && w.length < 3) continue;
-      if (/^-{1,2}[A-Za-z]/.test(w) || /^--[a-z]/.test(w)) {
-        const key = w.split("=")[0];
-        if (!db.has(key) && ![...db.keys()].some((f) => key.startsWith(f) && f.length > 2)) return `bad:${key}`;
+      if (w === "--") break;
+      if (!/^--?[A-Za-z]/.test(w)) continue;
+      const key = w.split("=")[0];
+      if (db.has(key)) continue;
+      if (key.startsWith("--")) {
+        if (![...db.keys()].some((f) => f.startsWith("--") && key.startsWith(f) && f.length > 3)) return `bad:${key}`;
+        continue;
+      }
+      // short cluster: -rn / -sh / -C2 / -t, / -k3,3n -> each letter until the first non-letter (a value)
+      for (const c of key.slice(1)) {
+        if (!/[A-Za-z]/.test(c)) break;
+        if (!db.has(`-${c}`)) return `bad:-${c}`;
       }
     }
   }
-  return "ok";
+  return checked ? "ok" : "skip";
 }
 
 // ---------- binary existence maps ----------
@@ -285,7 +304,9 @@ async function main() {
         const target = osPasses[0];
         const er = target === "linux" ? await execLinux(r.command)
           : target === "darwin" && hostSafe(r.command) ? await execDarwin(r.command) : null;
-        if (er) { v.exec = er; if (er.exit !== 0 && pol.readonly) { /* readonly shouldn't crash */ osPasses.splice(osPasses.indexOf(target), 1); } }
+        // a readonly command failing on missing fixture input (grep no-match, ENOENT) is fine; option/usage errors are not
+        const optErr = /illegal|invalid|unknown|unrecognized|usage:|command not found/i;
+        if (er) { v.exec = er; if (er.exit !== 0 && pol.readonly && optErr.test(er.err || "")) osPasses.splice(osPasses.indexOf(target), 1); }
       }
 
       if (!osPasses.length) { if (v.syntax === false) stats.drop_syntax++; else if (Object.values(v.heads).some((x) => x === false)) stats.drop_head++; else stats.drop_flag++; }

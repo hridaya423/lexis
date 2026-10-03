@@ -13,7 +13,7 @@ if [ "$MODE" = "--final" ]; then
     node eval/run.mjs --model-file "$GGUF" --prod --no-shots --dialect-hint --dataset holdout.jsonl --os "$os" --exec all --tag "$TAG-holdout-$os"
   done
 else
-  for ds in core.jsonl wide.jsonl; do
+  for ds in core.jsonl wide.jsonl testx.jsonl; do
     for os in darwin linux windows; do
       node eval/run.mjs --model-file "$GGUF" --prod --no-shots --dialect-hint --dataset "$ds" --os "$os" --exec all --tag "$TAG-${ds%.jsonl}-$os"
     done

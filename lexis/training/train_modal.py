@@ -152,7 +152,7 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
                     "--outfile", gguf_f16, "--outtype", "f16"], check=True)
     calib = "/tmp/calib.txt"
     with open(calib, "w") as f:
-        for r in rows[:2000]:
+        for r in rows[:600]:
             f.write(tok.apply_chat_template(r["messages"], tokenize=False) + "\n")
     imatrix = f"/models/{out_name}-imatrix.dat"
     subprocess.run([f"/opt/llama-{TAG}/llama-imatrix", "-m", gguf_f16, "-f", calib,

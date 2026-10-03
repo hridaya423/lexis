@@ -20,6 +20,31 @@ test("read-only PowerShell commands are low risk", () => {
   }
 });
 
+test("PowerShell read pipelines are readonly; hidden mutation is not", () => {
+  const ps = { shell: "powershell" };
+  for (const cmd of ["Get-Process | Sort-Object WorkingSet64", "$env:PATH", "Get-NetTCPConnection -LocalPort 3000", "Get-ChildItem | Where-Object {$_.Length -gt 100MB}"]) {
+    assert.equal(analyzeCommand(cmd, ps).readonly, true, cmd);
+  }
+  for (const cmd of ["Get-ChildItem | Where-Object { rm $_ }", "(Get-Item x).Delete()", "Get-Content a > b", "Get-ChildItem | Out-File x", "[IO.File]::Delete(\"x\")", "Get-Process | Where-Object {$_.Name -eq \"$(rm x)\"}", "Get-ChildItem | Copy-Item -Destination d"]) {
+    assert.equal(analyzeCommand(cmd, ps).readonly, false, cmd);
+  }
+  assert.equal(analyzeCommand("git grep TODO .", sh).readonly, true);
+  assert.equal(analyzeCommand("git grep -Ovim TODO", sh).readonly, false);
+});
+
+test("mutating forms of read tools are never readonly (they would auto-run)", () => {
+  for (const cmd of ["ip link set eth0 down", "ifconfig en0 down", "route -n add default 10.0.0.1", "arp -d 10.0.0.1", "hostname evil", "date -s 2020-01-01", "nvram boot-args=-v", "sort -o a.txt a.txt", "uniq a b", "xxd -r a b", "yq -i .a=1 f.yml", "dmesg -C", "plutil -convert xml1 a.plist", "tar -xf a.tar", "tar xzf a.tgz", "journalctl --vacuum-time=2d", "systemctl restart nginx", "networksetup -setdnsservers Wi-Fi 1.1.1.1"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  }
+  for (const cmd of ["ip addr show", "ifconfig en0", "route -n get default", "hostname -I", "date +%s", "uniq -c", "tar -tzf a.tgz", "systemctl status docker", "journalctl -u nginx -n 50", "networksetup -getdnsservers Wi-Fi", "last reboot", "defaults domains"]) {
+    const r = analyzeCommand(cmd, sh);
+    assert.equal(r.readonly && r.risk === "low", true, cmd);
+  }
+  for (const cmd of ["sudo reboot", "systemctl reboot", "shutdown -h now"]) {
+    assert.equal(analyzeCommand(cmd, sh).risk, "critical", cmd);
+  }
+});
+
 test("recursive delete of scoped paths is high, not critical", () => {
   for (const cmd of ["rm -rf node_modules", "rm -rf ./dist", "rm -rf ~/node_modules", "rm -r build"]) {
     assert.equal(analyzeCommand(cmd, sh).risk, "high", cmd);

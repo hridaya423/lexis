@@ -7,20 +7,21 @@ export const RISK_SCORE = { low: 0, moderate: 1, high: 2, critical: 3 };
 const READONLY_HEADS_UNIX = new Set([
   "ls", "ll", "cat", "head", "tail", "less", "more", "pwd", "whoami", "id",
   "which", "whereis", "type", "file", "stat", "echo", "printf", "true", "uname",
-  "env", "printenv", "date", "cal", "hostname", "uptime", "w", "last", "who",
+  "env", "printenv", "cal", "uptime", "w", "last", "who",
   "df", "du", "free", "lsof", "netstat", "ss", "ps", "pgrep", "top", "htop",
   "sw_vers", "system_profiler", "sysctlbyname", "mdfind", "plutil",
   "command", "history", "man", "apropos", "tldr", "wc", "grep",
   "egrep", "fgrep", "rg", "fd", "find", "tree", "awk",
   "readlink", "realpath", "dirname", "basename", "locate", "strings",
   "zcat", "dmesg", "lastlog",
-  "sort", "uniq", "cut", "tr", "diff", "cmp", "md5", "md5sum", "shasum",
-  "sha256sum", "base64", "xxd", "od", "hexdump", "jq", "yq", "pbcopy",
+  "sort", "cut", "tr", "diff", "cmp", "md5", "md5sum", "shasum",
+  "sha256sum", "base64", "od", "hexdump", "jq", "yq", "pbcopy",
   "pbpaste", "mdls", "ioreg", "iostat", "vm_stat", "memory_pressure",
-  "locale", "kextstat", "nvram",
-  "nproc", "arch", "getconf", "lsb_release", "os-release", "ip", "ifconfig",
-  "ping", "traceroute", "nslookup", "dig", "host", "route", "arp",
+  "locale", "kextstat",
+  "nproc", "arch", "getconf", "lsb_release", "os-release",
+  "ping", "traceroute", "nslookup", "dig", "host",
   "lsblk", "lsusb", "lspci", "blkid",
+  "lscpu", "lsmem", "lsmod", "vmstat", "mpstat", "findmnt", "comm", "jobs", "pidof", "pstree", "getent",
 ]);
 
 const READONLY_HEADS_WINDOWS = new Set([
@@ -33,18 +34,55 @@ const READONLY_HEADS_WINDOWS = new Set([
   "get-localgroup", "get-childitem env:", "echo", "write-output",
   "whoami", "hostname", "ipconfig", "systeminfo", "tasklist", "where",
   "ver", "set", "driverquery", "get-executionpolicy", "measure-command",
+  "netstat", "ping", "nslookup", "findstr", "tracert", "pathping", "getmac",
 ]);
+
+const READONLY_ARGS = {
+  ip: /^(?!.*\b(add|del|delete|change|replace|set|flush|append|prepend|up|down|save|restore|exec|attach|detach)\b)/,
+  ifconfig: /^(-[a-zA-Z]+\s*)*(\w+(\s+-?v)?)?\s*$/,
+  route: /^(?!.*\b(add|delete|del|change|flush|replace)\b)/,
+  arp: /^(?!.*(^|\s)-[dsSf]\b)/,
+  hostname: /^(-[a-zA-Z]+\s*)*$/,
+  date: /^(?!.*(^|\s)(-s|--set)\b)(?!.*(^|\s)\d{4,}(\s|$))/,
+  nvram: /^(?!.*(=|(^|\s)-[dcf]\b))/,
+  uniq: /^(-\S+(\s+\d+)?\s*)*("[^"]*"|'[^']*'|[^\s-]\S*)?\s*$/,
+  xxd: /^(?!.*(^|\s)-r\b)(-\S+(\s+\d+)?\s*)*("[^"]*"|'[^']*'|[^\s-]\S*)?\s*$/,
+  tar: /^-?[a-z]*t[a-z]*\s/i,
+  journalctl: /^(?!.*--(vacuum|rotate|flush|setup-keys|relinquish|sync|update-catalog))/,
+  networksetup: /^-(get|list|print|show)\w*/i,
+  attrib: /^(?!.*(^|\s)[+-][rahsiv]\b)/i,
+  icacls: /^(?!.*\/(grant|deny|remove|reset|setowner|restore|save|setintegritylevel|inheritance|substitute))/i,
+  powercfg: /^\/(a|availablesleepstates|l|list|lastwake|q|query|getactivescheme|devicequery|requests)\b/i,
+  schtasks: /^\/query\b/i,
+  tzutil: /^\/(g|l)\b/i,
+  timedatectl: /^(status|show|list-timezones|timesync-status|show-timesync)?\s*$/,
+  loginctl: /^(list-\w+|show-\w+|session-status|user-status|seat-status)?(\s|$)/,
+  hostnamectl: /^(status)?\s*$/,
+  ulimit: /^(-[a-zA-Z]+)?\s*$/,
+  hdiutil: /^(verify|imageinfo|info|pmap|isencrypted)\b/,
+  "xcode-select": /^(-p|--print-path|-v|--version)\s*$/,
+  xcrun: /^(--find|-f|--show-sdk-\w+|simctl\s+list)\b/,
+};
 
 const READONLY_SUBCOMMANDS = {
   git: new Set([
     "status", "log", "diff", "show", "rev-parse",
-    "ls-files", "ls-tree", "blame", "describe", "shortlog",
+    "ls-files", "ls-tree", "blame", "describe", "shortlog", "grep",
     "config --get", "config --list", "version", "help",
     "=tag", "tag -l", "tag --list", "tag --points-at",
     "=branch", "branch -l", "branch --list", "branch -a", "branch -v", "branch -r", "branch --show-current",
     "=remote", "remote -v", "remote get-url", "remote show",
     "stash list", "stash show", "stash diff",
+    "branch --merged", "branch --no-merged", "branch --contains", "worktree list", "bisect log",
+    "reflog", "cat-file", "count-objects", "for-each-ref", "name-rev", "merge-base",
   ]),
+  tmux: new Set(["ls", "list-sessions", "list-windows", "list-panes", "list-clients", "show-options", "-V"]),
+  screen: new Set(["-ls", "-list", "-v"]),
+  rpm: new Set(["-qa", "-q", "-qi", "-ql", "-qf", "--query", "-V", "--verify"]),
+  "firewall-cmd": new Set(["--list-all", "--list-ports", "--list-services", "--state", "--get-active-zones", "--get-default-zone", "--list-all-zones"]),
+  iptables: new Set(["-L", "-S", "--list", "-nL", "-nvL", "-vnL", "-L -n", "-L -v -n", "-L -n -v"]),
+  cargo: new Set(["install --list", "--version", "tree", "metadata"]),
+  unzip: new Set(["-l", "-v", "-t", "-Z"]),
     node: new Set(["--version", "-v", "--help"]),
   npm: new Set(["--version", "-v", "list", "ls", "view", "info", "search", "outdated", "=audit", "audit signatures", "config get", "prefix", "root", "whoami", "doctor", "help", "explain", "why"]),
   npx: new Set(["--version", "-v"]),
@@ -56,7 +94,7 @@ const READONLY_SUBCOMMANDS = {
   python3: new Set(["--version", "-V", "-m pip list", "-m pip show", "--help"]),
   pip: new Set(["--version", "-V", "list", "show", "freeze", "check"]),
   pip3: new Set(["--version", "-V", "list", "show", "freeze", "check"]),
-  brew: new Set(["list", "info", "search", "doctor", "--version", "leaves", "deps", "uses", "config", "services list", "outdated", "desc", "cat"]),
+  brew: new Set(["list", "info", "search", "doctor", "--version", "leaves", "deps", "uses", "config", "services list", "outdated", "desc", "cat", "cleanup --dry-run", "cleanup -n"]),
   pmset: new Set(["-g"]),
   systemsetup: new Set(["-gettimezone", "-listtimezones", "-getcomputersleep", "-getdisplaysleep", "-getharddisksleep", "-getremotelogin", "-getremoteappleevents", "-getrestartfreeze", "-getwaitforstartupafterpowerfailure", "-getwakeonmodem", "-getwakeonnetworkaccess", "-getlocalsubnetname", "-getcomputername", "-getusingnetworktime", "-getnetworktimeserver"]),
   dscacheutil: new Set(["-q", "-statistics", "-configuration", "-cachedump"]),
@@ -64,12 +102,12 @@ const READONLY_SUBCOMMANDS = {
   ipconfig: new Set(["getifaddr", "getsummary", "getpacket", "getv6packet", "getoption", "getiflist", "waitall"]),
   scutil: new Set(["--dns", "--proxy", "--nc list", "--nwi", "--rni", "get ", "show "]),
   diskutil: new Set(["list", "info", "apfs list", "apfs listusers", "apfs listsnapshots", "cs list", "corestorage list", "listfilesystems", "activity"]),
-  launchctl: new Set(["list", "print", "print-cache", "print-disabled", "procinfo", "hostinfo", "getenv"]),
-  log: new Set(["show", "stats", "config --status", "config --property", "erase --status"]),
+  launchctl: new Set(["list", "print", "print-cache", "print-disabled", "procinfo", "hostinfo", "getenv", "version"]),
+  log: new Set(["show", "stream", "stats", "config --status", "config --property", "erase --status"]),
   crontab: new Set(["-l"]),
   softwareupdate: new Set(["-l", "--list", "--history", "--dump-state"]),
   dscl: new Set([". -read", ". -readall", ". -list", ". -cat", ". -search", "-read", "-readall", "-list", "-cat", "-search"]),
-  sysctl: new Set(["-n", "-a"]),
+  sysctl: new Set(["-n", "-a", "-h"]),
   apt: new Set(["list", "show", "search", "policy", "depends", "rdepends", "--version"]),
   "apt-get": new Set(["--version", "satisfy"]),
   "apt-cache": new Set(["policy", "show", "search", "depends", "stats"]),
@@ -87,15 +125,9 @@ const READONLY_SUBCOMMANDS = {
   docker: new Set(["ps", "images", "inspect", "logs", "version", "info", "stats --no-stream", "compose ls", "compose ps", "top", "port", "diff"]),
   kubectl: new Set(["get", "describe", "logs", "version", "config view", "config current-context", "api-resources", "explain", "top"]),
   systemctl: new Set(["status", "list-units", "list-unit-files", "is-active", "is-enabled", "is-failed", "show", "cat", "--version", "list-timers"]),
-  launchctl: new Set(["list", "print", "print-cache", "version"]),
   ollama: new Set(["list", "ps", "show", "--version"]),
   llm: new Set(["--version", "models"]),
-  defaults: new Set(["read", "find"]),
-  sysctl: new Set(["-a", "-n", "-h"]),
-  crontab: new Set(["-l"]),
   xattr: new Set(["-l", "-p", "-h"]),
-  scutil: new Set(["--dns", "--nwi", "--proxy", "--nc list"]),
-  dscacheutil: new Set(["-statistics", "-cachedump", "-q"]),
   mount: new Set([""]),
   fdisk: new Set(["-l"]),
   mountpoint: new Set([""]),
@@ -129,7 +161,7 @@ const CRITICAL_PATTERNS = [
   { re: /\bfdisk\b(?!\s+-l\b)/i, reason: "disk partition operation" },
   { re: /\bdd\b[^|;]*\bof=\s*\/dev\//i, reason: "raw write to a block device" },
   { re: /\bgit\s+push\b[^|;]*(--force|-f\b)[^|;]*\b(main|master|production|prod)\b/i, reason: "force push to a primary branch" },
-  { re: /\b(shutdown|poweroff|halt|reboot|Stop-Computer|Restart-Computer)\b/i, reason: "system power operation" },
+  { re: /(^|[;&|(]\s*|\bsudo\s+|\bsystemctl\s+)(shutdown|poweroff|halt|reboot)\b|\b(Stop-Computer|Restart-Computer)\b/i, reason: "system power operation" },
   { re: /\bkill(all)?\s+-9?\s+-?1\b|\bkill\s+-9\s+-1\b/i, reason: "kill all processes" },
   { re: /\bchmod\s+(-[a-zA-Z]*R[a-zA-Z]*\s+)?(777|666|a\+rwx)\b[^|;]*\s(\/|~|\$HOME|\*|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private)\b)/i, reason: "recursive world-writable permissions on a broad path" },
   { re: /\bcipher\s+\/w:/i, reason: "secure wipe of free space" },
@@ -197,7 +229,7 @@ const MODERATE_PATTERNS = [
   { re: /\bln\s+-s\b|\bNew-Item\b[^|;]*-ItemType\s+SymbolicLink/i, reason: "symlink creation" },
   { re: /\bchmod\b|\bchown\b|\bicacls\b|\bSet-Acl\b/i, reason: "permission/ownership change" },
   { re: /\bcurl\b[^|;]*(-o|-O|--output|--remote-name)|\bwget\b|\bInvoke-WebRequest\b[^|;]*-OutFile/i, reason: "file download (network + write)" },
-  { re: /\bservice\b|\bsystemctl\b|\blaunchctl\s+(load|bootstrap|kickstart)/i, reason: "service control" },
+  { re: /(^|[;&|]\s*|\bsudo\s+)service\s+\S+\s+(start|stop|restart|reload|force-reload)\b|\bsystemctl\s+(--?\S+\s+)*(start|stop|restart|reload|try-restart|reload-or-restart|enable|disable|mask|unmask|kill|daemon-reload|daemon-reexec|isolate|set-default|edit|reset-failed|preset|link|revert|set-property|suspend|hibernate)\b|\blaunchctl\s+(load|bootstrap|kickstart)/i, reason: "service control" },
   { re: /\bssh\b|\bscp\b|\bsftp\b|\brsync\b/i, reason: "remote session/transfer" },
   { re: /\btee\b/i, reason: "file write" },
   { re: /\b(brew\s+services\s+(start|stop|restart)|launchctl\s+(load|unload|bootstrap|bootout|kickstart))/i, reason: "service control" },
@@ -288,8 +320,36 @@ const MUTATING_FLAGS = {
   find: /-(delete|fprint|exec(dir)?\s+(?!(ls|echo|printf|file|stat|wc|cat|head|tail|grep|sort|basename|dirname|md5sum|shasum|sha256sum|md5)\b))/,
   sed: /(?:^|\s)-i\b/,
   awk: /\bsystem\s*\(|print[^;|]*>\s*["'\w\/]/,
-  tar: /-[a-zA-Z]*[xc]|-[a-zA-Z]*f/,
+  tar: /^\s+-?[a-zA-Z]*[xcruA]|\s-[a-zA-Z]*[xcruA]|--(extract|create|append|update|delete|get|to-command|use-compress-program|checkpoint-action|info-script|rmt-command|rsh-command)\b|\s-[IF]\s/,
+  git: /\s(-O|--open-files-in-pager)|\s-c\s|--output\b|--ext-diff/,
+  sort: /\s(-o|--output)\b/,
+  yq: /\s(-i|--inplace)\b/,
+  dmesg: /\s(-[a-zA-Z]*[cCDEn]|--clear|--read-clear|--console-\w+)\b/,
+  tree: /\s-o\b/,
+  plutil: /\s-(convert|replace|insert|remove|extract)\b/,
+  base64: /\s(-o|--output)\b/,
+  ss: /\s(-[a-zA-Z]*K|--kill)\b/,
+  history: /\s-[cdwranps]\b/,
 };
+
+const PWSH_SAFE_VERB = /^(get|test|measure|select|sort|where|format|group|compare|resolve|convertto|convertfrom)$/i;
+const PWSH_PURE_BLOCK = /^\{(\s|\$[\w.]+|-[a-z]+|'[^']*'|"[^"$]*"|\d+(\.\d+)?(kb|mb|gb|tb)?|[()!])*\}$/i;
+
+const PWSH_PURE_METHOD = /\.(Add\w*|To\w+|Trim\w*|Split|Substring|Contains|StartsWith|EndsWith|IndexOf|Equals|CompareTo|GetType)\s*\(/gi;
+const PWSH_PURE_STATIC = /\[(Environment|DateTime|DateTimeOffset|Math|System\.Environment|IO\.Path|System\.IO\.Path)\]::(Get\w*|Now|UtcNow|Today|Round|Floor|Ceiling|Abs|Max|Min|Combine|GetFileName\w*|GetExtension|GetDirectoryName|MachineName|UserName|OSVersion)\b/gi;
+const PWSH_LITERAL_HASH = /@\{(\s*\w+\s*=\s*('[^']*'|"[^"$]*"|\d+)\s*;?)*\s*\}/g;
+
+function pwshReadonly(segment) {
+  const raw = segment.trim();
+  if (/^\$[\w:]+(\.\w+)*$/.test(raw)) return true;
+  const s = raw.replace(PWSH_PURE_METHOD, "(").replace(PWSH_PURE_STATIC, "").replace(PWSH_LITERAL_HASH, "");
+  if (/[>;&`]|\$\(|@\{|\[[\w.]+\]::|\.\w+\s*\(/.test(s)) return false;
+  const verbs = [...s.matchAll(/(?:^|[\s|({])([a-z]+)-[a-z]\w*/gi)].map((m) => m[1]);
+  if (!verbs.length) return raw !== s && /^[\s(),.\d-]*$/.test(s.replace(/'[^']*'|"[^"$]*"/g, ""));
+  if (!PWSH_SAFE_VERB.test(segmentHead(s.replace(/^\(+/, "")).head.split("-")[0])) return false;
+  if (!verbs.every((v) => PWSH_SAFE_VERB.test(v))) return false;
+  return (s.match(/\{[^{}]*\}/g) || []).every((b) => PWSH_PURE_BLOCK.test(b)) && !/[{}]/.test(s.replace(/\{[^{}]*\}/g, ""));
+}
 
 function isReadonlySegment(segment, shell, depth = 0) {
   const { head, args } = segmentHead(segment);
@@ -313,10 +373,12 @@ function isReadonlySegment(segment, shell, depth = 0) {
     return false;
   }
 
-  const table = shell === "powershell" || shell === "pwsh" || shell === "cmd"
-    ? READONLY_HEADS_WINDOWS
-    : READONLY_HEADS_UNIX;
-  if (table.has(head)) {
+  const windows = shell === "powershell" || shell === "pwsh" || shell === "cmd";
+  const table = windows ? READONLY_HEADS_WINDOWS : READONLY_HEADS_UNIX;
+  if (windows && pwshReadonly(segment)) {
+    return true;
+  }
+  if (table.has(head) || READONLY_ARGS[head]?.test(args.trim())) {
     return true;
   }
   const sub = READONLY_SUBCOMMANDS[head];

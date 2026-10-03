@@ -25,7 +25,7 @@ HOLDOUT = DATA / "holdout.jsonl"
 EXTRA_EVALS = [DATA / "alfa-test.jsonl"] + sorted(REPO_EVAL.glob("*.jsonl"))
 
 WS = re.compile(r"\s+")
-PLACEHOLDER = re.compile(r"\{\{(?!\.)[^}]*\}\}")  # tldr-style {{arg}}; docker {{.Names}} survives
+PLACEHOLDER = re.compile(r"\{\{(?!\s*\.[A-Z])[^}]*\}\}")  # tldr-style {{arg}}; docker {{.Names}} survives
 
 
 def norm(s):

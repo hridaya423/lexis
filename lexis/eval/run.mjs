@@ -147,7 +147,8 @@ async function main() {
     : osArg === "windows" ? "windows"
     : (machine.platform === "win32" ? "windows" : "unix");
   const shell = args.platform === "windows" || osArg === "windows" ? "powershell"
-    : (args.platform === "unix" ? "sh" : machine.shell);
+    : args.platform === "unix" ? "sh"
+    : osArg === "linux" ? "bash" : osArg === "darwin" ? "zsh" : machine.shell;
   const targetOsName = osArg === "windows" ? "Windows" : osArg === "darwin" ? `macOS ${machine.osRelease}`
     : osArg === "linux" ? "Linux" : `${machine.platformName} ${machine.osRelease}`;
   const hostOs = machine.platform === "darwin" ? "darwin" : machine.platform === "win32" ? "windows" : "linux";

@@ -66,6 +66,7 @@ Commands:
 - Prefer the simplest standard command. Read-only requests get read-only commands. No `sudo` unless required.
 - No interactive programs (top, htop, vim, less) unless the request asks for interactive. Prefer one-shot output.
 
+Do not run any shell commands or tools other than reading and writing files; rely on your own knowledge.
 Write each pair yourself, one by one. Do NOT write a script, template or loop that generates pairs; programmatic
 output is worthless here and will be discarded. Append to {sid}.out.jsonl as JSON lines {{"intent": "...", "command": "..."}}
 in batches of about 40 lines per write until it has {n} lines. Do not modify any other file.

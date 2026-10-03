@@ -11,10 +11,10 @@ const READONLY_HEADS_UNIX = new Set([
   "df", "du", "free", "lsof", "netstat", "ss", "ps", "pgrep", "top", "htop",
   "sw_vers", "system_profiler", "sysctlbyname", "mdfind", "plutil",
   "command", "history", "man", "apropos", "tldr", "wc", "grep",
-  "egrep", "fgrep", "rg", "fd", "find", "tree", "awk",
+  "egrep", "fgrep", "rg", "fd", "find", "tree", "awk", "gawk",
   "readlink", "realpath", "dirname", "basename", "locate", "strings",
   "zcat", "dmesg", "lastlog",
-  "sort", "cut", "tr", "diff", "cmp", "md5", "md5sum", "shasum",
+  "sort", "cut", "tr", "diff", "cmp", "md5", "md5sum", "shasum", "sed", "xargs",
   "sha256sum", "base64", "od", "hexdump", "jq", "yq", "pbcopy",
   "pbpaste", "mdls", "ioreg", "iostat", "vm_stat", "memory_pressure",
   "locale", "kextstat",
@@ -100,7 +100,7 @@ const READONLY_SUBCOMMANDS = {
   dscacheutil: new Set(["-q", "-statistics", "-configuration", "-cachedump"]),
   defaults: new Set(["read", "read-type", "find", "export", "domains", "help"]),
   ipconfig: new Set(["getifaddr", "getsummary", "getpacket", "getv6packet", "getoption", "getiflist", "waitall"]),
-  scutil: new Set(["--dns", "--proxy", "--nc list", "--nwi", "--rni", "get ", "show "]),
+  scutil: new Set(["--dns", "--proxy", "--nc list", "--nwi", "--rni", "--get", "get ", "show "]),
   diskutil: new Set(["list", "info", "apfs list", "apfs listusers", "apfs listsnapshots", "cs list", "corestorage list", "listfilesystems", "activity"]),
   launchctl: new Set(["list", "print", "print-cache", "print-disabled", "procinfo", "hostinfo", "getenv", "version"]),
   log: new Set(["show", "stream", "stats", "config --status", "config --property", "erase --status"]),
@@ -240,7 +240,7 @@ const HIGH_PATTERNS = [
   { re: /\b(brew|apt|apt-get|dnf|yum|pacman|zypper|apk|winget|choco|scoop)\s+(uninstall|remove|purge|erase|autoremove)\b/i, reason: "package removal" },
   { re: /\bnpm\s+(uninstall|remove|rm)\s+(-g|--global)/i, reason: "global package removal" },
   { re: /\bmkfifo\b|\bln\s+-s\b[^|;]*\s\/(etc|usr|bin|sbin|System|Library)|\bNew-Item\b[^|;]*SymbolicLink[^|;]*(C:\\Windows|\$env:SystemRoot)/i, reason: "filesystem object in a system path" },
-  { re: /\buseradd|userdel|usermod|passwd|visudo|adduser|deluser\b/i, reason: "user account modification" },
+  { re: /(^|[|;&(]\s*|\bsudo\s+)(useradd|userdel|usermod|passwd|visudo|adduser|deluser|chpasswd)\b/i, reason: "user account modification" },
   { re: /\biptables|ufw|firewall-cmd|netsh\b[^|;]*(advfirewall|firewall)/i, reason: "firewall modification" },
 ];
 
@@ -326,7 +326,26 @@ function segmentHead(segment) {
 function innerCommandOf(head, args) {
   if (head === "command" && /^\s*-(v|V|p)\b/.test(args)) return null;
   if (head === "xargs") {
-    const inner = args.replace(/-[a-zA-Z]+\s*("[^"]*"|'[^']*'|\S+)?/g, "").trim();
+    const VALUE_LONG = new Set(["--arg-file", "--delimiter", "--eof", "--replace", "--max-args", "--max-procs", "--max-lines", "--max-chars"]);
+    const toks = args.match(/("[^"]*"|'[^']*'|\S+)/g) || [];
+    let i = 0;
+    for (; i < toks.length; i += 1) {
+      const t = toks[i];
+      if (t === "--") {
+        i += 1;
+        break;
+      }
+      if (t.startsWith("--")) {
+        if (!t.includes("=") && VALUE_LONG.has(t)) i += 1;
+        continue;
+      }
+      if (/^-/.test(t)) {
+        if (t.length === 2 && /[adEIJLnPs]/.test(t[1])) i += 1;
+        continue;
+      }
+      break;
+    }
+    const inner = toks.slice(i).join(" ");
     return inner || null;
   }
   if (["sh", "bash", "zsh", "fish", "pwsh", "powershell", "cmd", "eval", "env", "command"].includes(head)) {
@@ -359,8 +378,8 @@ function innerCommandOf(head, args) {
 
 const MUTATING_FLAGS = {
   find: /-(delete|fprint|exec(dir)?\s+(?!(ls|echo|printf|file|stat|wc|cat|head|tail|grep|sort|basename|dirname|md5sum|shasum|sha256sum|md5)\b))/,
-  sed: /(?:^|\s)-i\b/,
-  awk: /\bsystem\s*\(|print[^;|]*>\s*["'\w\/]/,
+  sed: /(?:^|\s)(?:--in-place\b|-\w*[iI]\S*)|(?:^|[;{}\s\/'"!])[wW]\s+\S|(?:^|[;{}\s\/'"!0-9$,+^~])e(?:\s+\S|\s*['"]?\s*$)/,
+  awk: /(?:^|\s)-i\b|\bsystem\s*\(|\bprint(?:f)?\b[^;|}]*>>?\s*["'\w\/-]|\|\s*["'][^'"]*["']|["'][^'"]*["']\s*\|\s*getline/,
   tar: /^\s+-?[a-zA-Z]*[xcruA]|\s-[a-zA-Z]*[xcruA]|--(extract|create|append|update|delete|get|to-command|use-compress-program|checkpoint-action|info-script|rmt-command|rsh-command)\b|\s-[IF]\s/,
   git: /\s(-O|--open-files-in-pager)|\s-c\s|--output\b|--ext-diff/,
   sort: /\s(-o|--output)\b/,
@@ -409,7 +428,7 @@ function isReadonlySegment(segment, shell, depth = 0) {
     }
   }
 
-  const flagDeny = MUTATING_FLAGS[head];
+  const flagDeny = MUTATING_FLAGS[head === "gawk" ? "awk" : head];
   if (flagDeny && flagDeny.test(" " + args)) {
     return false;
   }

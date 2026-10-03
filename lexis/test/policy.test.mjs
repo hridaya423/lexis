@@ -405,3 +405,39 @@ test("literal secrets on the command line and fuser -k are moderate", () => {
   assert.equal(analyzeCommand("ls -p /tmp", sh).risk, "low");
   assert.equal(analyzeCommand("find . -path ./x", sh).risk, "low");
 });
+
+test("sed without in-place or write commands is readonly", () => {
+  for (const cmd of ["sed -n '50,80p' server.log", "sed 's/a/b/' f", "sed -E -n '/x/p' f", "sed -e 's/x/y/' f", "sed 's/e/x/' f"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, true, cmd);
+  }
+  for (const cmd of ["sed -i 's/a/b/' f", "sed -i '' 's/a/b/' f", "sed -i.bak 's/a/b/' f", "sed -Ei 's/a/b/' f", "sed --in-place 's/a/b/' f", "sed -n 'w out.txt' f", "sed 's/a/b/w out' f"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  }
+});
+
+test("awk without system(), redirection, pipes, or -i is readonly", () => {
+  for (const cmd of ["awk '{print $1}' f", "awk -F: '{print $1}' users.txt", "gawk '{s+=$1} END {print s}' f"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, true, cmd);
+  }
+  for (const cmd of ["awk '{print > \"out\"}' f", "awk '{print >> \"out\"}' f", "awk '{printf \"%s\" > \"out\"}' f", "awk '{print $1 | \"sort\"}' f", "awk '{\"sort\" | getline x}' f", "awk '{system(\"rm f\")}' f", "gawk -i inplace '{sub(/a/,\"b\")}' f"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  }
+});
+
+test("xargs is readonly only when the inner command is readonly", () => {
+  for (const cmd of ["find . -name \"*.js\" | xargs wc -l", "find -name '*.*' | xargs grep -r TODO", "xargs -0 ls -ld", "xargs -n 2 -P 4 ls"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, true, cmd);
+  }
+  for (const cmd of ["xargs rm", "xargs -I{} mv {} /tmp", "xargs sed -i s/a/b/", "xargs -0 rm -f"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  }
+});
+
+test("macOS info commands are readonly; setters are not", () => {
+  for (const cmd of ["scutil --get HostName", "scutil --dns", "scutil --proxy", "scutil --nwi", "networksetup -getdnsservers Wi-Fi", "networksetup -listallhardwareports"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, true, cmd);
+  }
+  for (const cmd of ["scutil --set HostName x", "networksetup -setdnsservers Wi-Fi 1.1.1.1"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  }
+});

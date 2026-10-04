@@ -10,7 +10,7 @@ const READONLY_HEADS_UNIX = new Set([
   "env", "printenv", "cal", "uptime", "w", "last", "who",
   "df", "du", "free", "lsof", "netstat", "ss", "ps", "pgrep", "top", "htop",
   "sw_vers", "system_profiler", "sysctlbyname", "mdfind", "plutil",
-  "command", "history", "man", "apropos", "tldr", "whatis", "where", "help", "wc", "grep",
+  "command", "history", "fc", "man", "apropos", "tldr", "whatis", "where", "help", "wc", "grep",
   "egrep", "fgrep", "rg", "fd", "find", "tree", "awk", "gawk",
   "readlink", "realpath", "dirname", "basename", "locate", "strings",
   "zcat", "dmesg", "lastlog",
@@ -433,6 +433,7 @@ const MUTATING_FLAGS = {
   base64: /\s(-o|--output)\b/,
   ss: /\s(-[a-zA-Z]*K|--kill)\b/,
   history: /\s-[cdwranps]\b/,
+  fc: /^(?!\s*-[a-zA-Z]*l)|\s-[a-zA-Z]*[es]\b/,
   go: /\benv\b[^|;]*\s-[wu]\b/,
   man: /(^|\s)-[a-zA-Z]*P\b|\s--(pager|prompt|preprocessor)\b/,
 };
@@ -779,7 +780,7 @@ export function analyzeCommand(command, { shell = "sh", _depth = 0 } = {}) {
       if (RISK_SCORE[risk] < RISK_SCORE.moderate) risk = "moderate";
       readonly = false;
     }
-  } else if (/`[^`]+`|\$\(|<\(|>\(/.test(text)) {
+  } else if (/`[^`]+`|\$\(|<\(|>\(/.test(shell === "powershell" || shell === "pwsh" ? text : text.replace(/'[^']*'/g, "''"))) {
     tags.add("substitution");
     if (RISK_SCORE[risk] < RISK_SCORE.moderate) risk = "moderate";
     readonly = false;

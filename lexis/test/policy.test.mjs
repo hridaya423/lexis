@@ -541,3 +541,9 @@ test("an unclosed backtick does not hang the classifier", () => {
     assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
   }
 });
+
+test("awk $(...) inside single quotes is not a substitution; fc -l lists history", () => {
+  for (const cmd of ["awk '{print $(NF-1)}' ports.txt", "fc -l", "fc -ln -20"]) assert.equal(analyzeCommand(cmd, sh).readonly, true, cmd);
+  for (const cmd of ["fc", "fc -e vim", "fc -s ls"]) assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  assert.equal(analyzeCommand("echo $(rm -rf ~)", sh).risk, "critical");
+});

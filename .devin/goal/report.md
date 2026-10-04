@@ -32,7 +32,10 @@ Continue improving the Lexis 0.5B terminal model (Qwen2.5-Coder-0.5B full fine-t
   | v5 (chosen before holdout_b) | 325 (89%) | 695 (70%) | 635 (69.1%) |
 - Ship candidate: `~/lx-data/trained/v5-q4_k_m.gguf`, 397,807,712 bytes, sha256 111e53630185147c3d0cb8729ee49601310d8de04b961cda5f0395d50c483abb (also on Modal volume lx-models).
 
-## In progress / remaining
-- Distill round 3 on mini (34/60 at 08:25).
-- Local Devin CLI: `devin auth status` reports Not logged in although credentials.toml exists; `devin auth login` browser flow started and is waiting for the user to approve in the browser.
-- Next: verify round 3, train v5 (+seed 2), then final holdout_b eval of base / lx05 / v4a / v5 on one harness; add best model to `lexis/src/runtime/models.mjs` once the user names a Hugging Face repo.
+- Manual audit of 45 random v5 holdout_a failures: ~12-14 are acceptable answers the regexes reject (e.g. `taskkill` vs `Stop-Process`, `Resolve-DnsName` w/o -Type PTR, `fc -l`, `tee`), so real first-try accuracy is roughly 78-80%. Two policy false-negatives found there fixed (98a0445).
+- User decisions (this turn): stop spending on new models (no 1.5B now); publishing to Hugging Face deferred.
+
+## Remaining (needs the user)
+- Publish v5 GGUF (Hugging Face repo or GitHub release) so it can be added to `lexis/src/runtime/models.mjs` as the default; user deferred this.
+- Local Devin CLI: `devin auth status` = Not logged in; `devin auth login` needs the user to approve in the browser and paste the code.
+- Optional future work if the user wants more than ~70%: DPO on the model's own exec-checked mistakes, targeted networking data, or the 1.5B model (user chose to stop spending for now).

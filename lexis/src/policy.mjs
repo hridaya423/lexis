@@ -15,14 +15,28 @@ const READONLY_HEADS_UNIX = new Set([
   "readlink", "realpath", "dirname", "basename", "locate", "strings",
   "zcat", "dmesg", "lastlog",
   "sort", "cut", "tr", "diff", "cmp", "md5", "md5sum", "shasum", "sed", "xargs",
-  "sha256sum", "base64", "od", "hexdump", "jq", "yq", "pbcopy", "paste", "join", "nm",
+  "sha256sum", "sha1sum", "sha512sum", "b2sum", "b3sum", "cksum", "sum", "base64",
+  "od", "hexdump", "jq", "yq", "pbcopy", "paste", "join", "nm",
+  "xclip", "xsel", "wl-copy", "wl-paste",
   "pbpaste", "mdls", "ioreg", "iostat", "vm_stat", "memory_pressure",
   "locale", "kextstat",
   "nproc", "arch", "getconf", "lsb_release", "os-release",
-  "ping", "traceroute", "nslookup", "dig", "host",
+  "ping", "fping", "traceroute", "nslookup", "dig", "host",
   "lsblk", "lsusb", "lspci", "blkid",
   "lscpu", "lsmem", "lsmod", "vmstat", "mpstat", "findmnt", "comm", "jobs", "pidof", "pstree", "getent",
-  "otool", "xzless", "zless", "pg_isready", "mountpoint", "lastb", "zcat", "gzcat",
+  "otool", "xzless", "zless", "pg_isready", "mountpoint", "lastb", "gzcat",
+  "pmap", "ipcs", "jstack", "wdctl", "systemd-cgtop", "sensors", "nettop",
+  "xrandr", "shuf", "yes", "fold", "column", "rev", "zrun", "bzcat", "zmore",
+  "funzip", "bzgrep", "isutf8", "dircolors", "ppmhist", "xmllint", "osv-scanner",
+  "networkctl", "say", "getfacl", "groups", "xclip", "wl-copy", "wl-paste", "xsel",
+  "pushd", "popd", "dirs", "cd", "read", "sleep", "wait", "bg", "fg", "disown",
+  "umask", "unset", "export", "declare", "local", "typeset", "let", "bind", "shopt",
+  "alias", "test", "[", "[[", "rbash", "pr", "seq", "numfmt", "factor",
+  "jot", "base32", "fmt", "expand", "unexpand", "lsattr",
+  // loop/control keywords carry no risk themselves; inner segments still gate
+  "while", "until", "for", "do", "done", "if", "then", "else", "elif", "fi",
+  "in", "case", "esac", "select", "set", "clear", "uuidgen", "afinfo", "bc",
+  "dir", "vdir", "sample", "getenforce",
 ]);
 
 const READONLY_HEADS_WINDOWS = new Set([
@@ -33,39 +47,55 @@ const READONLY_HEADS_WINDOWS = new Set([
   "get-netipaddress", "get-netadapter", "test-connection", "resolve-dnsname",
   "get-computerinfo", "get-ciminstance", "get-wmiobject", "get-localuser",
   "get-localgroup", "get-childitem env:", "echo", "write-output",
-  "whoami", "hostname", "ipconfig", "systeminfo", "tasklist", "where",
+  "whoami", "hostname", "systeminfo", "tasklist", "where",
   "ver", "set", "driverquery", "get-executionpolicy", "measure-command",
   "netstat", "ping", "nslookup", "findstr", "tracert", "pathping", "getmac",
+  "out-host", "out-string", "out-null", "out-default", "out-lineoutput",
+  "format-table", "format-list", "format-wide", "format-custom", "format-hex",
+  "import-csv", "import-clixml", "find-netroute", "read-host", "clip",
+  "set-location", "sl", "cd", "chdir", "write-host", "write-verbose",
+  "write-debug", "write-information", "get-clipboard", "get-filehash",
+  "sort", "sls", "sleep",
+  "get-itemproperty", "get-itempropertyvalue", "get-psbreakpoint",
+  "enable-psbreakpoint", "disable-psbreakpoint", "get-alias", "get-variable",
+  "get-verb", "get-module", "get-psprovider", "new-scheduledtasktrigger",
+  "start-sleep", "while", "for", "if", "else", "elseif", "switch",
+  "do", "until", "in", "traceroute",
 ]);
 
 const READONLY_ARGS = {
-  ip: /^(?!.*\b(add|del|delete|change|replace|set|flush|append|prepend|up|down|save|restore|exec|attach|detach)\b)/,
+  ip: /^(?!.*\b(link\s+set|addr\s+(add|del|delete|change|replace)|route\s+(add|del|delete|change|replace)|neigh\s+(add|del|delete|change|replace)|rule\s+(add|del|delete|flush)|maddress\s+(add|del)|netns\s+(add|delete|exec)|batch|save|restore|flush|exec|attach|detach|monitor)\b)/,
   ifconfig: /^(-[a-zA-Z]+\s*)*(\w+(\s+-?v)?)?\s*$/,
   route: /^(?!.*\b(add|delete|del|change|flush|replace)\b)/,
   arp: /^(?!.*(^|\s)-[dsSf]\b)/,
   hostname: /^(-[a-zA-Z]+\s*)*$/,
-  date: /^(?!.*(^|\s)(-s|--set)\b)(?![^-\s+])/,
+  date: /^(?![A-Za-z0-9_])(?!.*(?:^|\s)-[a-zA-Z]*[sS]\b)(?!.*--set\b)/,
   nvram: /^(?!.*(=|(^|\s)-[dcf]\b))/,
   uniq: /^(-\S+(\s+\d+)?\s*)*("[^"]*"|'[^']*'|[^\s-]\S*)?\s*$/,
   xxd: /^(?!.*(^|\s)-r\b)(-\S+(\s+\d+)?\s*)*("[^"]*"|'[^']*'|[^\s-]\S*)?\s*$/,
-  tar: /^-?[a-z]*t[a-z]*\s/i,
+  tar: /^(?:-?[a-z]*t[a-z]*|-?[a-z]*c[a-z]*f\s*-|-?[a-z]*x[a-z]*O[a-z]*\b)(?:\s|$)/i,
+  strace: /^(?![^|;]*(?:^|\s)-[a-zA-Z]*[op])/,
+  zip: /^\s*-(l|sf|version|h)\b/,
+  "new-object": /^(?![^|;]*(FileStream|StreamWriter|StreamReader|Process\b|ServiceController|ComObject|WebClient|Sockets|Net\.Web|IO\.File\b|IO\.Directory|IO\.Stream|EventLog\b|ServiceProcess|Registry))/i,
   journalctl: /^(?!.*--(vacuum|rotate|flush|setup-keys|relinquish|sync|update-catalog))/,
   networksetup: /^-(get|list|print|show)\w*/i,
   attrib: /^(?!.*(^|\s)[+-][rahsiv]\b)/i,
   icacls: /^(?!.*\/(grant|deny|remove|reset|setowner|restore|save|setintegritylevel|inheritance|substitute))/i,
   powercfg: /^\/(a|availablesleepstates|l|list|lastwake|q|query|getactivescheme|devicequery|requests)\b/i,
-  schtasks: /^\/query\b/i,
+  schtasks: /^\/(query|g|tn|xml)\b/i,
   tzutil: /^\/(g|l)\b/i,
-  timedatectl: /^(status|show|list-timezones|timesync-status|show-timesync)?\s*$/,
+  timedatectl: /^(status|show|list-timezones|timesync-status|show-timesync)\b/,
   loginctl: /^(list-\w+|show-\w+|session-status|user-status|seat-status)?(\s|$)/,
   hostnamectl: /^(status)?\s*$/,
   ulimit: /^(-[a-zA-Z]+\s*)*$/,
+  nl: /^(-\S+\s*)*("[^"]*"|'[^']*'|\S+)?\s*$/,
   hdiutil: /^(verify|imageinfo|info|pmap|isencrypted)\b/,
   "xcode-select": /^(-p|--print-path|-v|--version)\s*$/,
   xcrun: /^(--find|-f|--show-sdk-\w+|simctl\s+list)\b/,
   kill: /^\s*(-0|-[lL]\b|--list\b|--signal\s+(0|EXIT|HUP)\b)/,
-  xclip: /^(?=[^|;]*(?:^|\s)-o\b)/,
-  codesign: /^(?![^|;]*\s-[a-zA-Z]*[sroafA]\w*)(?![^|;]*--(sign|remove-signature|options|requirements|force|deep|timestamp|identifier|prefix|keychain|detached))(?=\s*-(d\w*|v+|V\b)|\s*--(verify|display|detailed|entitlements|extract-entitlements))/i,
+  // clipboard capture only; any file target or capture flag writes a file
+  screencapture: /^(?=[^|;]*-c\b)(?:\s*-?[a-zA-Z]+\s*)*$/,
+  codesign: /^(?![^|;]*\s-[a-zA-Z]*[sroafA]\w*)(?![^|;]*--(sign|remove-signature|options|force))(?=\s*-(d\w*|v+|V\b)|\s*--(verify|display|detailed|entitlements|extract-entitlements|predicate|deep|strict|verbose|requirements|timestamp|identifier|keychain|all-architectures))/i,
   openssl: /^(?![^|;]*\s-out\b)(?![^|;]*\b(genrsa|genpkey|req|x509\s+-req|pkcs12\b[^|;]*-export|enc\b|pkeyutl|dgst\s+-sign|ca\b|crl\b))/i,
   "ssh-keygen": /^(?![^|;]*(?:^|\s)-[a-zA-Z]*[tTiDcRB]\b)(?=[^|;]*(?:^|\s)-[a-zA-Z]*l[a-zA-Z]*\b)/,
   gunzip: /^\s*-[a-zA-Z]*[lc][a-zA-Z]*\s/,
@@ -76,15 +106,38 @@ const READONLY_ARGS = {
   rsync: /^(?=[^|;]*--dry-run|[^|;]*(?:^|\s)-[a-zA-Z]*n[a-zA-Z]*\b)/,
   git: /^(?:branch(?:\s+(?:-[vral]+\b.*|--show-current|--list\b.*|--contains\b.*|--merged\b.*|--no-merged\b.*|--points-at\b.*))?|clean\s+(?:-[a-zA-Z]*n[a-zA-Z]*\b.*|--dry-run\b.*)|annotate\b.*|check-ignore\b.*|fsck\b(?![^|;]*--lost-found).*)$/,
   crontab: /^\s*(?:-u\s+\S+\s+)?-l\b(?:\s+-u\s+\S+)?\s*$/,
-  dism: /^\/online\s+\/cleanup-image\s+\/(scanhealth|checkhealth)\b/i,
+  dism: /^\/online\s+\/(get-\w+|cleanup-image\s+\/(scanhealth|checkhealth|get-\w+)|english)\b/i,
   netsh: /^(?!.*\b(set|add|delete|exec|import|dump)\b)(?=[^|;]*\bshow\b)/i,
-  fsutil: /^(volume\s+diskfree|fsinfo)\b/i,
-  curl: /^(?![^|;]*(?:^|\s)-{1,2}[a-zA-Z-]*[cdDFKT](?=[\s=]|$))(?![^|;]*(?:^|\s)-{1,2}[a-zA-Z-]*O\b)(?![^|;]*(?:^|\s)-[a-zA-Z]*o\s+(?!-(?:\s|$)|\/dev\/null\b|NUL\b|nul\b))(?![^|;]*--output(?:=|\s+)(?!-(?:\s|$)|\/dev\/null\b|NUL\b|nul\b))(?![^|;]*(?:^|\s)-{1,2}[a-zA-Z-]*u\s+)(?![^|;]*(?:^|\s)-{1,2}[a-zA-Z-]*X\s+(?!GET\b|HEAD\b))(?![^|;]*--(data|data-raw|data-binary|data-urlencode|json|form|form-string|upload-file|config|remote-name|remote-name-all|cookie-jar|dump-header|trace|trace-ascii|stderr|user|request\s+(?!GET\b|HEAD\b))\b)/,
+  curl: /^(?![^|;]*(?:^|\s)-[a-zA-Z]*[cdDFKT](?=[\s=]|$))(?![^|;]*(?:^|\s)-[a-zA-Z]*O\b)(?![^|;]*(?:^|\s)-[a-zA-Z]*o\s+(?!-(?:\s|$)|\/dev\/null\b|NUL\b|nul\b))(?![^|;]*--output(?:=|\s+)(?!-(?:\s|$)|\/dev\/null\b|NUL\b|nul\b))(?![^|;]*(?:^|\s)-[a-zA-Z]*u\s+)(?![^|;]*(?:^|\s)-[a-zA-Z]*X\s+(?!GET\b|HEAD\b|OPTIONS\b))(?!(?=[^|;]*--data-urlencode\b)(?![^|;]*(?:^|\s)-G\b))(?![^|;]*--(data(?!-\w)|data-raw|data-binary|json|form|form-string|upload-file|config|remote-name|remote-name-all|cookie-jar|dump-header|trace|trace-ascii|stderr|user|request\s+(?!GET\b|HEAD\b|OPTIONS\b))\b)/,
   wget: /^(?=[^|;]*(?:--spider\b|(?:^|\s)-[\w-]*O(?=\s*-|-)|--output-document[\s=]+\s*-(?=\s|$)))(?![^|;]*(?:^|\s)-[\w-]*O\s+(?!\s*-))(?![^|;]*--output-document[\s=]+\s*(?![-|/]))/,
   nc: /^(?![^|;]*(?:^|\s)-[a-zA-Z]*[lkLeEo])(?=[^|;]*(?:^|\s)-[a-zA-Z]*z[a-zA-Z]*\b)/,
   "ssh-add": /^\s*-[lL]+\s*$/,
+  ssh: /^\s*-[a-zA-Z]*G\b/,
   sntp: /^(?![^|;]*(?:^|\s)-[sS]\b)/,
   certutil: /^-hashfile\b/i,
+  ipconfig: /^(\s*\/(all|displaydns|allcompartments|showclassid)\b.*)?$/i,
+  sfc: /^\/(verifyonly|scanfile=|\?)/i,
+  wevtutil: /^(?![^|;]*\/o[:=\s])qe\b/i,
+  robocopy: /\/L(?=[\s/]|$)/i,
+  fsutil: /^(volume\s+diskfree|fsinfo|reparsepoint\s+query)\b/i,
+  prlimit: /^(?![^|;]*[a-zA-Z]=)/,
+  sysctl: /^(?!.*(?:^|\s)-[wWp]\b)(?!.*(?:^|\s)--load\b)(?!.*=)/,
+  net: /^(user|accounts|view|share|config|statistics|localgroup|group|session|file|time|use|print|help|start|stop|pause|continue)(\s+\S+)?\s*$/i,
+  wmic: /^(?![^|;]*\b(call|create|delete|set)\b)(?=[^|;]*\b(get|list)\b)/i,
+  pandoc: /^(?![^|;]*\s(-o|--output|--extract-media|--data-dir|--template|--standalone\b[^|;]*-o))/i,
+  "yt-dlp": /^\s*(-F\b|--(list-|dump|print|simulate|skip-download|get-))/,
+  "youtube-dl": /^\s*(-F\b|--(list-|dump|print|simulate|skip-download|get-))/,
+  ffmpeg: /^(?![^|;]*-i\s+("[^"]+"|'[^']+'|\S+)\s+("[^"]+"|'[^']+'|\S+))/,
+  az: /^(?![^|;]*\b(delete|create|set|update|remove|add|assign|deallocate|stop|start|restart|apply|import|export|deploy|invoke|run|exec|attach|reset|revoke|rotate|renew|regenerate|upload|copy|move|rename|patch|extension)\b)(?=[^|;]*\b(list|show|generate-sas|version|account)\b)/i,
+  gcloud: /^(?![^|;]*\b(delete|create|set|update|remove|add|deploy|apply|import|export|stop|start|reset|revoke|rotate|upload|copy|move|rename|patch|enable|disable|deploy|submit|build|push|install)\b)(?=[^|;]*\b(list|describe|info|version|read|get|config)\b)/i,
+  kubectl: /\bset\s+env\b[^|;]*--list\b/i,
+  "iwr": /^(?![^|;]*\()(?![^|;]*-(OutFile|Method\s+(?!GET|HEAD|OPTIONS)|Body|InFile|Form|UploadFile))/i,
+  irm: /^(?![^|;]*\()(?![^|;]*-(OutFile|Method\s+(?!GET|HEAD|OPTIONS)|Body|InFile|Form|UploadFile))/i,
+  "invoke-webrequest": /^(?![^|;]*\()(?![^|;]*-(OutFile|Method\s+(?!GET|HEAD|OPTIONS)|Body|InFile|Form|UploadFile))/i,
+  "invoke-restmethod": /^(?![^|;]*\()(?![^|;]*-(OutFile|Method\s+(?!GET|HEAD|OPTIONS)|Body|InFile|Form|UploadFile))/i,
+  logrotate: /(^|\s)-[a-zA-Z]*d[a-zA-Z]*\b/,
+  mdutil: /^\s*-[psLV]\b/i,
+  psql: /^(?![^|;]*\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|call|copy|vacuum|analyze\s+\w|comment|reindex|cluster|refresh|notify|unlisten|begin|commit|rollback|prepare\s+\w+\s|execute|deallocate|declare|fetch|close|lock|security|do\b|discard|merge|set\s)\b)(?=[^|;]*-c\b)/i,
 };
 
 const READONLY_SUBCOMMANDS = {
@@ -97,21 +150,35 @@ const READONLY_SUBCOMMANDS = {
     "=remote", "remote -v", "remote get-url", "remote show",
     "stash list", "stash show", "stash diff",
     "branch --merged", "branch --no-merged", "branch --contains", "worktree list", "bisect log",
-    "reflog", "cat-file", "count-objects", "for-each-ref", "name-rev", "merge-base",
+    "reflog", "reflog show", "cat-file", "count-objects", "for-each-ref", "name-rev", "merge-base",
+    "verify-tag", "verify-commit", "ls-remote", "show-ref", "diff-files", "whatchanged",
+    "range-diff", "rev-list", "cliff", "hash-object", "config --get", "config -l",
+    "config --get-regexp", "config --show-origin", "changelog",
   ]),
-  tmux: new Set(["ls", "list-sessions", "list-windows", "list-panes", "list-clients", "show-options", "-V"]),
+  wsl: new Set(["--list", "-l", "--status", "--help", "--version", "--list --online", "--list --verbose", "--list --all", "--list --running", "--export --help"]),
+  tmux: new Set(["ls", "list-sessions", "list-windows", "list-panes", "list-clients", "show-options", "-V",
+    "select-pane", "split-window", "display-message", "rename-window", "select-window", "show"]),
   screen: new Set(["-ls", "-list", "-v"]),
   rpm: new Set(["-qa", "-q", "-qi", "-ql", "-qf", "--query", "-V", "--verify"]),
-  "firewall-cmd": new Set(["--list-all", "--list-ports", "--list-services", "--state", "--get-active-zones", "--get-default-zone", "--list-all-zones"]),
+  "firewall-cmd": new Set(["--list-all", "--list-ports", "--list-services", "--state", "--get-active-zones",
+    "--get-default-zone", "--list-all-zones", "--list-protocols", "--list-source-ports", "--list-icmp-blocks",
+    "--list-forward-ports", "--list-interfaces", "--list-sources", "--get-zones", "--get-services",
+    "--get-icmptypes", "--get-zone-of-interface", "--get-active-port", "--get-active-services",
+    "--query-service", "--query-port", "--query-masquerade", "--query-forward-port", "--query-interface",
+    "--query-source", "--info-service", "--info-zone", "--info-icmptype", "--get-log-denied", "--get-target",
+    "--permanent --list-all", "--permanent --list-ports", "--permanent --list-services",
+    "--permanent --get-default-zone", "--permanent --get-zones", "--permanent --get-services"]),
   iptables: new Set(["-L", "-S", "--list", "-nL", "-nvL", "-vnL", "-L -n", "-L -v -n", "-L -n -v", "-l", "-s", "-nl", "-nvl", "-vnl", "-l -n", "-l -v -n", "-l -n -v", "-nxl", "-lvnx"]),
-  cargo: new Set(["install --list", "--version", "tree", "metadata"]),
-  unzip: new Set(["-l", "-v", "-t", "-Z"]),
+  cargo: new Set(["install --list", "--version", "tree", "metadata", "audit", "audit --version", "audit db"]),
+  unzip: new Set(["-l", "-v", "-t", "-Z", "-p"]),
+  "apt-mark": new Set(["showmanual", "showauto", "showinstall", "showremove", "showpurge", "showhold"]),
+  "xdg-open": new Set([""]),
     node: new Set(["--version", "-v", "--help"]),
-  npm: new Set(["--version", "-v", "list", "ls", "view", "info", "search", "outdated", "=audit", "audit signatures", "config get", "prefix", "root", "whoami", "doctor", "help", "explain", "why", "=version"]),
+  npm: new Set(["--version", "-v", "list", "ls", "view", "info", "search", "outdated", "audit", "audit signatures", "config get", "prefix", "root", "whoami", "doctor", "help", "explain", "why", "=version", "find-dupes", "profile get", "ping", "cache ls", "token list", "-g ls", "-g list", "-g outdated", "--global ls", "--global list", "--global outdated"]),
   npx: new Set(["--version", "-v"]),
   pnpm: new Set(["--version", "-v", "list", "ls", "outdated", "why", "info", "doctor"]),
   yarn: new Set(["--version", "-v", "list", "info", "why"]),
-  bun: new Set(["--version", "-v"]),
+  bun: new Set(["--version", "-v", "why", "info", "pm version", "pm ls", "audit", "list", "outdated"]),
   deno: new Set(["--version", "-V", "info", "doc"]),
   python: new Set(["--version", "-V", "-m pip list", "-m pip show", "--help"]),
   python3: new Set(["--version", "-V", "-m pip list", "-m pip show", "--help"]),
@@ -123,8 +190,9 @@ const READONLY_SUBCOMMANDS = {
   dscacheutil: new Set(["-q", "-statistics", "-configuration", "-cachedump"]),
   defaults: new Set(["read", "read-type", "find", "export", "domains", "help"]),
   ipconfig: new Set(["getifaddr", "getsummary", "getpacket", "getv6packet", "getoption", "getiflist", "waitall"]),
-  scutil: new Set(["--dns", "--proxy", "--nc list", "--nwi", "--rni", "--get", "get ", "show "]),
-  diskutil: new Set(["list", "info", "apfs list", "apfs listusers", "apfs listsnapshots", "cs list", "corestorage list", "listfilesystems", "activity"]),
+  scutil: new Set(["--dns", "--proxy", "--nc list", "--nc status", "--nwi", "--rni", "--get", "get ", "show "]),
+  zoxide: new Set(["query", "init", "--version", "-V", "import --list"]),
+  diskutil: new Set(["list", "info", "apfs list", "apfs listusers", "apfs listsnapshots", "cs list", "corestorage list", "listfilesystems", "activity", "verifydisk", "verifyvolume", "verifypermissions", "verifyroot"]),
   launchctl: new Set(["list", "print", "print-cache", "print-disabled", "procinfo", "hostinfo", "getenv", "version"]),
   log: new Set(["show", "stream", "stats", "config --status", "config --property", "erase --status"]),
   crontab: new Set(["-l"]),
@@ -134,31 +202,56 @@ const READONLY_SUBCOMMANDS = {
   apt: new Set(["list", "show", "search", "policy", "depends", "rdepends", "--version"]),
   "apt-get": new Set(["--version", "satisfy"]),
   "apt-cache": new Set(["policy", "show", "search", "depends", "stats"]),
-  dpkg: new Set(["-l", "--list", "-s", "--status", "-L", "--listfiles", "--version"]),
+  dpkg: new Set(["-l", "--list", "-s", "--status", "-L", "--listfiles", "--version", "-v", "--verify"]),
   "dpkg-query": new Set(["-l", "-w", "-s", "--status", "--listfiles", "-L", "-p", "--print-avail", "--version"]),
-  go: new Set(["env", "version", "--version", "list", "doc", "help", "tool"]),
-  dnf: new Set(["list", "info", "search", "--version", "history"]),
-  yum: new Set(["list", "info", "search", "--version", "history"]),
+  go: new Set(["env", "version", "--version", "list", "doc", "help", "tool", "fmt -n"]),
+  dnf: new Set(["list", "info", "search", "--version", "history", "history info", "history list", "repoquery", "check-update", "repolist", "grouplist", "group list", "module list", "module info", "installed", "provides", "deplist", "repos", "repos -l"]),
+  yum: new Set(["list", "info", "search", "--version", "history", "history info", "check-update", "repolist", "provides", "deplist"]),
   pacman: new Set(["-Q", "-Qi", "-Ql", "-Qs", "-Qu", "-Si", "-Ss", "--version", "-q", "-qi", "-ql", "-qs", "-qu", "-si", "-ss", "-qe", "-qn", "-qm", "-qg"]),
   zypper: new Set(["se", "search", "info", "if", "lr", "--version"]),
   apk: new Set(["info", "list", "search", "--version"]),
-  snap: new Set(["list", "info", "find", "--version", "services"]),
+  snap: new Set(["list", "info", "find", "--version", "services", "--help", "-h", "help", "version", "changes"]),
   flatpak: new Set(["list", "info", "search", "--version"]),
-  winget: new Set(["list", "search", "show", "--version", "source list"]),
+  winget: new Set(["list", "search", "show", "--version", "source list", "=upgrade", "features"]),
   choco: new Set(["list", "search", "info", "--version", "outdated"]),
   scoop: new Set(["list", "search", "info", "status", "--version"]),
-  docker: new Set(["ps", "images", "inspect", "logs", "version", "info", "stats --no-stream", "compose ls", "compose ps", "top", "port", "diff", "system df", "system info", "network ls", "volume ls", "context ls", "manifest inspect"]),
-  kubectl: new Set(["get", "describe", "logs", "version", "config view", "config current-context", "api-resources", "explain", "top", "rollout status", "rollout history", "cluster-info", "api-versions", "auth can-i"]),
+  docker: new Set(["ps", "images", "inspect", "logs", "version", "info", "stats --no-stream", "compose ls", "compose ps", "compose logs", "compose config", "compose top", "compose images", "top", "port", "diff", "system df", "system info", "network ls", "volume ls", "context ls", "manifest inspect", "buildx ls", "scout cves"]),
+  "docker-compose": new Set(["logs", "ps", "config", "top", "images", "version", "ls"]),
+  kubectl: new Set(["get", "describe", "logs", "version", "config view", "config current-context", "config get-contexts", "api-resources", "explain", "top", "rollout status", "rollout history", "cluster-info", "api-versions", "auth can-i", "alpha events", "events"]),
   systemctl: new Set(["status", "list-units", "list-unit-files", "is-active", "is-enabled", "is-failed", "show", "show-environment", "cat", "--version", "list-timers", "list-jobs", "list-sockets", "list-paths", "list-dependencies"]),
   "systemd-analyze": new Set(["blame", "time", "critical-chain", "verify", "cat-config", "unit-paths", "dot", "dump", "plot", "calendar", "timespan", "timestamp", "capability", "syscall-filter", "filesystems", "pcrs", "srpm"]),
   resolvectl: new Set(["status", "query", "statistics", "domain", "legend", "default-route", "dns", "dnssec", "nta", "llmnr", "mdns", "tlsa", "openpgp", "reset-statistics?"]),
   ollama: new Set(["list", "ps", "show", "--version"]),
   llm: new Set(["--version", "models"]),
+  wsl: new Set(["--status", "--list", "-l", "--verbose", "--version", "--list --online", "--list --verbose", "--cd", "-d", "--distribution"]),
+  sc: new Set(["query", "qc", "queryex", "qfailure", "qdescription", "qconfig", "enumdepend", "qtriggerinfo", "interrogate", "getdisplayname", "getkeyname", "showsid", "querytype", "qprivs", "qmanagedby", "sdshow"]),
+  slmgr: new Set(["/xpr", "/dli", "/dlv", "/div"]),
+  wevtutil: new Set(["el", "gl", "gli", "ep", "um"]),
+  security: new Set(["find-certificate", "find-identity", "list-keychains", "verify-cert", "show-keychain-info", "get-keychain-settings", "list-smartcards", "cms -d", "cms -e"]),
+  spctl: new Set(["-a", "--assess", "-v", "--status", "--version", "status"]),
+  bluetoothctl: new Set(["paired-devices", "devices", "show", "list", "info", "--version"]),
+  "nix-env": new Set(["-q", "--query", "-qa", "--query --available"]),
+  "dns-sd": new Set(["-b", "-q", "-l", "-g", "-e", "-v"]),
+  tailscale: new Set(["ip", "status", "version", "whois", "ping", "netcheck"]),
+  nmcli: new Set(["device wifi list", "dev wifi list", "device wifi", "dev wifi", "d wifi", "device status", "dev status", "device show", "dev show", "d s", "d status", "connection show", "general status", "general", "radio wifi", "-t"]),
+  swapon: new Set(["--show", "-s", "--bytes"]),
+  "dpkg-query": new Set(["-l", "-w", "-s", "--status", "--listfiles", "-L", "-p", "--print-avail", "--version", "--list", "-W", "--show"]),
+  pkgutil: new Set(["--check-signature", "--files", "--pkg-info", "--file-info", "--bom", "--lsbom", "--file-info-plist"]),
+  tmutil: new Set(["listlocalsnapshotdates", "listlocalsnapshots", "listbackups", "destinationinfo", "status", "latestbackup"]),
+  lpoptions: new Set(["-l", "-d"]),
+  sharing: new Set(["-l"]),
+  fdesetup: new Set(["isactive", "status", "hastrgd", "haspersonalrecoverykey", "hasinstitutionalrecoverykey", "list", "showdeferralinfo", "supportsfilevault"]),
+  csrutil: new Set(["status", "authenticated-root status", "netboot list"]),
+  pyenv: new Set(["versions", "version", "--version", "root", "prefix", "latest", "whence", "which"]),
+  rustup: new Set(["component list", "show", "--version", "target list", "toolchain list", "check", "which"]),
+  uv: new Set(["python dir", "export", "pip list", "pip show", "pip freeze", "tool list", "--version", "python list", "python find", "cache dir"]),
+  pants: new Set(["list", "--version", "roots", "targets"]),
+  swift: new Set(["format --check", "--version", "package describe", "package dump-package"]),
   xattr: new Set(["-l", "-p", "-h"]),
   mount: new Set([""]),
   fdisk: new Set(["-l"]),
   mountpoint: new Set([""]),
-  "gh": new Set(["status", "repo view", "issue list", "pr list", "pr status", "release list", "--version", "auth status"]),
+  "gh": new Set(["status", "repo view", "repo list", "issue list", "issue view", "issue status", "pr list", "pr status", "pr view", "pr diff", "pr checks", "release list", "release view", "--version", "auth status", "search code", "search repos", "search issues", "search prs", "search commits", "org view", "org list", "workflow list", "workflow view", "run list", "run view", "gist list", "api"]),
   ffmpeg: new Set(["-version", "-formats", "-codecs", "-devices", "-encoders", "-filters", "-h"]),
   ffprobe: new Set(["-version", "-v", "-show_format", "-show_streams", "-show_packets", "-show_entries", "-show_chapters", "-show_programs"]),
   vulkaninfo: new Set(["--summary", "-h"]),
@@ -177,14 +270,28 @@ const LINE_CRITICAL = [
   { re: /\b(bash|sh|zsh|fish|powershell|pwsh)\b[^|;]*-[cC]\s+[^|;]*\$\(\s*(curl|wget|iwr|irm|Invoke-(WebRequest|RestMethod))\b/i, reason: "remote script via command substitution" },
   { re: /\b(iex|Invoke-Expression|Start-Process)\b[^|;]*\b(DownloadString|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|Net\.WebClient)\b|-(Command|File)\b[^|;]*\bDownloadString\b|\b(DownloadString|Net\.WebClient)\b[^|;]*\|\s*(iex|Invoke-Expression|powershell|pwsh)\b/i, reason: "remote script executed via DownloadString" },
   { re: /(^|\||;)\s*Get-Process\s*\|\s*Stop-Process\b/i, reason: "terminate every process" },
+  { re: /\b(pbpaste|xclip\b[^|;]*-o\b|xsel\b[^|;]*-o\b|wl-paste|Get-Clipboard)\b[^|;]*\|\s*(sudo\s+)?(sh|bash|zsh|dash|ksh|fish|pwsh|powershell|cmd|iex|Invoke-Expression|python\d*|node|perl|ruby)\b|\b(iex|Invoke-Expression)\s*\(?\s*Get-Clipboard\b/i, reason: "clipboard content executed by an interpreter" },
+  { re: /\b(base64\b[^|;]*-d\b|base32\b[^|;]*-d\b|openssl\b[^|;]*-d\b|certutil\b[^|;]*-decode\b|tar\b[^|;]*(?:-[a-zA-Z]*O\b|-[a-zA-Z]*O[a-zA-Z]|--to-stdout\b)|unzip\b[^|;]*\s-p\b|zcat\b|gzcat\b|xzcat\b|lzcat\b|bzcat\b|gunzip\b[^|;]*-c\b|bunzip2\b[^|;]*-c\b|unxz\b[^|;]*-c\b)\b[^|;]*\|\s*(sudo\s+)?(sh|bash|zsh|dash|ksh|fish|pwsh|powershell|cmd|iex|Invoke-Expression|python\d*|node|perl|ruby)\b/i, reason: "decoded or archived content piped to an interpreter" },
+  { re: /\b(curl|wget|iwr|irm|Invoke-(WebRequest|RestMethod))\b[^|;]*-[a-zA-Z]*o\b[^|;]*(&&|;|\|\|)\s*[^|;]*\b(bash|sh|zsh|fish|pwsh|powershell|python\d*|node|perl|ruby|cmd|\.\/)/i, reason: "download followed by immediate execution" },
+  { re: /\bGet-Process\b[^|;]*\|[^|;]*\bForEach-Object\b[^|;]*\$_\s*\.Kill\s*\(/i, reason: "terminate every process" },
+  { re: /\bGet-ChildItem\b[^;]*\|\s*(ForEach-Object|%)\b[^;]*\$_\s*\.(Delete|Kill|Remove)\s*\(/i, reason: "mass destruction via enumeration" },
+  { re: /\b(echo|printf)\b[^|;]*?\b(rm|mv|dd|mkfs|chmod|chown|shutdown|reboot)\b[^|;]*\|\s*(sudo\s+)?(sh|bash|zsh|fish|pwsh|powershell|cmd)\b/i, reason: "generated destructive command piped to interpreter" },
 ];
 
 const LINE_HIGH = [
-  { re: /(Get-ChildItem|gci|dir|ls)\b[^|;]*\|\s*Remove-Item\b(?![^|;]*-WhatIf)/i, reason: "bulk deletion via pipeline" },
-  { re: /\b(base64|openssl\s+enc|certutil)\b[^|;]*(-d|-decode|--decode)[^|;]*\|\s*(sh|bash|zsh|pwsh|powershell|iex)\b/i, reason: "encoded payload piped to interpreter" },
-  { re: /\b(powershell|pwsh)\b[^|;]*-e(nc|nc|ncodedcommand)?\s+[a-zA-Z0-9+/=]{8,}/i, reason: "encoded PowerShell command" },
-  { re: /\$\(\s*(curl|wget|iwr|irm)\b/i, reason: "command substitution over the network" },
-  { re: /\beval\b/i, reason: "eval of dynamic input" },
+  { re: /\|\s*(sudo\s+)?(sh|bash|zsh|dash|ksh|fish|pwsh|powershell|cmd|iex|Invoke-Expression)\b/i, reason: "pipeline feeds a shell interpreter", mask: true },
+  { re: /\bxargs\b[^|;]*\b(sh|bash|zsh|dash|ksh|fish|pwsh|powershell|cmd|eval)\b/i, reason: "xargs invoking a shell", mask: true },
+  { re: /\b(?:Get-ChildItem|gci|dir|ls|Get-Process|Get-Item|Get-CimInstance|Get-WmiObject|Get-Service|Get-Content)\b[^|;]*\|\s*(?:ForEach-Object|%|Where-Object|\?|Select-Object)\b[^;|]*\{[^}]*\b(?:Remove-Item|ri|rd|rmdir|del|erase|rm|Stop-Process|Stop-Service)\b/i, reason: "enumerated deletion via pipeline scriptblock", mask: true },
+  { re: /(?:^|[;|&]\s*|\bsudo\s+|\bdo\s+|\bthen\s+)(\.|source)\s+[^\s|;&"'`]+/, reason: "sources a script file", mask: true },
+  { re: /(?:^|[;|&]\s*|\bsudo\s+|\bdo\s+|\bthen\s+)(sh|bash|zsh|dash|ksh|fish|pwsh|powershell)\s+(?:(?!-[a-zA-Z]*[ceE]\b)-[\w-]+\s+)*(?:\.{0,2}[\/~]|[A-Za-z]:[\/\\]|[^\s|;&-]+\.(sh|bash|zsh|fish|ps1|bat|cmd|py|rb|pl)\b)/i, reason: "interpreter running a script file" },
+  { re: /(?:^|[;|&]\s*)&\s*(?:\{[^{}]*\b(?:Remove|Stop|Start|Set|New|Add|Clear|Disable|Enable|Rename|Move|Copy|Invoke|Kill|Delete|Format|Unregister|Register|Restart|Mount|Dismount)-|\{[^{}]*\b(?:rm|del|erase|kill|chmod|chown|dd|mkfs|shutdown|reboot|mount|umount|mv|cp|touch|mkdir|ln|curl|wget|iex|Invoke-Expression|bash|sh|pwsh|powershell)\b|\$[\w.:]|["']?[~/.\w\\:][^\s|;&]*\.(?:ps1|bat|cmd|sh|exe)\b)/i, reason: "invocation operator running a mutation or script" },
+  { re: /\b(iex|Invoke-Expression)\b/i, reason: "expression evaluation of dynamic input", mask: true },
+  { re: /(Get-ChildItem|gci|dir|ls)\b[^|;]*\|\s*Remove-Item\b(?![^|;]*-WhatIf)/i, reason: "bulk deletion via pipeline", mask: true },
+  { re: /\|\s*(Remove-Item|ri|rd|rmdir|del|erase)\b(?![^|;]*-WhatIf)/i, reason: "pipeline-fed deletion", mask: true },
+  { re: /\b(base64|openssl\s+enc|certutil)\b[^|;]*(-d|-decode|--decode)[^|;]*\|\s*(sh|bash|zsh|pwsh|powershell|iex)\b/i, reason: "encoded payload piped to interpreter", mask: true },
+  { re: /\b(powershell|pwsh)\b[^|;]*-e(nc|nc|ncodedcommand)?\s+[a-zA-Z0-9+/=]{8,}/i, reason: "encoded PowerShell command", mask: true },
+  { re: /\$\(\s*(curl|wget|iwr|irm)\b/i, reason: "command substitution over the network", mask: true },
+  { re: /\beval\b/i, reason: "eval of dynamic input", mask: true },
 ];
 
 const CRITICAL_PATTERNS = [
@@ -193,7 +300,17 @@ const CRITICAL_PATTERNS = [
   { re: /\bfdisk\b(?!\s+-l\b)/i, reason: "disk partition operation" },
   { re: /\bdd\b[^|;]*\bof=\s*\/dev\//i, reason: "raw write to a block device" },
   { re: /\bgit\s+push\b[^|;]*(--force|-f\b)[^|;]*\b(main|master|production|prod)\b/i, reason: "force push to a primary branch" },
-  { re: /(^|[;&|(]\s*|\bsudo\s+|\bsystemctl\s+)(shutdown|poweroff|halt|reboot)\b|\b(Stop-Computer|Restart-Computer)\b/i, reason: "system power operation" },
+  { re: /(^|[;&|(]\s*|\bsudo\s+|\bsystemctl\s+)(shutdown|poweroff|halt|reboot)\b|\b(Stop-Computer|Restart-Computer)\b|(^|[;&|(]\s*|\bsudo\s+)(init|telinit)\s+[06]\b/i, reason: "system power operation" },
+  { re: /\b(Format-Volume|Clear-Disk|Remove-Partition|Resize-Partition|Initialize-Disk)\b/i, reason: "disk format/partition operation" },
+  { re: /\bRename-Computer\b[^|;]*-Restart\b/i, reason: "rename with automatic reboot" },
+  { re: /\bvssadmin\b[^|;]*\b(delete|resize|revert)\b/i, reason: "shadow copy deletion" },
+  { re: /\bbcdedit\b[^|;]*\/(set|deletevalue|delete|create|copy|import|default|timeout|bootsequence|displayorder|dbgsettings|debug|ems|emssettings|inherit)\b/i, reason: "boot configuration change" },
+  { re: /\bmshta\b/i, reason: "script execution host (mshta)" },
+  { re: /\b(nc|ncat|netcat)\b[^|;]*(--exec\b|--sh-exec\b|-[a-zA-Z]*[eEcC]\s)/i, reason: "listener piping to a shell" },
+  { re: /\bpython\d*\b[^|;]*-[a-zA-Z]*c\s+["'][^"']*\b(exec|eval)\b[^"']*\b(base64|b64decode|fromhex|unhex|atob|binascii|marshal|pickle|zlib)|\bperl\b[^|;]*-[a-zA-Z]*e\s+["'][^"']*\b(eval|exec|system)\b[^"']*\b(decode_base64|base64|hex|unpack)/i, reason: "interpreter exec of a decoded payload" },
+  { re: /\bat\b[^|;]*\b(shutdown|reboot|poweroff|halt|init\s+[06]|rm\s+-[a-zA-Z]*[rf][a-zA-Z]*\s+\/)/i, reason: "scheduled destructive command" },
+  { re: /\bdocker\s+system\s+prune\b[^|;]*--volumes\b/i, reason: "prune including named volumes" },
+  { re: /\btar\b[^|;]*-[a-zA-Z]*[xj][^|;]*-C\s+["']?(\/|\/(etc|usr|bin|sbin|var|root|boot|System|Library|opt)\b)/i, reason: "archive extraction into a system path" },
   { re: /\bkillall5\b|\bkill(all)?\s+(-\w+\s+)*-1\s*$/i, reason: "kill all processes" },
   { re: /\bpkill\s+(-9|-KILL|-SIGKILL)\s*$/i, reason: "kill all processes" },
   { re: /\btaskkill\b(?![^|;]*\/(im|pid)\b)[^|;]*\/f\b/i, reason: "force kill all processes" },
@@ -204,8 +321,8 @@ const CRITICAL_PATTERNS = [
   { re: /\bchmod\s+(-[a-zA-Z]*R[a-zA-Z]*\s+)?(777|666|a\+rwx)\b[^|;]*\s(\/|~|\$HOME|\*|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private)\b)/i, reason: "recursive world-writable permissions on a broad path" },
   { re: /\bcipher\s+\/w:/i, reason: "secure wipe of free space" },
   { re: /\breg\s+(add|delete)\b[^|;]*\\(Run|RunOnce)\b/i, reason: "persistence via registry Run key" },
-  { re: /\brm\s+-[a-zA-Z]*[rf][a-zA-Z]*\s*["']?(\/|~|\$HOME|\*|\/tmp|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private))(?=["'\s;|$*\/]|$)/i, reason: "recursive delete of a protected path" },
-  { re: /\bfind\s+["']?(\/|~|\$HOME|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private))(?=[\s"'\/])[^|;]*-exec(dir)?\s+rm\b/i, reason: "recursive delete of a protected path via find" },
+  { re: /\brm\s+-[a-zA-Z]*[rf][a-zA-Z]*\s*["']?(\/|~|\$HOME|\*|\/tmp|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private))(?=["'\s;|$*\/]|$)/i, reason: "recursive delete of a protected path", rmHead: true },
+  { re: /\bfind\s+["']?(\/|~|\$HOME|\/(etc|usr|var|bin|sbin|System|Library|Users|home|root|boot|private))(?=[\s"'\/])[^|;]*-exec(dir)?\s+rm\b/i, reason: "recursive delete of a protected path via find", rmHead: true },
 ];
 
 const CRITICAL_RM_TARGETS = /^(\/|\/\*|~|~\/|~\/\*|\$HOME|\$HOME\/|\$HOME\/\*|\.\.?|\.\.\/|\*|\/(etc|usr|bin|sbin|var|System|Library|Applications|Users|opt|root|boot|home)\/?.*)$/;
@@ -236,7 +353,15 @@ function rmTargetRisk(segment) {
 }
 
 const HIGH_PATTERNS = [
-  { re: /\bgit\s+(reset\s+--hard|clean\s+-[a-zA-Z]*f|push\s+--force|push\s+-f\b|checkout\s+--\s+\.|restore\s+--staged)/i, reason: "destructive git operation" },
+  { re: /\bgit\s+(reset\s+--hard|clean\s+-[a-zA-Z]*f(?!.*(--dry-run|-\w*n\w*\b))|push\s+--force|push\s+-f\b|checkout\s+--\s+\.|restore\s+--staged)/i, reason: "destructive git operation" },
+  { re: /\b(Add-Content|Set-Content|Out-File|Set-Item|New-Item)\b[^|;]*(C:\\Windows|\\(System32|drivers\\etc)\b|\$env:SystemRoot|%SystemRoot%)/i, reason: "write to a system path" },
+  { re: />\s*["']?(C:\\Windows|[^|;\s]*\\(System32|drivers\\etc)\b|\$env:SystemRoot|%SystemRoot%)/i, reason: "redirect into a system path" },
+  { re: /\bClear-EventLog\b|\bwevtutil\s+cl\b|\bRemove-EventLog\b|\bLimit-EventLog\b/i, reason: "event log deletion" },
+  { re: /\brobocopy\b[^|;]*\/(MIR|PURGE)\b/i, reason: "mirror sync (deletes at destination)" },
+  { re: /^\s*(?:(?:sudo|doas|runas|pkexec|env|xargs|nice|nohup)\s+(?:[\w=.%:,/+-]+\s+)*)*rsync\b[^|;]*--delete\b/i, reason: "sync that deletes at destination" },
+  { re: /\bdocker\s+(system|image|builder|volume|container|network)\s+prune\b/i, reason: "bulk docker resource prune" },
+  { re: /\bkubectl\s+(delete|drain|cordon|replace)\b/i, reason: "destructive kubernetes operation" },
+  { re: /\bRename-Computer\b/i, reason: "machine rename" },
   { re: /\b(sudo|doas|runas|pkexec)\b/i, reason: "elevated privileges" },
   { re: /\b(killall|pkill|taskkill)\b/i, reason: "terminate processes by name" },
   { re: /\bkill\b[^|;]*-9/i, reason: "SIGKILL (uncatchable terminate)" },
@@ -245,9 +370,9 @@ const HIGH_PATTERNS = [
   { re: /\breg\s+(add|delete|import)\b/i, reason: "registry modification" },
   { re: /\bmsiexec\b/i, reason: "Windows installer execution" },
   { re: /\bfind\b[^|;]*(-delete|-exec(dir)?\s+(rm|mv|chmod|chown)\b)/i, reason: "find deleting/mutating matched files" },
-  { re: /\bxargs\b[^|;]*\brm\b/i, reason: "bulk deletion via xargs" },
+  { re: /\bxargs\b[^|;]*\brm\b/i, reason: "bulk deletion via xargs", mask: true },
   { re: /\bgit\s+push\b[^|;]*(--force\b|-f\b|\s\+\S)/i, reason: "force push" },
-  { re: /\bcrontab\b(?![^|;]*\s-l\b)\s+(-(?!l\b)\S*|[^-\s|]\S*)/i, reason: "scheduled task install" },
+  { re: /\bcrontab\b(?![^|;]*\s-l\b)\s+(-(?!l\b)\S*|[^-\s|]\S*)/i, reason: "scheduled task install", mask: true },
   { re: /\bsystemctl\b[^|;]*\senable\b/i, reason: "service persistence" },
   { re: /\blaunchctl\s+(--\w+\s+)*(load|bootstrap|enable)\b/i, reason: "service persistence" },
   { re: /\btee\b[^|;]*(\$PROFILE|(\/etc\/|~[\/\\]?\.|\$HOME\/\.)(bashrc|zshrc|profile|bash_profile|zprofile|Microsoft\.PowerShell))/i, reason: "write to shell startup file" },
@@ -268,19 +393,70 @@ const HIGH_PATTERNS = [
   { re: /\bnpm\s+(uninstall|remove|rm)\s+(-g|--global)/i, reason: "global package removal" },
   { re: /\bmkfifo\b|\bln\s+-s\b[^|;]*\s\/(etc|usr|bin|sbin|System|Library)|\bNew-Item\b[^|;]*SymbolicLink[^|;]*(C:\\Windows|\$env:SystemRoot)/i, reason: "filesystem object in a system path" },
   { re: /(^|[|;&(]\s*|\bsudo\s+)(useradd|userdel|usermod|passwd|visudo|adduser|deluser|chpasswd)\b/i, reason: "user account modification" },
-  { re: /\biptables\b(?![^|;]*\s-[a-zA-Z]*[LS]\S*)(?![^|;]*--list)|\bufw\b|\bfirewall-cmd\b|\bnetsh\b[^|;]*(advfirewall|firewall)/i, reason: "firewall modification" },
+  { re: /\biptables\b(?![^|;]*\s-[a-zA-Z]*[LS]\S*)(?![^|;]*--list)|\bufw\b|\bfirewall-cmd\b(?!\s+--(list-|get-|query-|info-|state\b|check-|panic|version|help|reload\b))|\bnetsh\b[^|;]*(advfirewall|firewall)[^|;]*\b(set|add|delete|import|reset|restore|dump)\b/i, reason: "firewall modification" },
+  { re: /\.(Delete|Terminate|Kill|Remove)\s*\(/i, reason: "destructive .NET/WMI method call", mask: true },
+  { re: /\[[\w.]+\]::(Delete|Remove\w*|Terminate|Kill|Empty|Recycle|Format|Truncate)\w*\s*\(/i, reason: "destructive .NET static call", mask: true },
+  { re: /\bInvoke-(Cim|Wmi)Method\b[^|;]*(-MethodName\s+["']?(Terminate|Delete|Kill|Remove|Stop|Start|Format|Create)|\b(?:-Query|-Class)\b[^|;]*\b(Delete|Terminate)\b)/i, reason: "destructive WMI method invocation" },
+  { re: /\bRemove-WmiObject\b|\bRemove-CimInstance\b/i, reason: "destructive WMI operation" },
+  { re: /\bnetsh\b[^|;]*\b(delete|exec|reset)\b/i, reason: "network configuration removal or script exec" },
+  { re: /\b(iex|Invoke-Expression)\b/i, reason: "expression evaluation of dynamic input", mask: true },
+  { re: /\bwsl\b[^|;]*--unregister\b/i, reason: "unregister a WSL distribution" },
+  { re: />\s*["']?\/dev\/(?!null|stdout|stderr|tty|fd|shm|zero|random|urandom|console)/, reason: "write to a device node" },
+  { re: /\btee\b[^|;]*(?:\/(etc|usr|bin|sbin|var|boot|dev|lib|private|opt)\/|C:\\Windows|%SystemRoot%|\$env:SystemRoot|\$PROFILE)/i, reason: "write to a system path via tee" },
+  { re: /\b(?:strace|ltrace|sort|tree|perf|base64|openssl|gcc|g\+\+|clang|cc|ld|javac|go)\b[^|;]*(?:\s-(?:o|out|output)[=\s]|--output(?:document)?[=\s])\s*["']?\/(etc|usr|bin|sbin|var|boot|dev|sys|proc|lib|private|root)\b/i, reason: "output file written into a system path" },
+  { re: /\b(?:tcpdump|tshark|dumpcap|ngrep)\b[^|;]*\s-w\s*["']?\/(etc|usr|bin|sbin|var|boot|dev|sys|proc|lib|private|root)\b/i, reason: "capture file written into a system path" },
+  { re: /\bsed\b[^|;]*(?:["';}]\s*e|\d+e)\s+[^\s'"|]/, reason: "sed executing a shell command" },
+  { re: /\b(?:awk|gawk|mawk|nawk)\b[\s\S]*?\bsystem\s*\([^)]*\b(?:rm|del|erase|mkfs|dd|shutdown|reboot|halt|poweroff|kill|nc|ncat|curl|wget|chmod|chown|chgrp|shred|mv|cp|ln|tar|python|perl|sh|bash|exec|touch|mkdir)\b/, reason: "awk invoking a shell command" },
 ];
 
+// reading or printing credential material — never readonly, always at least a prompt
+const SECRET_CTX_RE = /(key=clear|\.ssh[\/\\]id_\w+\b(?!\.pub)|\.aws[\/\\]credentials|\.netrc\b|\.pgpass\b|find-\w*-password\b|authorization\s*[:=]\s*"?(basic|bearer|digest)\s+(?!\$)|\s-(?:u|user)\s+[\w.-]+:[^\s|;]+|wifi[^\s|;]*\.(txt|conf|cfg)|BEGIN\s+[\w-]*\s*PRIVATE\s+KEY)/i;
+const SECRET_TERM_RE = /\b(password|passwd|secret|apikey|api_key|credentials?|token)s?\b/i;
+const SECRET_FILE_RE = /[\w.~-]*(?:secret|credentials?)[\w.~-]*\.[\w]+/i;
+const SECRET_VAR_RE = /\$env?:?\w*(?:password|secret|apikey|api_key|credentials?|token|_key)\w*/i;
+const SECRET_FILEISH_RE = /-Path\b|-File\b|\.(config|conf|cfg|ini|env|pem|key|xml|properties|csv|log|txt|json|ya?ml|docx?|xlsx?|zip|tar|gz|enc|bin|dat|sqlite|db)\b/i;
+const SECRET_READ_HEADS = new Set([
+  "cat", "less", "more", "head", "tail", "type", "gc", "get-content", "bat",
+  "base64", "base32", "strings", "xxd", "hexdump", "od", "zcat", "gzcat",
+  "zless", "xzless", "nl", "openssl",
+]);
+const SECRET_GREP_HEADS = new Set(["grep", "egrep", "fgrep", "rg", "findstr", "ack", "ag", "ug", "ugrep"]);
+const SECRET_SELECT_HEADS = new Set(["select-string", "sls"]);
+// terms that always imply credential hunting even without a file target
+const SECRET_TERM_STRONG = /\b(password|passwd|secrets?|apikey|api_key|credentials?)\b/i;
+const SECRET_VAR_HEADS = new Set([
+  "echo", "printf", "cat", "clip", "pbcopy", "xclip", "xsel", "wl-copy", "tee",
+  "write-output", "write-host", "out-host", "setx",
+]);
+
+function readsSecrets(segment, head) {
+  if (SECRET_CTX_RE.test(segment)) return true;
+  const trimmed = segment.trim();
+  if (SECRET_VAR_RE.test(trimmed) && (/^\$[\w.:]+\s*$/.test(trimmed) || SECRET_VAR_HEADS.has(head))) return true;
+  if (SECRET_READ_HEADS.has(head) && SECRET_FILE_RE.test(segment)) return true;
+  if (SECRET_SELECT_HEADS.has(head)
+    && (SECRET_TERM_STRONG.test(segment) || (SECRET_TERM_RE.test(segment) && /-Path\b/i.test(segment)))) return true;
+  if (SECRET_GREP_HEADS.has(head) && SECRET_TERM_RE.test(segment)
+    && SECRET_FILEISH_RE.test(segment.replace(/--?(include|exclude|exclude-dir|glob|iglob)[=\s]\S*/g, " "))) return true;
+  return false;
+}
+
 const MODERATE_PATTERNS = [
-  { re: /\bmv\b|\bcp\b|\bMove-Item\b|\bCopy-Item\b|\bren\b|\brename\b/i, reason: "file move/copy (can overwrite)" },
-  { re: /\bgit\s+(commit|push|pull|merge|rebase|reset|checkout|switch|restore|stash\s+pop|am|apply|cherry-pick|revert|clean\b(?!\s+--dry-run)(?!\s+-[a-zA-Z]*n[a-zA-Z]*\b))/i, reason: "git state change" },
+  { re: /\bmv\b|\bcp\b|\bMove-Item\b|\bCopy-Item\b|\bren\b(?![-\w])|\brename\b(?![-\w])/i, reason: "file move/copy (can overwrite)" },
+  { re: /\bgit\s+(commit|push|pull|merge|rebase|reset|checkout|switch|restore|stash\s+pop|am|apply|cherry-pick|revert|clean\b(?![^|;]*(--dry-run|-\w*n\w*\b))|worktree\s+(remove|prune)|reflog\s+(delete|expire)|gc\b|prune\b)/i, reason: "git state change" },
+  { re: /\bkubectl\s+rollout\s+(restart|undo|pause|resume)\b|\bkubectl\s+(scale|patch|taint|cordon|uncordon|edit|annotate|label|apply)\b|\bkubectl\s+set\b(?![^|;]*\s--list\b)/i, reason: "kubernetes resource change" },
+  { re: /\bUnregister-ScheduledTask\b|\bDisable-ScheduledTask\b|\bSet-ScheduledTask\b/i, reason: "scheduled task change" },
+  { re: /\bSetEnvironmentVariable\s*\(|\bsetx\b|\bsetx\.exe\b/i, reason: "environment variable change" },
+  { re: /\bpowercfg\b[^|;]*\/(hibernate|change|setactive|setacvalueindex|setdcvalueindex|deletescheme|duplicatescheme|import|export|h|s|x)\b/i, reason: "power configuration change" },
+  { re: /\bipconfig\b[^|;]*\/(release|renew|flushdns|registerdns|setclassid|flushroutingtable|release6|renew6)\b/i, reason: "network configuration change" },
+  { re: /\bmount\b(?=\s+[^|;])/i, reason: "mount filesystem change" },
   { re: /\b(brew|apt|apt-get|dnf|yum|pacman|zypper|apk|winget|choco|scoop)\s+(install|add|upgrade|update)\b/i, reason: "package install/upgrade" },
   { re: /\b(npm|pnpm|yarn|bun|pip|pip3|gem|cargo|go)\s+(install|add|i\b|get\b|update|upgrade)\b/i, reason: "package install" },
   { re: /\bkill\b(?!\s+-0\b)(?!\s+-[lL]\b)(?!\s+--list\b)/i, reason: "process termination" },
   { re: /\bStop-Process\b/i, reason: "process termination" },
-  { re: /\b(Start|Stop|Restart|Set|Remove|Clear|Enable|Disable)-[A-Z]|\bNew-(?!TimeSpan\b|Guid\b|DateTimeOffset\b)[A-Z]/i, reason: "system object mutation (PowerShell verb)" },
+  { re: /(?<![-\w])(Start|Stop|Restart|Set|Remove|Clear|Enable|Disable|Add)-(?!Sleep\b|Job\b|ThreadJob\b|Transcript\b|Location\b|Variable\b|StrictMode\b|PSBreakpoint\b|PSReadLineOption\b|PSReadLineKeyHandler\b)[A-Z]|(?<![-\w])New-(?!TimeSpan\b|Guid\b|DateTimeOffset\b|Object\b|ScheduledTaskTrigger\b|Variable\b|Alias\b|Session\b)[A-Z]/i, reason: "system object mutation (PowerShell verb)", mask: true },
   { re: /\bmkdir\b|\bNew-Item\b|\btouch\b/i, reason: "filesystem write" },
-  { re: /\btar\b[^|;]*-[a-zA-Z]*x|\bunzip\b(?![^|;]*\s-[lvZt]+\b)|\bExpand-Archive\b|\b7z\s+x/i, reason: "archive extraction (file writes)" },
+  { re: /(?:^|[|;&(]\s*)\s*(tar\b(?![^|;]*-[a-zA-Z]*O[a-zA-Z]*\b)(?![^|;]*-[a-zA-Z]*f\s*-(?:\s|$))(?![^|;]*--to-stdout\b)[^|;]*-[a-zA-Z]*x|unzip\b(?![^|;]*\s-[lvZtp]+\b)|Expand-Archive\b|7z\s+x)/i, reason: "archive extraction (file writes)" },
   { re: /\bln\s+-s\b|\bNew-Item\b[^|;]*-ItemType\s+SymbolicLink/i, reason: "symlink creation" },
   { re: /\bchmod\b|\bchown\b|\bicacls\b(?=[^|;]*\/(grant|deny|remove|reset|setowner|save|restore|setintegritylevel|substitute|inheritance))|\bSet-Acl\b/i, reason: "permission/ownership change" },
   { re: /(?:^|[|;&(]\s*|\bsudo\s+)curl\b[^|;]*(?:-[a-zA-Z]*o\s+(?!-(?:\s|$)|\/dev\/null\b|NUL\b|nul\b)|-[a-zA-Z]*O\b|--remote-name\b|--remote-name-all\b|--output(?:=|\s+)(?!-(?:\s|$)|\/dev\/null\b|NUL\b|nul\b))/, reason: "file download (network + write)" },
@@ -292,9 +468,22 @@ const MODERATE_PATTERNS = [
   { re: /\b(brew\s+services\s+(start|stop|restart)|launchctl\s+(load|unload|bootstrap|bootout|kickstart))/i, reason: "service control" },
   { re: /\bdscacheutil\s+-flushcache\b/i, reason: "system cache flush" },
   { re: /\bhistory\s+-[a-zA-Z]*[cw]/i, reason: "shell history modification" },
-  { re: /\|\s*crontab\b|\bcrontab\s+(-[re]\b|[^-\s])/i, reason: "scheduled task install" },
+  { re: /\|\s*crontab\b|\bcrontab\s+(-[re]\b|[^-\s])/i, reason: "scheduled task install", mask: true },
   { re: /\s--password=\S+|\b(mysql|mysqldump|mysqladmin|mariadb)\b[^|;]*\s-p[^\s|;]+|\s\/P:[^\s|;]+|-pass\s+pass:[^\s|;]+/i, reason: "secret on the command line" },
   { re: /\bfuser\b[^|;]*-[a-zA-Z]*k\b/i, reason: "kill processes using a resource" },
+  { re: /\b(?:less|more|most|pg)\b[^|;]*(?:\s\+(?![0-9]|\/|&|@|\s*$)\S*|\s-[a-zA-Z]*[kK]\b|--lesskey)/i, reason: "pager command argument" },
+  { re: /\b(?:awk|gawk|mawk|nawk)\b[^|;]*(?:\bsystem\s*\(|print(?:f)?\b[^;|}]*>>?\s*[^\s|;&}]|\|\s*["'][^"']*["']\s*\||["'][^"']*["']\s*\|\s*getline)/i, reason: "awk shelling out or writing a file" },
+  { re: /\bsed\b[^|;]*["';}]\s*[wW]\s+[^\s'"|]/, reason: "sed writing a file" },
+  { re: /\bgit\s+config\s+[^|;]*--(unset|unset-all|add|replace-all|remove-section|rename-section|edit)\b|\bgit\s+config\s+(?:--?\w[\w-]*(?:=\S+)?\s+)*[\w.][\w.-]*\s+\S/i, reason: "git configuration write" },
+  { re: /\.(?:Write|Append|Move|Copy|Rename|Create|Save|Commit|Set|Insert|Update|Clear|Dispose|Close|Download|Upload|Send|Post|Put|Exit|FailFast|Stop|Start|Open|Execute|Invoke|Run)\w*\s*\(|\.Add(?!(?:Days|Months|Years|Hours|Minutes|Seconds|Ticks|Milliseconds)\s*\()\w*\s*\(/i, reason: "mutating .NET method call", mask: true },
+  { re: /\[[\w.]+\]::(?:Write|Append|Set|Exit|FailFast|Encrypt|Decrypt|OpenWrite|Save|Commit|Insert|Update|Clear|Post|Put|Send|Upload|Download|Execute|Invoke|Run|Exec|Add|Move|Copy|Create|Rename)\w*\s*\(|\[[\w.]*IO\.(?:File|Directory|DriveInfo)\]::(?:Replace|Open|Delete)\w*\s*\(/i, reason: "mutating .NET static call", mask: true },
+  { re: /\bInvoke-(Cim|Wmi)Method\b/i, reason: "WMI method invocation" },
+  { re: /\bnetsh\b[^|;]*\b(add|set|import|connect|disconnect|dump)\b/i, reason: "network configuration change" },
+  { re: /\bwsl\b[^|;]*--(shutdown|terminate|import|install|update|set-default|set-version|export|manage|mount|unmount)\b/i, reason: "WSL state change" },
+  { re: /\b(?:strace|ltrace|sort|tree|perf|base64|openssl|gcc|g\+\+|clang|cc|ld|javac|go)\b[^|;]*(?:\s-(?:o|out|output)[=\s]|--output(?:document)?[=\s])\s*["']?(?!-[\s|&]|\/dev\/null\b)[^\s|;&]/i, reason: "output file flag (file write)" },
+  { re: /\b(?:tcpdump|tshark|dumpcap|ngrep)\b[^|;]*\s-w\s*["']?[^\s|;&]/i, reason: "packet capture file write" },
+  { re: /\b(?:Out-File|Out-Printer|Tee-Object|Export-Csv|Export-Clixml|Set-Clipboard)\b/i, reason: "file or clipboard write" },
+  { re: /^\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:LD_PRELOAD|LD_LIBRARY_PATH|LD_AUDIT|LD_BIND_NOW|DYLD_[A-Z_]+|BASH_ENV|NODE_OPTIONS|PYTHONSTARTUP|PYTHONINSPECT|PERL5OPT|PERL5DB|RUBYOPT|GIT_SSH_COMMAND|GIT_EXEC_PATH|GIT_PAGER|SYSTEMD_PAGER|SSH_ASKPASS|SUDO_ASKPASS|PROMPT_COMMAND|ZDOTDIR|INPUTRC|GCONV_PATH|JAVA_TOOL_OPTIONS|JDK_JAVA_OPTIONS|_JAVA_OPTIONS|OPENSSL_CONF|OPENSSL_ENGINES|OPENSSL_MODULES|TERMINFO|HOSTALIASES|RES_OPTIONS|NETRC|KRB5_CONFIG|GNUPGHOME|XAUTHORITY|R_PROFILE|R_LIBS|LESSOPEN|LESSCLOSE|PAGER|MANPAGER)=\S/i, reason: "environment variable controlling code loading or a pager" },
 ];
 
 const ELEVATION_RE = /\b(sudo|doas|runas|pkexec|Start-Process\b[^|;]*-Verb\s+RunAs)\b/i;
@@ -437,13 +626,16 @@ export function splitCommandLine(line) {
 }
 
 export function segmentHead(segment) {
-  const cleaned = segment.replace(/^\s*(sudo|doas|runas|pkexec)\s+(-[a-zA-Z]+\s+)*/i, "").trim();
+  const cleaned = segment
+    .replace(/^\s*(sudo|doas|runas|pkexec)\s+(-[a-zA-Z]+\s+)*/i, "")
+    .replace(/^\s*[A-Za-z_][A-Za-z0-9_]*=\S*\s+/, "")
+    .trim();
   const m = cleaned.match(/^([^\s]+)\s*(.*)$/s);
   if (!m) {
     return { head: "", args: "" };
   }
   let head = m[1];
-  head = head.replace(/\.(exe|bat|cmd|ps1)$/i, "").replace(/^.*[\\/]/, "");
+  head = head.replace(/\.(exe|bat|cmd|ps1)$/i, "").replace(/^.*[\\/]/, "").replace(/^\(+/, "");
   return { head: head.toLowerCase(), args: m[2] || "" };
 }
 
@@ -473,15 +665,48 @@ function innerCommandOf(head, args) {
     return inner || null;
   }
   if (["sh", "bash", "zsh", "fish", "pwsh", "powershell", "cmd", "eval", "env", "command"].includes(head)) {
-    const m = args.match(/(?:^|\s)-[cC]\s+("([^"]*)"|'([^']*)'|(\S+))/) || args.match(/^("([^"]*)"|'([^']*)'|(\S.*))$/s);
-    const inner = m && (m[2] || m[3] || m[4] || m[5]);
+    const m = args.match(/(?:^|\s)-(c|command)\s+("([^"]*)"|'([^']*)'|(\S+))/i) || args.match(/^("([^"]*)"|'([^']*)'|(\S.*))$/s);
+    const inner = m && (m[3] || m[4] || m[5] || m[2]);
     if (inner) return inner;
     return null;
+  }
+  if (head === "sshpass") {
+    const toks = args.match(/("[^"]*"|'[^']*'|\S+)/g) || [];
+    let i = 0;
+    for (; i < toks.length; i += 1) {
+      const t = toks[i];
+      if (t.startsWith("-")) {
+        if (/^-(p|f|d)$/.test(t) || /^--(password|file|fd)$/.test(t)) i += 1;
+        continue;
+      }
+      break;
+    }
+    const rest = toks.slice(i).join(" ");
+    return rest || null;
   }
   if (head === "find") {
     const m = args.match(/-(exec|execdir)\s+(.+?)\s*(;|\+|$)/s);
     if (m) return m[2];
     return null;
+  }
+  if (head === "wsl") {
+    const rest = args
+      .replace(/^\s*(?:-d\s+\S+|-u\s+\S+|--cd\s+\S+|--distribution\s+\S+|--user\s+\S+|--system\b|--shell-type\s+\S+|-e\b|--exec\b|--\s+|\s+)+/, "")
+      .trim();
+    // a leftover wsl flag (e.g. --list, --unregister) is not an inner command
+    return rest && !rest.startsWith("-") ? rest : null;
+  }
+  const FLAG_VALUE = new Set(["-n", "--interval", "--adjustment", "-i", "-o", "-e", "-c", "--cpu-list"]);
+  if (["time", "nice", "nohup", "stdbuf", "watch", "ionice", "taskset", "unbuffer", "flock", "setsid"].includes(head)) {
+    const toks = args.match(/("[^"]*"|'[^']*'|\S+)/g) || [];
+    let i = 0;
+    for (; i < toks.length; i += 1) {
+      const t = toks[i].replace(/^["']|["']$/g, "");
+      if (!t.startsWith("-")) break;
+      if (FLAG_VALUE.has(t) || /^-(n|i|o|e|c)\d/.test(t)) i += 1;
+    }
+    const rest = toks.slice(i).join(" ");
+    return rest || null;
   }
   if (head === "start-process") {
     const am = args.match(/-ArgumentList\s+("([^"]*)"|'([^']*)'|(\S+))/i);
@@ -497,49 +722,145 @@ function innerCommandOf(head, args) {
     const m = args.match(/("[^"]+"|'[^']+'|\S+)\s*$/);
     return m ? m[1].replace(/^["']|["']$/g, "") : null;
   }
+  // loop/branch keywords are followed by a real command to evaluate
+  if (["do", "then", "else", "elif"].includes(head)) {
+    return args || null;
+  }
+  if (["while", "until", "if"].includes(head)) {
+    // PowerShell `if (cond) { ... }` starts with a parenthesised expression
+    return /^\s*\(/.test(args) ? null : (args || null);
+  }
   return null;
 }
 
 const MUTATING_FLAGS = {
-  find: /-(delete|fprint|exec(dir)?\s+(?!(ls|echo|printf|file|stat|wc|cat|head|tail|grep|sort|basename|dirname|md5sum|shasum|sha256sum|md5)\b))/,
+  find: /-(delete|fprint|fprint0|fprintf|ok|okdir)\b/,
   sed: /(?:^|\s)(?:--in-place\b|-\w*[iI]\S*)|(?:^|[;{}\s\/'"!])[wW]\s+\S|(?:^|[;{}\s\/'"!0-9$,+^~])e(?:\s+\S|\s*['"]?\s*$)/,
   awk: /(?:^|\s)-i\b|\bsystem\s*\(|\bprint(?:f)?\b[^;|}]*>>?\s*["'\w\/-]|\|\s*["'][^'"]*["']|["'][^'"]*["']\s*\|\s*getline/,
-  tar: /^\s+-?[a-zA-Z]*[xcruA]|\s-[a-zA-Z]*[xcruA]|--(extract|create|append|update|delete|get|to-command|use-compress-program|checkpoint-action|info-script|rmt-command|rsh-command)\b|\s-[IF]\s/,
-  git: /\s(-O|--open-files-in-pager)|\s-c\s|--output\b|--ext-diff/,
+  tar: /^(?![^|;]*-[a-zA-Z]*f\s*-(?:\s|$))(?![^|;]*-[a-zA-Z]*x[a-zA-Z]*O)(?:^\s*-?[a-zA-Z]*[xcruA]|\s-[a-zA-Z]*[xcruA]|--(extract|create|append|update|delete|get|to-command|use-compress-program|checkpoint-action|info-script|rmt-command|rsh-command)\b|\s-[IF]\s)/,
+  git: /\s(-O|--open-files-in-pager)|\s-c\s|--output\b|--ext-diff|\breflog\s+(delete|expire)\b|\bhash-object\b[^|;]*\s-w\b|\bconfig\s+[^|;]*--(unset|unset-all|add|replace-all|remove-section|rename-section|edit)\b|\bconfig\s+(?:--?\w[\w-]*\s+)*[\w.][\w.-]*\s+\S/,
+  npm: /\baudit\b[^|;]*\bfix\b/,
+  pnpm: /\baudit\b[^|;]*\bfix\b/,
+  yarn: /\baudit\b[^|;]*\bfix\b/,
+  bun: /\baudit\b[^|;]*\bfix\b/,
+  cargo: /\baudit\b[^|;]*\bfix\b/,
   sort: /\s(-o|--output)\b/,
   yq: /\s(-i|--inplace)\b/,
   dmesg: /\s(-[a-zA-Z]*[cCDEn]|--clear|--read-clear|--console-\w+)\b/,
   tree: /\s-o\b/,
-  plutil: /\s-(convert|replace|insert|remove|extract)\b(?![^|;]*-o\s+-(\s|$))/,
+  plutil: /\s-(convert|replace|insert|remove|extract)\b(?![^|;]*(-o\s+-(\s|$)|-stdin\b[^|;]*-stdout\b|-stdout\b))/,
   base64: /\s(-o|--output)\b/,
   ss: /\s(-[a-zA-Z]*K|--kill)\b/,
   history: /\s-[cdwranps]\b/,
   fc: /^(?!\s*-[a-zA-Z]*l)|\s-[a-zA-Z]*[es]\b/,
   go: /\benv\b[^|;]*\s-[wu]\b/,
   man: /(^|\s)-[a-zA-Z]*P\b|\s--(pager|prompt|preprocessor)\b/,
+  // +<cmd> runs a less command (+! shells out, +s logs, +F follows); -k loads
+  // a lesskey file that can bind shell commands
+  less: /(?:^|\s)\+(?![0-9]|\/|&|@|\s*$)|(?:^|\s)-[a-zA-Z]*[kK]\b|--lesskey/,
+  more: /(?:^|\s)\+(?![0-9]|\/|&|@|\s*$)|(?:^|\s)-[a-zA-Z]*[kK]\b|--lesskey/,
+  dnf: /\bhistory\s+(undo|rollback|redo)\b|\b(group|module)\s+(install|remove|enable|disable|reset)\b/,
+  yum: /\bhistory\s+(undo|rollback|redo)\b|\b(group|module)\s+(install|remove|enable|disable|reset)\b/,
+  pytest: /./,
+  "py.test": /./,
+  tox: /./,
+  networkctl: /\b(reload|up|down|delete|renew|persist|reconfigure|label|set-|edit|forcerenew)\w*/i,
 };
 
-const PWSH_SAFE_VERB = /^(get|test|measure|select|sort|where|format|group|compare|resolve|convertto|convertfrom)$/i;
-const PWSH_PURE_BLOCK = /^\{(\s|\$[\w.]+|-[a-z]+|'[^']*'|"[^"$]*"|\d+(\.\d+)?(kb|mb|gb|tb)?|[()!])*\}$/i;
+const PWSH_SAFE_VERB = /^(get|test|measure|select|sort|where|format|group|compare|resolve|convertto|convertfrom|read)$/i;
+const PWSH_PURE_BLOCK = /^\{(\s|\$[\w.]+|-[a-z]+|'[^']*'|"[^"$]*"|\d+(\.\d+)?(kb|mb|gb|tb|pb|ns|us|ms|s)?|[()!])*\}$/i;
 
-const PWSH_PURE_METHOD = /\.(Add\w*|To\w+|Trim\w*|Split|Substring|Contains|StartsWith|EndsWith|IndexOf|Equals|CompareTo|GetType)\s*\(/gi;
-const PWSH_PURE_STATIC = /\[(Environment|DateTime|DateTimeOffset|Math|System\.Environment|IO\.Path|System\.IO\.Path)\]::(Get\w*|Now|UtcNow|Today|Round|Floor|Ceiling|Abs|Max|Min|Combine|GetFileName\w*|GetExtension|GetDirectoryName|MachineName|UserName|OSVersion)\b/gi;
+const PWSH_PURE_METHOD = /\.(Add\w*|To\w+|Total\w+|Get\w+|Trim\w*|Split|Substring|Contains|StartsWith|EndsWith|IndexOf|LastIndexOf|Equals|CompareTo|Parse|TryParse|Format|Round|Floor|Ceiling|Abs|Max|Min|FirstDayOfWeek|IsNullOr\w+|Join|Concat|Clone|Pad\w+|Normalize)\s*\([^()]*\)/gi;
+const PWSH_PURE_STATIC = /\[(Environment|System\.Environment|DateTime|DateTimeOffset|TimeSpan|Math|System\.Math|Regex|System\.Text\.RegularExpressions\.Regex|Convert|System\.Convert|Text\.Encoding|System\.Text\.Encoding|IO\.Path|System\.IO\.Path|IO\.File|System\.IO\.File|Version|System\.Version|Guid|Char|String|Int32|Int64|Double|Single|Net\.IPAddress|System\.Net\.IPAddress|BitConverter|Base64FormattingOptions|DayOfWeek|ConsoleColor)\]::(?!Write|Delete|Create|Move|Copy|Kill|Stop|Start|Run|Exec|Download|Upload|Send|Post|Put|Request|Invoke|Exit|FailFast|Set|Append|Remove|Clear|Save|Open)[\w]*\s*(\([^()]*\))?/gi;
+// IO file/directory statics are stricter: Replace/Encrypt/Decrypt also write
+const PWSH_PURE_STATIC_IO = /\[(System\.)?IO\.(File|Directory|DriveInfo)\]::(?!Write|Create|Delete|Move|Copy|Append|Open|Replace|Encrypt|Decrypt|Set|Kill|Stop|Start|Run|Exec|Exit|Download|Upload|Send|Post|Put|Request|Invoke|Remove|Clear|Save)[\w]*\s*(\([^()]*\))?/gi;
+const PWSH_ENUM_MEMBER = /\[[\w.]+\]::\w+\b(?!\s*\()/g;
+// mutating method names never allowed even in "pure" expression contexts
+const PWSH_BAD_CALL = /\.(Delete|Remove|Kill|Stop|Start|Create|Write\w*|Append\w*|Move|Copy|Rename|Set\w*|Insert|Update|Clear|Save|Commit|Execute|Invoke|Run|Close|Dispose|Open|Download\w*|Upload\w*|Send|Post|Put|Request|Exit|FailFast|Add(?!(ays|Months|Years|Hours|Minutes|Seconds|Ticks|Milliseconds)))\s*\(/i;
 
 const PWSH_BLOCK_OPS = /^(join|split|replace|match|notmatch|eq|ne|gt|lt|ge|le|like|notlike|contains|notcontains|in|notin|is|isnot|as|and|or|xor|band|bor|bxor|shl|shr|f|not)$/i;
+// filter/projection cmdlets — readonly only when their tail is a pure
+// expression (script blocks are validated, not blindly trusted)
+const PWSH_FILTER_HEADS = new Set([
+  "select", "select-object", "where", "where-object", "group", "group-object",
+  "measure", "measure-object", "compare", "compare-object", "sort-object",
+]);
 
 const PWSH_PURE_CALL = /\.(Add\w*|To\w*|Trim\w*|Split|Substring|Contains|StartsWith|EndsWith|IndexOf|Equals|CompareTo|GetType)\s*\([^()]*\)/gi;
 
-function pwshBlockReadonly(inner) {
-  const s = inner.replace(/"[^"]*"|'[^']*'/g, "").replace(PWSH_PURE_CALL, "").replace(PWSH_PURE_STATIC, "");
-  if (/(^|[^<>=!])=(?![=>])|[>|;&`]|\$\(|@\{|\[[\w.]+\]::|\.\w+\s*\(/.test(s)) return false;
+// read-only command words allowed to head a block expression (their bare
+// words are arguments, not code)
+const PWSH_READ_WORDS = /^(sls|select|where|sort|group|measure|compare|cat|gc|type|echo|write|read|get|gci|dir|ls|wc|out-host|out-null)$/i;
+
+// split on a separator at bracket depth 0 (quotes are already stripped)
+function pwshSplitTop(s, ch) {
+  const parts = [];
+  let depth = 0;
+  let cur = "";
+  for (const c of s) {
+    if (c === "(" || c === "{" || c === "[") depth += 1;
+    else if (c === ")" || c === "}" || c === "]") depth -= 1;
+    if (c === ch && depth <= 0) {
+      parts.push(cur);
+      cur = "";
+    } else {
+      cur += c;
+    }
+  }
+  parts.push(cur);
+  return parts;
+}
+
+function pwshBlockReadonly(inner, allowPipes = true) {
+  let s = inner
+    .replace(/"[^"]*"|'[^']*'/g, "")
+    .replace(PWSH_PURE_CALL, " ")
+    .replace(PWSH_PURE_STATIC_IO, " ")
+    .replace(PWSH_PURE_STATIC, " ")
+    .replace(PWSH_ENUM_MEMBER, " ");
+  if (PWSH_BAD_CALL.test(s)) return false;
+  // pure variable assignments ($p = $_ -split ' ') are allowed inside blocks
+  const assigns = [...s.matchAll(/\$(?:(?:global|script|local|private|env|using):)?[\w]+\s*=(?![=>])\s*[^;]*/g)];
+  for (const a of assigns) {
+    if (!pwshBlockReadonly(a[0].replace(/^[\s\S]*?=(?!=)/, ""), false)) return false;
+    s = s.replace(a[0], " ");
+  }
+  const semi = pwshSplitTop(s, ";");
+  if (semi.length > 1) {
+    return semi.every((p) => pwshBlockReadonly(p, allowPipes));
+  }
+  if (allowPipes && s.includes("|")) {
+    const parts = pwshSplitTop(s, "|");
+    if (parts.length > 1) return parts.every((p) => pwshBlockReadonly(p, false));
+  }
+  // parenthesised groups may contain a pipe: ($_ | sls "x" -Quiet) -and (...)
+  const groupRe = /\([^()]*\|[^()]*\)/g;
+  let gm;
+  while ((gm = groupRe.exec(s))) {
+    const parts = gm[0].slice(1, -1).split("|");
+    if (!parts.every((p) => pwshBlockReadonly(p, false))) return false;
+    s = s.slice(0, gm.index) + " " + s.slice(gm.index + gm[0].length);
+    groupRe.lastIndex = 0;
+  }
+  if (/(^|[^<>=!])=(?![=>])|[>;&`]|\$\(|@\{|\[[\w.]+\]::|\.\w+\s*\(|\|/.test(s)) return false;
   const verbs = [...s.matchAll(/(?:^|[\s|({])([a-z]+)-[a-z]\w*/gi)].map((m) => m[1]);
   if (verbs.some((v) => !PWSH_SAFE_VERB.test(v) && !PWSH_BLOCK_OPS.test(v))) return false;
   const cleaned = s
     .replace(/\d+(\.\d+)?(KB|MB|GB|TB)\b/gi, " ")
-    .replace(/\$[\w:]+(\.[\w.]+)*(\s*\([^()]*\))?/g, " ")
+    .replace(/\$[\w:]+(\.[\w.]+|\[[\w'".\s-]*\])*(\s*\([^()]*\))?/g, " ")
+    .replace(/\[[\w.]+\]/g, " ")
     .replace(/\b[\w]+-[\w-]+\b/g, " ")
     .replace(/(^|\s)-[\w?]+\b/g, " ")
     .replace(/\.[\w]+\b/g, " ");
+  if (verbs.length) {
+    // with a safe verb (or operator) head, leftover bare words are its
+    // arguments — data, not code
+    return !/[^\s\w.$'"()-]/.test(cleaned);
+  }
+  const hm = s.trim().match(/^([a-z][\w.-]*)\b/i);
+  if (hm && PWSH_READ_WORDS.test(hm[1])) {
+    return !/[^\s\w.$'"(),-]/.test(cleaned);
+  }
   return !/[A-Za-z_]\w*/.test(cleaned);
 }
 
@@ -608,37 +929,143 @@ function pwshStripHashLiterals(s) {
   return out;
 }
 
+// tail of a `?`/Where-style segment: a filter expression, not a command —
+// reject anything that could execute a mutation
+function pwshTailPure(t) {
+  const s = t
+    .replace(/"[^"]*"|'[^']*'/g, "")
+    .replace(PWSH_PURE_CALL, " ")
+    .replace(PWSH_PURE_STATIC_IO, " ")
+    .replace(PWSH_PURE_STATIC, " ")
+    .replace(PWSH_ENUM_MEMBER, " ");
+  if (PWSH_BAD_CALL.test(s)) return false;
+  const blocks = s.match(/\{[^{}]*\}/g) || [];
+  if (!blocks.every((b) => pwshBlockReadonly(b.slice(1, -1)))) return false;
+  const rest = s.replace(/\{[^{}]*\}/g, " ");
+  if (/[{}]/.test(rest)) return false;
+  if (/[>|;&`]|\$\(|@\{|\[[\w.]+\]::|\.\w+\s*\(|(^|[^<>=!])=(?![=>])/.test(rest)) return false;
+  const verbs = [...rest.matchAll(/(?:^|[\s|({])([a-z]+)-[a-z]\w*/gi)].map((m) => m[1]);
+  return verbs.every((v) => PWSH_SAFE_VERB.test(v) || PWSH_BLOCK_OPS.test(v));
+}
+
+// expression-only segment (casts, static calls, member access, operators)
+function pwshExprOnly(s) {
+  let t = s;
+  for (let i = 0; i < 8; i += 1) {
+    const p = t;
+    t = t
+      .replace(/"[^"]*"|'[^']*'/g, " ")
+      .replace(PWSH_PURE_STATIC_IO, " ")
+      .replace(PWSH_PURE_STATIC, " ")
+      .replace(PWSH_PURE_METHOD, " ")
+      .replace(PWSH_ENUM_MEMBER, " ")
+      .replace(/(^|[^\w)])\(([^()]*)\)/g, (m, pre, inner) => (pwshBlockReadonly(inner, true) ? `${pre} ` : m));
+    if (t === p) break;
+  }
+  if (PWSH_BAD_CALL.test(t)) return false;
+  if (/[>|;&`]|\$\(|@\{|\[[\w.]+\]::|\.\w+\s*\(|(^|[^<>=!])=(?![=>])|\b\w+-[\w-]+\b/.test(t)) return false;
+  t = t
+    .replace(/\$[\w:]+(\.[\w.]+|\[[^\]]*\])*/g, " ")
+    .replace(/\[[\w.]+\]/g, " ")
+    .replace(/(^|\s)-[\w?]+\b/g, " ")
+    .replace(/\d+(\.\d+)?(kb|mb|gb|tb|pb|ns|us|ms|s)?\b/gi, " ")
+    .replace(/\.[\w.]+\b/g, " ");
+  return !/[A-Za-z_]\w*/.test(t);
+}
+
 function pwshReadonly(segment) {
   const raw = segment.trim();
+  // read-sounding verbs that actually write: Get-WindowsUpdateLog emits a file
+  if (/^\(*\s*Get-WindowsUpdateLog\b/i.test(raw)) return false;
   if (/^\$[\w:]+(\.\w+)*(\s+-(split|join|replace|match|notmatch|contains|notcontains|eq|ne|gt|lt|ge|le|like|notlike)\s+('[^']*'|"[^"]*"|\$[\w:.]+|\d+(\.\d+)?))*$/i.test(raw)) return true;
-  const stripped = raw
-    .replace(PWSH_PURE_METHOD, "(")
-    .replace(PWSH_PURE_STATIC, "")
-    .replace(/\bNew-(TimeSpan|Guid|DateTimeOffset)\b/gi, "Get-Date");
+  // pure variable assignment: $x = <pure expression> (member/index writes
+  // like $_.Name = 'x' mutate objects, not just the session)
+  const am = raw.match(/^\$(?:(?:global|script|local|private|env|using):)?[\w]+\s*=(?![=>~])([\s\S]+)$/);
+  if (am) return pwshBlockReadonly(am[1]);
+  // collapse innermost parens holding pure content so nested calls like
+  // .TotalMinutes((Get-Date x).TotalMinutes) become strippable; parens right
+  // after a word char belong to a method call (x.Delete()) and must survive
+  let stripped = raw;
+  for (let i = 0; i < 8; i++) {
+    const p = stripped;
+    stripped = stripped
+      .replace(/(^|[^\w)])\(([^()]*)\)/g, (m, pre, inner) => (pwshBlockReadonly(inner, true) ? `${pre} ` : m))
+      .replace(PWSH_PURE_STATIC_IO, " ")
+      .replace(PWSH_PURE_METHOD, " ")
+      .replace(PWSH_PURE_STATIC, " ")
+      .replace(PWSH_ENUM_MEMBER, " ")
+      .replace(/\bNew-(TimeSpan|Guid|DateTimeOffset|Object|ScheduledTaskTrigger)\b/gi, "Get-Date");
+    if (stripped === p) break;
+  }
   const s = pwshStripHashLiterals(stripped);
   if (s === null) return false;
+  // quote-masked copy for structural checks so ';', '@{}' and friends
+  // inside string literals don't count
+  const sq = s.replace(/"[^"]*"|'[^']*'/g, " ");
   if (/(?:^|\s)-WhatIf\b/i.test(raw)) return true;
   const headName = segmentHead(raw).head;
+  if (headName === "?" || PWSH_FILTER_HEADS.has(headName)) {
+    return pwshTailPure(s.replace(/^\s*\S+/, ""));
+  }
   if (headName === "foreach-object" || headName === "%") {
-    const blocks = raw.match(/\{[^{}]*\}/g);
+    const blocks = sq.match(/\{[^{}]*\}/g);
     if (!blocks || !blocks.length) return false;
-    const left = s.replace(/\{[^{}]*\}/g, " ");
+    const left = sq.replace(/\{[^{}]*\}/g, " ");
     if (/[>;&`]|\$\(|@\{|\[[\w.]+\]::|\.\w+\s*\(/.test(left)) return false;
     const leftVerbs = [...left.matchAll(/(?:^|[\s|({])([a-z]+)-[a-z]\w*/gi)].map((m) => m[1].toLowerCase());
     if (leftVerbs.some((v) => v !== "foreach" && !PWSH_SAFE_VERB.test(v) && !PWSH_BLOCK_OPS.test(v))) return false;
     return blocks.every((b) => pwshBlockReadonly(b.slice(1, -1)));
   }
-  if (/[>;&`]|\$\(|@\{|\[[\w.]+\]::|\.\w+\s*\(/.test(s)) return false;
-  const verbs = [...s.matchAll(/(?:^|[\s|({])([a-z]+)-[a-z]\w*/gi)].map((m) => m[1]);
-  if (!verbs.length) return raw !== s && /^[\s(),.\d-]*$/.test(s.replace(/'[^']*'|"[^"$]*"/g, ""));
-  if (!PWSH_SAFE_VERB.test(segmentHead(s.replace(/^\(+/, "")).head.split("-")[0])) return false;
+  if (/[>;&`]|\$\(|@\{|\[[\w.]+\]::|\.\w+\s*\(/.test(sq)) return false;
+  const verbs = [...sq.matchAll(/(?:^|[\s|({])([a-z]+)-[a-z]\w*/gi)].map((m) => m[1]);
+  if (!verbs.length) {
+    return pwshExprOnly(s) || (raw !== s && /^[\s(),.\d-]*$/.test(sq));
+  }
+  const segHeadName = segmentHead(s.replace(/^\(+/, "")).head;
+  if (/^[a-z]+-[a-z]/i.test(segHeadName) && !PWSH_SAFE_VERB.test(segHeadName.split("-")[0])) return false;
   if (!verbs.every((v) => PWSH_SAFE_VERB.test(v))) return false;
-  return (s.match(/\{[^{}]*\}/g) || []).every((b) => PWSH_PURE_BLOCK.test(b) || pwshBlockReadonly(b.slice(1, -1))) && !/[{}]/.test(s.replace(/\{[^{}]*\}/g, ""));
+  return (sq.match(/\{[^{}]*\}/g) || []).every((b) => PWSH_PURE_BLOCK.test(b) || pwshBlockReadonly(b.slice(1, -1))) && !/[{}]/.test(sq.replace(/\{[^{}]*\}/g, ""));
 }
 
+// piped-arg runners may only invoke filter-style commands: anything else can
+// mutate the system even when its bare form looks read-only (xargs mount)
+const PIPED_INNER_OK = new Set([
+  "grep", "egrep", "fgrep", "rg", "wc", "sort", "awk", "gawk", "sed", "echo",
+  "printf", "tr", "cut", "file", "stat", "ls", "du", "df", "basename",
+  "dirname", "realpath", "readlink", "md5", "md5sum", "shasum", "sha1sum",
+  "sha256sum", "sha512sum", "b2sum", "cksum", "sum", "uniq", "numfmt",
+  "column", "nl", "pr", "fold", "rev", "getfattr", "lsattr", "date",
+  "find", "shuf", "less", "more",
+  // shells are just runners — the inner command was already vetted above
+  "sh", "bash", "zsh", "fish", "dash", "pwsh", "powershell", "cmd",
+]);
+
 function isReadonlySegment(segment, shell, depth = 0) {
+  const trimmed = segment.trim();
+  // function definitions only declare; the body is risk-checked later anyway
+  if (/^[\w.-]+\s*\(\s*\)\s*\{/s.test(trimmed)) {
+    return true;
+  }
+  // bare shell assignments (X=1) mutate only session state
+  if (!/^["'`]/.test(trimmed) && /^[A-Za-z_][A-Za-z0-9_]*=\S*(\s+[A-Za-z_][A-Za-z0-9_]*=\S*)*$/.test(trimmed)) {
+    return true;
+  }
+  // a segment that is only a quoted literal cannot execute — require the
+  // content to start like a word, so e.g. a markdown "# h1" fragment stays
+  // unparseable; text after the quote (e.g. "... -f <expr>") is a real command
+  if (/^["'][^"']*["']\s*$/.test(trimmed)) {
+    return /^["'][A-Za-z]/.test(trimmed);
+  }
   const { head, args } = segmentHead(segment);
+  const windows = shell === "powershell" || shell === "pwsh" || shell === "cmd";
   if (!head) {
+    // token-less or expression-only text ("[Env]::SetX(...", "C:\tmp\") is not
+    // a recognised read-only command; let the PowerShell checks decide there
+    return windows ? pwshReadonly(segment) : false;
+  }
+  // a leftover flag fragment after a split ("cmd | --flag") cannot execute;
+  // only applies to real segments, not wrapper inner commands
+  if (head.startsWith("-") && depth === 0) {
     return true;
   }
 
@@ -650,6 +1077,10 @@ function isReadonlySegment(segment, shell, depth = 0) {
       if (!innerReadonly || RISK_SCORE[innerRisk] > RISK_SCORE.low) {
         return false;
       }
+      if ((head === "xargs" || head === "find") && !PIPED_INNER_OK.has(segmentHead(inner).head)) {
+        return false;
+      }
+      return true;
     }
   }
 
@@ -658,12 +1089,20 @@ function isReadonlySegment(segment, shell, depth = 0) {
     return false;
   }
 
-  const windows = shell === "powershell" || shell === "pwsh" || shell === "cmd";
+  // a head with a curated args rule (and no subcommand table) may not be
+  // rescued by the looser PowerShell expression checks below
+  const argsRule = READONLY_ARGS[head];
+  if (argsRule && !READONLY_SUBCOMMANDS[head] && !argsRule.test(args.trim())) {
+    return false;
+  }
+
   const table = windows ? READONLY_HEADS_WINDOWS : READONLY_HEADS_UNIX;
   if (windows && pwshReadonly(segment)) {
     return true;
   }
-  if (table.has(head) || READONLY_ARGS[head]?.test(args.trim())) {
+  // a leading '(' wraps an expression (e.g. (Get-Item x).Delete()) — the
+  // head table would see only the inner command name, not the method tail
+  if ((!trimmed.startsWith("(") && table.has(head)) || argsRule?.test(args.trim())) {
     return true;
   }
   const sub = READONLY_SUBCOMMANDS[head];
@@ -702,25 +1141,33 @@ function patternRisk(segment) {
   if (rm) {
     return { risk: rm.risk, reason: rm.reason };
   }
+  const masked = segment.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '""');
+  // rmHead patterns: the rm token must sit outside quotes, but the target
+  // check runs on the raw text so rm -rf "~" still resolves
+  const rmOutsideQuotes = /\b(rm|ri|rd|rmdir|del|erase|Remove-Item)\b/i.test(masked);
   let risk = "low";
   let reason = "";
-  for (const { re, reason: r } of CRITICAL_PATTERNS) {
-    if (re.test(segment)) {
+  for (const { re, reason: r, mask, rmHead } of CRITICAL_PATTERNS) {
+    if (rmHead && !rmOutsideQuotes) continue;
+    if (re.test(mask ? masked : segment)) {
       return { risk: "critical", reason: r };
     }
   }
-  for (const { re, reason: r } of HIGH_PATTERNS) {
-    if (re.test(segment)) {
+  for (const { re, reason: r, mask } of HIGH_PATTERNS) {
+    if (re.test(mask ? masked : segment)) {
       return { risk: "high", reason: r };
     }
   }
-  for (const { re, reason: r } of MODERATE_PATTERNS) {
-    if (re.test(segment)) {
+  for (const { re, reason: r, mask } of MODERATE_PATTERNS) {
+    if (re.test(mask ? masked : segment)) {
       risk = "moderate";
       reason = r;
     }
   }
-  const masked = segment.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '""');
+  if (risk === "low" && readsSecrets(segment, segHeadEarly)) {
+    risk = "moderate";
+    reason = "reads or prints secrets";
+  }
   if (risk === "low" && />\s*[^|&]/.test(masked)) {
     risk = "moderate";
     reason = "output redirection (file write)";
@@ -815,8 +1262,9 @@ export function analyzeCommand(command, { shell = "sh", _depth = 0 } = {}) {
       return { risk: "critical", readonly: false, tags, caps, reasons: [reason] };
     }
   }
-  for (const { re, reason } of LINE_HIGH) {
-    if (re.test(text)) {
+  const lineMasked = text.replace(/"[^"]*"|'[^']*'/g, '""');
+  for (const { re, reason, mask } of LINE_HIGH) {
+    if (re.test(mask ? lineMasked : text)) {
       risk = "high";
       reasons.push(reason);
       if (/remote script|encoded/i.test(reason)) tags.add("remote-or-encoded");
@@ -831,13 +1279,18 @@ export function analyzeCommand(command, { shell = "sh", _depth = 0 } = {}) {
     const segReadonly = isReadonlySegment(segment, shell);
     let { risk: segRisk, reason } = patternRisk(segment);
     const { head: segHead, args: segArgs } = segmentHead(segment);
-    const inner = innerCommandOf(segHead, segArgs);
-    if (inner) {
+    let inner = innerCommandOf(segHead, segArgs);
+    // walk wrappers recursively (xargs → sh -c → rm {}) so nested risk surfaces
+    for (let guard = 0; inner && guard < 4; guard += 1) {
       const innerRes = patternRisk(inner);
       if (RISK_SCORE[innerRes.risk] > RISK_SCORE[segRisk]) {
         segRisk = innerRes.risk;
         reason = innerRes.reason;
       }
+      const { head: ih, args: ia } = segmentHead(inner);
+      const deeper = innerCommandOf(ih, ia);
+      if (!deeper || deeper === inner) break;
+      inner = deeper;
     }
     for (const c of capsForSegment(segHead, segArgs, reason)) caps.add(c);
     if (!segReadonly) {
@@ -853,11 +1306,25 @@ export function analyzeCommand(command, { shell = "sh", _depth = 0 } = {}) {
     if (segRisk === "high" && /remote script|encoded/i.test(reason)) tags.add("remote-or-encoded");
   }
 
+  // "yes" is only read-only when a downstream segment terminates the stream
+  const segHeads = segments.map((s) => segmentHead(s).head);
+  if (segHeads.includes("yes") && segments.length > 1
+    && !segHeads.some((h) => ["head", "tail", "less", "more", "shuf", "grep", "egrep", "fgrep", "rg", "awk", "gawk", "sed", "dd", "timeout", "gtimeout", "jq"].includes(h))) {
+    readonly = false;
+  }
+
   const subs = substitutionBodies(text, shell);
   if (subs.length) {
     tags.add("substitution");
     let allClean = true;
     for (const body of subs) {
+      // arithmetic expansion $(( expr )) evaluates, never executes
+      const arith = body
+        .replace(/\$\([^()]*\)/g, "0")
+        .replace(/\$\{[^}]*\}/g, "0")
+        .replace(/\$[\w]+/g, "0")
+        .replace(/'[^']*'|"[^"]*"/g, "0");
+      if (/^[\s()\d+\-*/%<>=!&|^~?:.,]*$/.test(arith)) continue;
       const res = _depth >= 3 ? { readonly: false, risk: "moderate" } : analyzeCommand(body, { shell, _depth: _depth + 1 });
       if (!res.readonly || res.risk !== "low") allClean = false;
       if (RISK_SCORE[res.risk] > RISK_SCORE[risk]) risk = res.risk;

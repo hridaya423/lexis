@@ -547,3 +547,19 @@ test("awk $(...) inside single quotes is not a substitution; fc -l lists history
   for (const cmd of ["fc", "fc -e vim", "fc -s ls"]) assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
   assert.equal(analyzeCommand("echo $(rm -rf ~)", sh).risk, "critical");
 });
+
+test("corpus-derived cases: destructive cmdlets, ipconfig, secrets, hosts writes", () => {
+  const ps = { shell: "powershell" };
+  assert.equal(analyzeCommand("Format-Volume -DriveLetter E -FileSystem NTFS", ps).risk, "critical");
+  assert.equal(analyzeCommand("Format-Table Name, Length", ps).readonly, true);
+  assert.equal(analyzeCommand("ipconfig /release", ps).readonly, false);
+  assert.equal(analyzeCommand("ipconfig /flushdns", ps).readonly, false);
+  const priv = analyzeCommand("cat ~/.ssh/id_rsa", sh);
+  assert.equal(priv.readonly, false);
+  assert.ok(priv.caps.includes("secrets"), `expected secrets cap, got ${priv.caps}`);
+  assert.ok(["moderate", "high", "critical"].includes(priv.risk), priv.risk);
+  assert.equal(analyzeCommand("cat ~/.ssh/id_rsa.pub", sh).readonly, true);
+  assert.ok(["high", "critical"].includes(analyzeCommand('Add-Content -Path "C:\\Windows\\System32\\drivers\\etc\\hosts" -Value "1.2.3.4 x"', ps).risk));
+  assert.equal(analyzeCommand("curl.exe -I https://example.com", ps).readonly, true);
+  assert.equal(analyzeCommand("nc -l 4444 -e /bin/sh", sh).risk, "critical");
+});

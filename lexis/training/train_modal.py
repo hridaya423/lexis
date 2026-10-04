@@ -52,7 +52,7 @@ vol = modal.Volume.from_name("lx-models", create_if_missing=True)
 data_vol = modal.Volume.from_name("lx-data", create_if_missing=True)
 
 
-def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16, eval_data, full):
+def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16, eval_data, full, seed=7):
     import glob
     import json
     import os
@@ -103,7 +103,7 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
         per_device_eval_batch_size=16,
         gradient_checkpointing=full,
         report_to=[],
-        seed=7,
+        seed=seed,
     )
     peft_config = None
     if not full:
@@ -166,8 +166,8 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
 
 @app.function(gpu="A10G", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
 def train(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 0.0,
-          max_steps: int = -1, limit: int = 0, eval_data: str = "sft_val_chat.jsonl", full: bool = False):
-    _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, True, eval_data, full)
+          max_steps: int = -1, limit: int = 0, eval_data: str = "sft_val_chat.jsonl", full: bool = False, seed: int = 7):
+    _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, True, eval_data, full, seed)
 
 
 @app.function(cpu=8, timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
@@ -180,6 +180,8 @@ def train_cpu(model_id: str, data_name: str, out_name: str, epochs: float = 1.0,
 def main(model: str = "Qwen/Qwen2.5-Coder-0.5B-Instruct", data: str = "sft_train_chat.jsonl",
          out: str = "lx-pilot", epochs: float = 1.0, lr: float = 0.0,
          cpu: bool = False, max_steps: int = -1, limit: int = 0,
-         eval_data: str = "sft_val_chat.jsonl", full: bool = False):
-    fn = train_cpu if cpu else train
-    fn.remote(model, data, out, epochs, lr, max_steps, limit, eval_data, full)
+         eval_data: str = "sft_val_chat.jsonl", full: bool = False, seed: int = 7):
+    if cpu:
+        train_cpu.remote(model, data, out, epochs, lr, max_steps, limit, eval_data, full)
+    else:
+        train.remote(model, data, out, epochs, lr, max_steps, limit, eval_data, full, seed)

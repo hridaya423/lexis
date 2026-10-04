@@ -8,11 +8,10 @@ import { fileURLToPath } from "node:url";
 import { loadConfig } from "../src/config.mjs";
 import { loadSystemPrompt } from "../src/prompt.mjs";
 import { generatePlan, estimateTimeoutMs, PLAIN_SYSTEM_PROMPT } from "../src/planner.mjs";
-import { applyPolicyToPlan, RISK_SCORE } from "../src/policy.mjs";
 import { PROVIDERS } from "../src/providers/index.mjs";
 import { getMachine } from "../src/machine.mjs";
 import { LLAMA_CPP_TAG } from "../src/runtime/llama-release.mjs";
-import { execCheck, execWanted } from "./exec-judge.mjs";
+import { gradeCase } from "./grade.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
@@ -280,56 +279,16 @@ async function main() {
       if (error) break;
     }
 
-    let commands = [];
-    let checks = {};
-    let policyFloor = null;
-    try {
-    commands = plan?.commands?.map((c) => c.command) || [];
-    const expect = testCase.expect || {};
-    const joined = commands.join(" ; ");
-
-    checks = {
-      jsonValid: Boolean(plan),
-      anyMatch: expect.anyOfRegex ? expect.anyOfRegex.some((re) => new RegExp(re, "i").test(joined)) : true,
-      noForbidden: expect.mustNotMatch ? !expect.mustNotMatch.some((re) => new RegExp(re, "i").test(joined)) : true,
-      commandCountOk: commands.length > 0 && commands.length <= (expect.maxCommands || 6),
-    };
-
-            if (expect.platforms && plan) {
-      checks.platformOk = plan.commands.every((c) => {
-        const p = String(c.platform || "all");
-        return p === "all" || expect.platforms.includes(p);
-      });
-    }
-
-    if (plan) {
-      const pol = applyPolicyToPlan(plan, { shell });
-      policyFloor = pol.maxRisk;
-      if (expect.expectedRiskAtLeast) {
-        checks.riskFloor = RISK_SCORE[pol.maxRisk] >= RISK_SCORE[expect.expectedRiskAtLeast];
-      }
-      if (expect.readonly !== undefined) {
-        checks.readonly = pol.readonly === expect.readonly;
-      }
-    }
-
-    if (expect.exec && execWanted(args.exec, execOs(testCase)) && commands.length) {
-      const r = await execCheck(commands[0], expect.exec, execOs(testCase));
-      if (r.pass !== null) checks.execOk = r.pass;
-      if (r.pass !== true && r.detail) checks.execDetail = String(r.detail).slice(0, 120);
-    }
-    } catch (e) {
-                  error = error || `harness: ${e.message}`;
-      checks.harnessOk = false;
-    }
-
-    const pass = Object.entries(checks).filter(([k]) => k !== "execDetail").every(([, v]) => Boolean(v)) && !error;
+    const graded = await gradeCase({ testCase, plan, error, shell, execOs: execOs(testCase), execMode: args.exec });
+    const { commands, checks, policyFloor, pass, passStrict } = graded;
+    error = graded.error;
     const latencies = runs.map((r) => r.latencyMs);
     results.push({
       id: testCase.id,
       os: caseOs(testCase),
       intent: testCase.intent,
       pass,
+      passStrict,
       error,
       coldMs: latencies[0] ?? null,
       warmMs: latencies.slice(1),
@@ -372,6 +331,7 @@ async function main() {
     repeat,
     total: results.length,
     passed,
+    passedStrict: results.filter((r) => r.passStrict).length,
     passRate: results.length ? passed / results.length : 0,
     byOs,
     coldP50Ms: pick(cold, 0.5),

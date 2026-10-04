@@ -1,0 +1,10 @@
+# heavy, re-downloadable sources and intermediates
+raw/video/
+raw/img/
+raw/sheets/
+research/refs/
+film/renders/
+film/node_modules/
+film/.hyperframes/
+film/snapshots/
+*.f32

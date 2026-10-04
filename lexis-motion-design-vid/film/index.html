@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Lexis — Still memorizing</title>
+    <script src="vendor/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Departure Mono";
+        src: url("assets/fonts/DepartureMono-1.500.woff2") format("woff2");
+        font-display: block;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0e160a; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #0e160a; font-family: "Departure Mono", monospace; }
+      #bg, #grid, canvas { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+      #grid { background-image: url("assets/lcd-substrate.svg"); background-size: 6px 6px; pointer-events: none; }
+      .m { position: absolute; overflow: hidden; display: none; }
+      .m .z { position: absolute; inset: 0; }
+      .m img, .m video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+      .th { position: absolute; display: none; }
+      .th img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      #over { z-index: 5; } #demo { z-index: 6; } #key { z-index: 7; } #cur { z-index: 8; }
+      #cur { position: absolute; left: 0; top: 0; width: 30px; height: 54px; background: #ff735b; visibility: hidden; }
+      #demo { position: absolute; inset: 0; display: none; }
+      .ln { position: absolute; left: 0; top: 0; height: 120px; width: 1920px; }
+      .ch { position: absolute; left: 0; top: 0; font-size: 104px; line-height: 130px; color: #182510; white-space: pre; transform-origin: 0 0; }
+      #key { position: absolute; left: 0; top: 0; width: 176px; height: 86px; perspective: 700px; display: none; }
+      #key .kc { position: absolute; inset: 0; transform-style: preserve-3d; }
+      #key .face { position: absolute; inset: 0; border-radius: 12px; }
+      #key .top { background: url("assets/keycap-coral.svg") center / 100% 100% no-repeat; display: flex; align-items: center; justify-content: center; font-size: 46px; color: #5a1d12; }
+      #key .side { background: #9c3a29; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="15" data-fps="60" data-width="1920" data-height="1080">
+      <div id="bg"></div>
+      <div id="grid"></div>
+      <canvas id="under" width="1920" height="1080" data-layout-allow-overflow></canvas>
+
+      <div class="m" id="w-eniac"><div class="z"><img src="assets/i/eniac.png" alt=""></div></div>
+      <div class="m" id="w-card"><div class="z"><video id="v-card" class="clip" src="assets/v/card.mp4" muted playsinline data-start="1.000" data-duration="0.3767" data-media-start="0.25" data-track-index="1"></video></div></div>
+      <div class="m" id="w-tape"><div class="z"><video id="v-tape" class="clip" src="assets/v/tape.mp4" muted playsinline data-start="1.366" data-duration="0.3100" data-media-start="0.2" data-track-index="2"></video></div></div>
+      <div class="m" id="w-pen"><div class="z"><video id="v-pen" class="clip" src="assets/v/lightpen.mp4" muted playsinline data-start="1.366" data-duration="0.3100" data-media-start="0.3" data-track-index="3"></video></div></div>
+      <div class="m" id="w-binary"><div class="z"><video id="v-binary" class="clip" src="assets/v/binary.mp4" muted playsinline data-start="1.666" data-duration="0.2767" data-media-start="0.4" data-track-index="1"></video></div></div>
+      <div class="m" id="w-hamilton"><div class="z"><img src="assets/i/hamilton.png" alt=""></div></div>
+      <div class="m" id="w-scope"><div class="z"><video id="v-scope" class="clip" src="assets/v/scope.mp4" muted playsinline data-start="2.166" data-duration="0.2100" data-media-start="0.3" data-track-index="2"></video></div></div>
+      <div class="m" id="w-bino"><div class="z"><video id="v-bino" class="clip" src="assets/v/binoculars.mp4" muted playsinline data-start="2.366" data-duration="0.2933" data-media-start="0.2" data-track-index="1"></video></div></div>
+      <div class="m" id="w-saturn"><div class="z"><video id="v-saturn" class="clip" src="assets/v/saturn.mp4" muted playsinline data-start="2.650" data-duration="0.6100" data-media-start="0.2" data-track-index="1"></video></div></div>
+      <div class="m" id="w-boot"><div class="z"><img src="assets/i/bootprint.png" alt=""></div></div>
+
+      <div class="th" id="t0"><img src="assets/i/th_vt100.png" alt=""></div>
+      <div class="th" id="t1"><img src="assets/i/th_teletype.png" alt=""></div>
+      <div class="th" id="t2"><img src="assets/i/th_dsky.png" alt=""></div>
+      <div class="th" id="t3"><img src="assets/i/th_eniac2.png" alt=""></div>
+      <div class="th" id="t4"><img src="assets/i/th_704.png" alt=""></div>
+      <div class="th" id="t5"><img src="assets/i/th_hopper.png" alt=""></div>
+      <div class="th" id="t6"><img src="assets/i/th_reader.png" alt=""></div>
+      <div class="th" id="t7"><img src="assets/i/th_earthrise.png" alt=""></div>
+      <div class="th" id="t8"><img src="assets/i/th_cards.png" alt=""></div>
+      <div class="th" id="t9"><img src="assets/i/th_punch.png" alt=""></div>
+      <div class="th" id="t10"><img src="assets/i/th_human704.png" alt=""></div>
+      <div class="th" id="t11"><img src="assets/i/th_friden.png" alt=""></div>
+      <div class="th" id="t12"><img src="assets/i/th_edp.png" alt=""></div>
+      <div class="th" id="t13"><img src="assets/i/th_eniacw.png" alt=""></div>
+      <div class="th" id="t14"><img src="assets/i/th_ham.png" alt=""></div>
+      <div class="th" id="t15"><img src="assets/i/th_tape.png" alt=""></div>
+      <div class="m" id="w-earth"><div class="z"><img src="assets/i/earth.png" alt=""></div></div>
+
+      <div class="m" id="w-chip"><div class="z"><img src="assets/i/chip.png" alt=""></div></div>
+      <div class="m" id="w-brain"><div class="z"><img src="assets/i/brain.png" alt=""></div></div>
+      <div class="m" id="w-probe"><div class="z"><video id="v-probe" class="clip" src="assets/v/probe.mp4" muted playsinline data-start="5.850" data-duration="0.4100" data-media-start="0.2" data-track-index="1"></video></div></div>
+      <div class="m" id="w-fludd"><div class="z"><img src="assets/i/fludd.png" alt=""></div></div>
+
+      <audio id="score" src="assets/score.wav" data-start="0" data-duration="15" data-track-index="9" data-volume="1"></audio>
+      <canvas id="over" width="1920" height="1080" data-layout-allow-overflow></canvas>
+      <div id="demo" data-layout-allow-overlap data-layout-allow-overflow></div>
+      <div id="key"><div class="kc"><div class="face side" id="k-side"></div><div class="face top" id="k-top">↵</div></div></div>
+      <div id="cur"></div>
+    </div>
+    <script src="js/logo-cells.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/film.js"></script>
+    <script>
+      window.LX_BUILD.then(({ tl }) => {
+        window.__timelines["main"] = tl;
+        if (window.__hfForceTimelineRebind) window.__hfForceTimelineRebind();
+      });
+    </script>
+  </body>
+</html>

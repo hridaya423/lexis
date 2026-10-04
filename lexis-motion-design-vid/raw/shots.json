@@ -1,0 +1,401 @@
+[
+ {
+  "name": "eniac",
+  "src": "img/eniac_reprogram.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5,
+  "gamma": 0.72,
+  "pct": [
+   1,
+   99.5
+  ]
+ },
+ {
+  "name": "card",
+  "src": "video/0772_On_Guard_The_Story_of_SAGE_18_48_05_00.mp4",
+  "ss": 165.0,
+  "dur": 1.4,
+  "size": [
+   1200,
+   900
+  ],
+  "mode": "cells",
+  "pitch": 7,
+  "gap": 1,
+  "s": 0.3
+ },
+ {
+  "name": "tape",
+  "src": "video/0766_Data_Processing_Division_M05911_22_16_30_00.mp4",
+  "ss": 451.0,
+  "dur": 1.4,
+  "size": [
+   720,
+   540
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "lightpen",
+  "src": "video/0767_Incredible_Machine_The_20_26_47_00_3mb.mp4",
+  "ss": 104.5,
+  "dur": 1.4,
+  "size": [
+   720,
+   540
+  ],
+  "mode": "inv",
+  "s": 0.4
+ },
+ {
+  "name": "binary",
+  "src": "video/0562_Vista_Stock_Shots_Fairchild_Semiconductor_Roll_F-11_13_31_25_00_3mb.mp4",
+  "ss": 782.0,
+  "dur": 1.4,
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "icells",
+  "pitch": 12,
+  "gap": 2,
+  "s": 0.5
+ },
+ {
+  "name": "hamilton",
+  "src": "img/hamilton.jpg",
+  "size": [
+   720,
+   900
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "scope",
+  "src": "video/0562_Vista_Stock_Shots_Fairchild_Semiconductor_Roll_F-11_13_31_25_00_3mb.mp4",
+  "ss": 197.0,
+  "dur": 1.4,
+  "size": [
+   800,
+   800
+  ],
+  "mode": "inv",
+  "s": 0.4
+ },
+ {
+  "name": "binoculars",
+  "src": "video/nasa_mcc.mp4",
+  "ss": 730.0,
+  "dur": 1.6,
+  "crop": [
+   0.125,
+   0,
+   0.75,
+   1
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "saturn",
+  "src": "video/nasa_saturnv.mp4",
+  "ss": 100.0,
+  "dur": 1.8,
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.45,
+  "crop": [
+   0.03,
+   0,
+   0.94,
+   1
+  ]
+ },
+ {
+  "name": "pad",
+  "src": "video/nasa_saturnv.mp4",
+  "ss": 26.0,
+  "dur": 1.5,
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.45,
+  "crop": [
+   0.03,
+   0,
+   0.94,
+   1
+  ]
+ },
+ {
+  "name": "bootprint",
+  "src": "img/bootprint.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.45,
+  "crop": [
+   0.12,
+   0.516,
+   0.6,
+   0.3375
+  ]
+ },
+ {
+  "name": "earth",
+  "src": "img/blue_marble_cut.png",
+  "size": [
+   900,
+   900
+  ],
+  "mode": "cells",
+  "pitch": 9,
+  "gap": 1,
+  "alpha": true,
+  "s": 0.45,
+  "cg": 0.55,
+  "pct": [
+   1,
+   99
+  ]
+ },
+ {
+  "name": "wafer",
+  "src": "video/Vista_Color_Fairchild_Reel_65.intros.ia.mp4",
+  "ss": 503.0,
+  "dur": 1.6,
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "cells",
+  "pitch": 10,
+  "gap": 2,
+  "s": 0.4
+ },
+ {
+  "name": "probe",
+  "src": "video/Vista_Color_Fairchild_Reel_65.intros.ia.mp4",
+  "ss": 546.0,
+  "dur": 1.6,
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "icells",
+  "pitch": 8,
+  "gap": 1,
+  "s": 0.4
+ },
+ {
+  "name": "chip",
+  "src": "img/intel4004_layout.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "brain",
+  "src": "img/vesalius_brain.jpg",
+  "size": [
+   1080,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "fludd",
+  "src": "img/fludd_oculus.jpg",
+  "size": [
+   1440,
+   1000
+  ],
+  "mode": "inv",
+  "s": 0.2,
+  "neg": true,
+  "gamma": 0.6
+ },
+ {
+  "name": "th_vt100",
+  "src": "img/vt100_cut.png",
+  "size": [
+   420,
+   372
+  ],
+  "mode": "duo",
+  "alpha": true,
+  "s": 0.45
+ },
+ {
+  "name": "th_teletype",
+  "src": "img/teletype33.jpg",
+  "size": [
+   360,
+   270
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_reader",
+  "src": "img/hollerith_reader.jpg",
+  "size": [
+   270,
+   360
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_dsky",
+  "src": "img/dsky.jpg",
+  "size": [
+   360,
+   280
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_eniac2",
+  "src": "img/eniac_beck_snyder.jpg",
+  "size": [
+   360,
+   270
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_704",
+  "src": "img/ibm704_langley.jpg",
+  "size": [
+   360,
+   230
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_hopper",
+  "src": "img/hopper_univac.jpg",
+  "size": [
+   300,
+   260
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_cards",
+  "src": "img/card_storage.jpg",
+  "size": [
+   320,
+   250
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_earthrise",
+  "src": "img/earthrise.jpg",
+  "size": [
+   300,
+   300
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_punch",
+  "src": "img/punchcard_photo.jpg",
+  "size": [
+   300,
+   155
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_human704",
+  "src": "img/human_computer_704.jpg",
+  "size": [
+   300,
+   170
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_friden",
+  "src": "img/langley_friden.jpg",
+  "size": [
+   260,
+   208
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_edp",
+  "src": "img/ibm_edp.jpg",
+  "size": [
+   300,
+   238
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_eniacw",
+  "src": "img/eniac_two_women.png",
+  "size": [
+   300,
+   198
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_ham",
+  "src": "img/hamilton.jpg",
+  "size": [
+   180,
+   224
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th_tape",
+  "src": "img/card_storage.jpg",
+  "size": [
+   220,
+   174
+  ],
+  "mode": "cells",
+  "pitch": 4,
+  "gap": 1
+ }
+]

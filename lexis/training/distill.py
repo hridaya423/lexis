@@ -73,10 +73,52 @@ in batches of about 40 lines per write until it has {n} lines. Do not modify any
 When done, print the number of lines in {sid}.out.jsonl."""
 
 
-def shard(outdir):
+AREAS_R2 = {
+    "darwin": [
+        "defaults read/write and app preferences", "launchctl and launchd agents/daemons", "plist files with plutil and PlistBuddy",
+        "Spotlight: mdfind and mdls", "disks and images: diskutil, hdiutil, mounting and ejecting", "network config: networksetup, scutil, ipconfig, wifi",
+        "power and sleep: pmset, caffeinate, battery", "security: codesign, spctl, xattr and quarantine, keychain with security",
+        "media on mac: sips, afconvert, say, screencapture", "clipboard and opening things: pbcopy, pbpaste, open, Finder reveal",
+        "Time Machine (tmutil), softwareupdate and system versions", "Xcode tools: xcode-select, xcrun, simctl, swift build",
+        "Homebrew in depth: services, casks, taps, pins, cleanup", "BSD userland text and file tools used correctly on macOS (sed -i '', stat -f, date -v, find -E)",
+        "Bluetooth, Bonjour (dns-sd) and notifications (osascript display notification)"],
+    "linux": [
+        "systemd units, timers and journalctl in depth", "apt, dpkg, snap and flatpak package management", "ip, ss, nmcli, resolvectl and DNS",
+        "block devices and mounts: lsblk, blkid, mount, fstab, df", "users, groups, sudo and passwords", "cron, at and systemd timers for scheduling",
+        "kernel and hardware: uname, sysctl, modprobe, lsmod, dmesg, lspci, lsusb", "firewall: ufw and iptables/nftables",
+        "links, permissions, ACLs and special bits", "GNU-only flags used correctly (find -printf, sed -i, date -d, stat -c, du --max-depth, sort -h, grep -P)",
+        "clipboard and desktop integration: xclip, xsel, wl-copy, xdg-open, notify-send", "lsof, fuser, strace, ps and /proc inspection",
+        "memory and swap: free, vmstat, swapon, /proc/meminfo, top in batch mode", "logs in /var/log, logrotate, tail and grep on logs",
+        "docker and docker compose on a linux server"],
+    "windows": [
+        "services: Get-Service, Start/Stop/Restart-Service, Set-Service, sc.exe", "registry: Get-ItemProperty, Set-ItemProperty, New-Item, reg.exe",
+        "event logs: Get-WinEvent with filters", "networking: Get-NetIPAddress, Test-NetConnection, Resolve-DnsName, Get-NetTCPConnection, ipconfig, netsh",
+        "disks, volumes and partitions: Get-Volume, Get-Disk, Get-PSDrive, fsutil", "scheduled tasks: Get/Register/Unregister-ScheduledTask, schtasks",
+        "environment variables: $env:, [Environment]::SetEnvironmentVariable, setx, PATH edits", "file content ops: Get-Content -Tail/-Wait, Select-String, Set-Content, Add-Content, Out-File",
+        "files and folders: Get-ChildItem filters, Copy/Move/Remove/Rename-Item, sizes with Measure-Object", "hashing, certificates and signatures: Get-FileHash, Cert:, Get-AuthenticodeSignature",
+        "packages: winget, choco, scoop, Get-Package, Install-Module", "system repair and info: DISM, sfc, Get-ComputerInfo, systeminfo, Get-CimInstance",
+        "WSL, Hyper-V and virtualization", "symlinks, junctions and hard links with New-Item and mklink", "firewall rules, users and groups: New-NetFirewallRule, Get-LocalUser, Get-LocalGroupMember"],
+    "any": [
+        "advanced git: rebase, reflog, bisect, worktrees, tags, submodules, cherry-pick", "json and yaml with jq and yq", "ssh, scp, rsync, keys and tunnels",
+        "curl against APIs: auth headers, JSON bodies, uploads, status codes", "encoding and hashing: base64, hex, iconv, checksums",
+        "kubectl day-to-day", "python environments: venv, pip, uv, pipx", "node toolchains: npm, pnpm, yarn, npx scripts",
+        "text pipelines combining awk, sed, sort, uniq, cut, tr, paste, column"],
+}
+
+
+def shard(outdir, round2=False):
     out = Path(outdir)
     out.mkdir(parents=True, exist_ok=True)
     i = 0
+    if round2:
+        for os_key, (os_name, shell, tooling) in PLATFORMS.items():
+            for area in AREAS_R2[os_key] + AREAS_R2["any"]:
+                sid = f"shard_{i:03d}"
+                (out / f"{sid}.prompt.md").write_text(PROMPT.format(os_name=os_name, shell=shell, tooling=tooling, area=area, n=PER_SHARD, sid=sid))
+                (out / f"{sid}.meta.json").write_text(json.dumps({"os": os_key, "area": area}))
+                i += 1
+        print(f"{i} shards -> {out}")
+        return
     for area in AREAS:
         for os_key, (os_name, shell, tooling) in PLATFORMS.items():
             sid = f"shard_{i:03d}"
@@ -117,4 +159,4 @@ def collect(outdir):
 
 
 if __name__ == "__main__":
-    {"shard": shard, "collect": collect}[sys.argv[1]](sys.argv[2])
+    {"shard": shard, "shard2": lambda d: shard(d, True), "collect": collect}[sys.argv[1]](sys.argv[2])

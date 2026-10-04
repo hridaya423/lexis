@@ -33,7 +33,7 @@
 {"id":"v33","platform":"unix","intent":"run myscript.sh in the background","expect":{"anyOfRegex":["(nohup\\s+)?\\./?myscript\\.sh\\s*&","nohup.*myscript","myscript\\.sh\\s*&"],"maxCommands":2}}
 {"id":"v34","platform":"unix","intent":"what's using the most memory right now","expect":{"anyOfRegex":["ps\\s+.*sort.*mem|ps\\s+.*-o.*mem|top\\s+.*-o.*mem|ps\\s+.*%mem"],"maxCommands":3,"readonly":true}}
 {"id":"v35","platform":"unix","intent":"show the last 10 commits","expect":{"anyOfRegex":["git\\s+log\\s+(-n?\\s*10|--oneline|-10)|git\\s+log"],"maxCommands":2,"readonly":true}}
-{"id":"v36","platform":"unix","intent":"create and switch to a branch called feature-x","expect":{"anyOfRegex":["git\\s+(checkout|switch)\\s+-b\\s+feature-x|git\\s+checkout\\s+-b","git\\s+branch.*feature-x.*checkout"],"maxCommands":3}}
+{"id":"v36","platform":"unix","intent":"create and switch to a branch called feature-x","expect":{"anyOfRegex":["git\\s+(checkout|switch)\\s+-b\\s+feature-x|git\\s+checkout\\s+-b","git\\s+branch.*feature-x.*checkout","git\\s+switch\\s+-c\\s+feature-x"],"maxCommands":3}}
 {"id":"v37","platform":"unix","intent":"show which files changed in the last commit","expect":{"anyOfRegex":["git\\s+show\\s+(--name-only|--stat|--oneline|.*name)","git\\s+diff-tree.*--name","git\\s+show"],"maxCommands":2,"readonly":true}}
 {"id":"v38","platform":"unix","intent":"stash my current changes","expect":{"anyOfRegex":["git\\s+stash(\\s|$)","git\\s+stash\\s+push"],"maxCommands":2}}
 {"id":"v39","platform":"unix","intent":"show the remote url for this repo","expect":{"anyOfRegex":["git\\s+remote\\s+(-v|get-url|show)","git\\s+config.*remote.*url"],"maxCommands":2,"readonly":true}}

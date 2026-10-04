@@ -480,3 +480,12 @@ test("PowerShell expressions, blocks, -WhatIf, and admin read tools", () => {
     assert.equal(analyzeCommand(cmd, ps).readonly, false, cmd);
   }
 });
+
+test("discarding output keeps a command readonly; real redirects and inner risks do not", () => {
+  for (const [cmd, shell] of [["ls -l ~/.zshrc 2>/dev/null", "zsh"], ["grep -r x . 2>/dev/null | head", "zsh"], ["ls >/dev/null 2>&1", "zsh"], ["Get-Process 2>$null", "powershell"]]) {
+    assert.equal(analyzeCommand(cmd, { shell }).readonly, true, cmd);
+  }
+  for (const cmd of ["cat f 2>/dev/null > out.txt", "echo x >/dev/nullx"]) assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  assert.equal(analyzeCommand("rm -rf ~ 2>/dev/null", sh).risk, "critical");
+  assert.equal(analyzeCommand("ls $(rm -rf ~)", sh).risk, "critical");
+});

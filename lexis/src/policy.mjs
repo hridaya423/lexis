@@ -335,8 +335,11 @@ function splitScan(text, useDepth) {
   return { segments, depth };
 }
 
+// discarding output (2>/dev/null, >$null, 2>&1, | Out-Null) writes nothing the user owns
+const NULL_REDIRECT = /\s*(?:[12&]?>>?\s*(?:\/dev\/null|\$null)\b|[12]>&[12]\b|\|\s*Out-Null\b)/gi;
+
 export function splitCommandLine(line) {
-  const text = String(line || "");
+  const text = String(line || "").replace(NULL_REDIRECT, "");
   const first = splitScan(text, true);
   if (first.depth > 0) return splitScan(text, false).segments;
   return first.segments;

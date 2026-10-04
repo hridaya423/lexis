@@ -52,11 +52,31 @@ vol = modal.Volume.from_name("lx-models", create_if_missing=True)
 data_vol = modal.Volume.from_name("lx-data", create_if_missing=True)
 
 
+def _export_gguf(merged, out_name, calib_texts):
+    """HF dir at `merged` -> f16 GGUF -> imatrix -> quants, all on lx-models vol."""
+    import subprocess
+
+    gguf_f16 = f"/models/{out_name}-f16.gguf"
+    subprocess.run(["python3", "/opt/llama.cpp/convert_hf_to_gguf.py", merged,
+                    "--outfile", gguf_f16, "--outtype", "f16"], check=True)
+    calib = "/tmp/calib.txt"
+    with open(calib, "w") as f:
+        for t in calib_texts:
+            f.write(t + "\n")
+    imatrix = f"/models/{out_name}-imatrix.dat"
+    subprocess.run([f"/opt/llama-{TAG}/llama-imatrix", "-m", gguf_f16, "-f", calib,
+                    "-o", imatrix, "-c", "512", "-t", "8"], check=True)
+    for quant in ("q4_k_m", "q5_k_m", "q6_k", "q8_0"):
+        subprocess.run(["llama-quantize", "--imatrix", imatrix, gguf_f16,
+                        f"/models/{out_name}-{quant}.gguf", quant.upper()], check=True)
+    vol.commit()
+    print(f"wrote /models/{out_name}-{{f16,q4_k_m,q5_k_m,q6_k,q8_0}}.gguf")
+
+
 def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16, eval_data, full, seed=7):
     import glob
     import json
     import os
-    import subprocess
 
     from datasets import Dataset
     from transformers import AutoTokenizer
@@ -146,28 +166,103 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
     else:
         trainer.model.merge_and_unload().save_pretrained(merged)
     tok.save_pretrained(merged)
+    calib = [tok.apply_chat_template(r["messages"], tokenize=False) for r in rows[:600]]
+    _export_gguf(merged, out_name, calib)
 
-    gguf_f16 = f"/models/{out_name}-f16.gguf"
-    subprocess.run(["python3", "/opt/llama.cpp/convert_hf_to_gguf.py", merged,
-                    "--outfile", gguf_f16, "--outtype", "f16"], check=True)
-    calib = "/tmp/calib.txt"
-    with open(calib, "w") as f:
-        for r in rows[:600]:
-            f.write(tok.apply_chat_template(r["messages"], tokenize=False) + "\n")
-    imatrix = f"/models/{out_name}-imatrix.dat"
-    subprocess.run([f"/opt/llama-{TAG}/llama-imatrix", "-m", gguf_f16, "-f", calib,
-                    "-o", imatrix, "-c", "512", "-t", "8"], check=True)
-    for quant in ("q4_k_m", "q5_k_m", "q6_k", "q8_0"):
-        subprocess.run(["llama-quantize", "--imatrix", imatrix, gguf_f16,
-                        f"/models/{out_name}-{quant}.gguf", quant.upper()], check=True)
-    vol.commit()
-    print(f"wrote /models/{out_name}-{{f16,q4_k_m,q5_k_m,q6_k,q8_0}}.gguf")
+
+def _dpo(base, data_name, eval_data, out_name, beta, lr, epochs, rpo_alpha, max_steps, skip_export, seed=7, label_smoothing=0.0):
+    import json
+
+    import torch
+    from datasets import Dataset
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from trl import DPOConfig, DPOTrainer
+
+    model_path = f"/models/hf/{base}"
+    tok = AutoTokenizer.from_pretrained(model_path)
+    model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16)
+
+    def load(name):
+        rows = [json.loads(l) for l in open(f"/data/{name}") if l.strip()]
+        return Dataset.from_list([{ "prompt": r["prompt"], "chosen": r["chosen"],
+                                    "rejected": r["rejected"] } for r in rows]), rows
+
+    ds, rows = load(data_name)
+    print(f"dataset: {len(ds)} pairs")
+    val_ds, _ = load(eval_data)
+    print(f"eval: {len(val_ds)} pairs")
+
+    cfg = DPOConfig(
+        output_dir=f"/models/ckpt/{out_name}",
+        beta=beta,
+        loss_type="sigmoid",
+        rpo_alpha=rpo_alpha,
+        label_smoothing=label_smoothing,
+        learning_rate=lr,
+        num_train_epochs=epochs,
+        lr_scheduler_type="cosine",
+        warmup_ratio=0.1,
+        per_device_train_batch_size=8,
+        gradient_accumulation_steps=2,
+        max_length=512,
+        max_prompt_length=384,
+        logging_steps=10,
+        eval_strategy="steps",
+        eval_steps=20,
+        save_strategy="no",
+        seed=seed,
+        report_to=[],
+        bf16=True,
+        gradient_checkpointing=True,
+        max_steps=max_steps,
+    )
+    trainer = DPOTrainer(
+        model=model,
+        ref_model=None,  # full FT: TRL copies the model as the frozen reference
+        args=cfg,
+        train_dataset=ds,
+        eval_dataset=val_ds,
+        processing_class=tok,
+    )
+
+    def dpo_metrics(tag):
+        m = trainer.evaluate()
+        keys = ("rewards/chosen", "rewards/rejected", "rewards/accuracies",
+                "logps/chosen", "logps/rejected")
+        vals = {k: m.get(f"eval_{k}", m.get(k)) for k in keys}
+        print(f"{tag}: " + "  ".join(f"{k}={vals[k]:.4f}" if isinstance(vals[k], float) else f"{k}={vals[k]}"
+                                     for k in keys))
+        return vals
+
+    before = dpo_metrics("DPO BEFORE")
+    trainer.train()
+    after = dpo_metrics("DPO AFTER")
+    print("DPO SUMMARY  " + "  ".join(
+        f"{k}: {before.get(k)} -> {after.get(k)}" for k in before))
+
+    if skip_export:
+        print("skip_export: not saving model or GGUFs")
+        return
+    merged = f"/models/hf/{out_name}"
+    trainer.model.save_pretrained(merged)
+    tok.save_pretrained(merged)
+    calib = [tok.apply_chat_template(r["prompt"] + r["chosen"], tokenize=False)
+             for r in rows[:600]]
+    _export_gguf(merged, out_name, calib)
 
 
 @app.function(gpu="A10G", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=16384)
 def train(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 0.0,
           max_steps: int = -1, limit: int = 0, eval_data: str = "sft_val_chat.jsonl", full: bool = False, seed: int = 7):
     _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, True, eval_data, full, seed)
+
+
+@app.function(gpu="A10G", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=16384)
+def dpo_run(base: str = "v5", data: str = "dpo_train.jsonl", eval_data: str = "dpo_val.jsonl",
+            out_name: str = "v5-dpo", beta: float = 0.1, lr: float = 1e-6, epochs: float = 2.0,
+            rpo_alpha: float = 0.5, max_steps: int = -1, skip_export: bool = False, seed: int = 7,
+            label_smoothing: float = 0.0):
+    _dpo(base, data, eval_data, out_name, beta, lr, epochs, rpo_alpha, max_steps, skip_export, seed, label_smoothing)
 
 
 @app.function(cpu=8, timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
@@ -178,10 +273,19 @@ def train_cpu(model_id: str, data_name: str, out_name: str, epochs: float = 1.0,
 
 @app.local_entrypoint()
 def main(model: str = "Qwen/Qwen2.5-Coder-0.5B-Instruct", data: str = "sft_train_chat.jsonl",
-         out: str = "lx-pilot", epochs: float = 1.0, lr: float = 0.0,
+         out: str = "lx-pilot", epochs: float = 0.0, lr: float = 0.0,
          cpu: bool = False, max_steps: int = -1, limit: int = 0,
-         eval_data: str = "sft_val_chat.jsonl", full: bool = False, seed: int = 7):
-    if cpu:
-        train_cpu.remote(model, data, out, epochs, lr, max_steps, limit, eval_data, full)
+         eval_data: str = "sft_val_chat.jsonl", full: bool = False, seed: int = 7,
+         dpo: bool = False, base: str = "v5", beta: float = 0.1, rpo_alpha: float = 0.5,
+         skip_export: bool = False, label_smoothing: float = 0.0):
+    # epochs<=0 / lr<=0 mean "not overridden": SFT defaults 1 ep, DPO 2 ep / 1e-6
+    if dpo:
+        dpo_run.remote(base=base, data=data, eval_data=eval_data, out_name=out,
+                   beta=beta, lr=lr if lr > 0 else 1e-6,
+                   epochs=epochs if epochs > 0 else 2.0,
+                   rpo_alpha=rpo_alpha, max_steps=max_steps, skip_export=skip_export, seed=seed,
+                   label_smoothing=label_smoothing)
+    elif cpu:
+        train_cpu.remote(model, data, out, epochs or 1.0, lr, max_steps, limit, eval_data, full)
     else:
-        train.remote(model, data, out, epochs, lr, max_steps, limit, eval_data, full, seed)
+        train.remote(model, data, out, epochs or 1.0, lr, max_steps, limit, eval_data, full, seed)

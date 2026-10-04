@@ -8,9 +8,9 @@ export const PLAIN_PWSH_PROMPT = `You are a PowerShell command generator. Given 
 
 export const FIXCMD_SYSTEM_PROMPT = `You fix broken bash commands. Given a failed command and its error output, output only the corrected command. No explanation.`;
 
-const PLAIN_GRAMMAR_UNIX = "root ::= [a-zA-Z0-9_./$~-(] [^\\n]*";
+export const PLAIN_GRAMMAR_UNIX = "root ::= [a-zA-Z0-9_./$~-(] [^\\n]*";
 // pwsh commands can open with ( [ & " ' $ @ as well as cmdlet names
-const PLAIN_GRAMMAR_PWSH = "root ::= [^\\n` \\t] [^\\n]*";
+export const PLAIN_GRAMMAR_PWSH = "root ::= [^\\n` \\t] [^\\n]*";
 
 const PLAIN_SHOTS = {
   unix: [["print the working directory", "pwd"],

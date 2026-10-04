@@ -165,3 +165,5 @@
 - Optical fiber cable-01ASD.jpg — Asurnipal — CC BY-SA 4.0 — https://commons.wikimedia.org/wiki/File:Optical_fiber_cable-01ASD.jpg
 
 - Score v3 orchestra: VSCO-2 Community Edition (Versilian Studios), CC0 — https://github.com/sgossner/VSCO-2-CE
+
+- Score v4 synths: Surge XT 1.3.4 (GPL-3.0, surge-synthesizer.github.io), rendered offline; the synth is a tool, its output is not GPL-encumbered.

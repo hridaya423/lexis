@@ -95,7 +95,7 @@ bezel = inside[..., None].astype(np.float32)
 FR = 1.6 * np.sqrt(nx * nx + ny * ny)
 
 
-FLARES = [(30, 960, 540, 0.45, 14), (159, 960, 900, 1.0, 26), (411, 1020, 520, 0.8, 18), (820, 1240, 470, 0.55, 30)]
+FLARES = [(30, 960, 540, 0.45, 14, 140, True), (159, 960, 900, 1.0, 26, 140, True), (411, 1020, 520, 0.8, 18, 140, True), (820, 1161, 360, 0.6, 30, 60, False)]
 LEAKS = [(46, 90, -1, 0.35), (231, 275, 1, 0.3), (334, 372, -1, 0.3)]
 PAPER = np.array([0xC3, 0xDF, 0xA0], np.float32) / 255
 CORAL = np.array([0xFF, 0x73, 0x5B], np.float32) / 255
@@ -103,17 +103,17 @@ CORAL = np.array([0xFF, 0x73, 0x5B], np.float32) / 255
 
 def light(img, f):
     add = None
-    for f0, cx, cy, amp, dec in FLARES:
+    for f0, cx, cy, amp, dec, rad, has_ghost in FLARES:
         if f0 <= f < f0 + dec * 3:
             e = amp * np.exp(-(f - f0) / dec) * min(1, (f - f0 + 1) / 2)
             dx, dy = (xx - cx), (yy - cy)
-            core = np.exp(-(dx * dx + dy * dy) / (2 * 140 ** 2))[..., None] * PAPER
-            halo = np.exp(-(dx * dx + dy * dy) / (2 * 520 ** 2))[..., None] * PAPER * 0.35
+            core = np.exp(-(dx * dx + dy * dy) / (2 * rad ** 2))[..., None] * PAPER
+            halo = np.exp(-(dx * dx + dy * dy) / (2 * (rad * 3.7) ** 2))[..., None] * PAPER * 0.35
             streak = (np.exp(-(dy * dy) / (2 * 5 ** 2)) * np.exp(-np.abs(dx) / 900))[..., None] * (0.6 * PAPER + 0.4)
             gx, gy = W - cx, H - cy
             gd = (xx - (cx + (gx - cx) * 0.7)) ** 2 + (yy - (cy + (gy - cy) * 0.7)) ** 2
             ghost = (np.exp(-gd / (2 * 60 ** 2)) * 0.25)[..., None] * CORAL
-            v = (core + halo + streak * 0.9 + ghost) * e
+            v = (core + halo + streak * 0.9 + (ghost if has_ghost else 0)) * e
             add = v if add is None else add + v
     for a, b, side, amp in LEAKS:
         if a <= f < b:

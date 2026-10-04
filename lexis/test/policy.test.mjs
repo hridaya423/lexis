@@ -563,3 +563,61 @@ test("corpus-derived cases: destructive cmdlets, ipconfig, secrets, hosts writes
   assert.equal(analyzeCommand("curl.exe -I https://example.com", ps).readonly, true);
   assert.equal(analyzeCommand("nc -l 4444 -e /bin/sh", sh).risk, "critical");
 });
+
+test("readonly additions: macOS query tools, distro readers, system probes", () => {
+  const ro = [
+    // plutil -extract prints with `raw` or an explicit stdout target
+    "plutil -extract name raw Info.plist", "plutil -extract k raw -o - f.plist",
+    "plutil -extract k xml1 -o - f.plist", "plutil -lint f.plist",
+    "whois example.com",
+    "blueutil -p", "blueutil --power", "blueutil",
+    "dns-sd -Z _http._tcp", "dns-sd -B _http._tcp", "dns-sd -L name _http._tcp",
+    "sips -g pixelWidth f.png", "sips -g pixelWidth -g format f.png",
+    "afconvert -hf", "afconvert -h", "afconvert",
+    "qlmanage -p file.pdf",
+    "textutil -info f.txt", "textutil -info a.txt b.txt",
+    "cargo install --list",
+    "ncdu -r /home", "ncdu --read-only /",
+    "trash-list",
+    "systemctl --failed", "systemctl list-units", "systemctl list-timers",
+    "timedatectl", "timedatectl status", "timedatectl show",
+    "modinfo ext4",
+    "mtr --report 8.8.8.8", "mtr -r host", "mtr -rw host",
+    "pacman -Q", "pacman -Ql git",
+    "systemd-analyze", "systemd-analyze time", "systemd-analyze calendar daily",
+    "nc -z host 443",
+    "ssh -G host",
+    "iconv -f utf-8 -t latin1 f.txt > /dev/null", "iconv -l",
+  ];
+  for (const cmd of ro) assert.equal(analyzeCommand(cmd, sh).readonly, true, cmd);
+  const no = [
+    "plutil -extract k xml1 f.plist", "plutil -extract k raw -o out.txt f.plist",
+    "plutil -convert xml1 f.plist",
+    "blueutil -p 0", "blueutil --discoverable 1",
+    "dns-sd -R name _http._tcp",
+    "sips -s format png a.tif --out b.png", "sips -Z 100 a.png",
+    "afconvert -f mp4f a.wav b.mp4",
+    "qlmanage -t file.png", "qlmanage -p -o /tmp file.pdf",
+    "textutil -convert html f.txt",
+    "cargo install bat",
+    "ncdu", "ncdu /home", "ncdu -r -o report.txt",
+    "mtr host",
+    "pacman -S git", "pacman -R git",
+    "systemd-analyze set-log-level debug",
+    "winget upgrade --all", "winget upgrade git", "winget upgrade --include-unknown --all",
+    "iconv -f utf-8 -o out.txt f.txt",
+    "osascript -e 'beep'", "sudo ls", "security find-generic-password -w",
+  ];
+  for (const cmd of no) assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+});
+
+test("Windows read forms: quser, query, reg query, winget upgrade list", () => {
+  const ps = { shell: "powershell" };
+  const ro = ["quser", "quser /server:x", "query user", "query user /server:x", "query session", "query process",
+    "reg query HKLM\\Software", "reg query HKCU\\Software\\X /v Name", "reg query HKLM\\Software /s",
+    "winget upgrade", "winget upgrade --include-unknown"];
+  for (const cmd of ro) assert.equal(analyzeCommand(cmd, ps).readonly, true, cmd);
+  const no = ["query user\\badextra", "reg add HKLM\\X /v y", "reg delete HKLM\\X",
+    "winget upgrade --all", "winget upgrade git", "winget upgrade --include-unknown --all"];
+  for (const cmd of no) assert.equal(analyzeCommand(cmd, ps).readonly, false, cmd);
+});

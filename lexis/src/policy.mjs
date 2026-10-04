@@ -527,7 +527,7 @@ const REASON_CAPS = [
   [/remote script|encoded|substitution over the network/i, "remote-exec"],
   [/process|service|kill/i, "process"],
   [/persist|scheduled|startup|login item|Run key/i, "persist"],
-  [/permission|ownership|firewall|system|registry|account|partition|disk|power|cache flush|settings|config|execution ?policy|history|link in a system path/i, "system-config"],
+  [/permission|ownership|firewall|\bsystem\b|registry|account|partition|disk|power|cache flush|settings|config|execution ?policy|history|link in a system path/i, "system-config"],
   [/secret/i, "secrets"],
   [/package|install|upgrade/i, "package"],
 ];
@@ -563,7 +563,7 @@ const CAP_CONFIG_HEADS = new Set([
   "enable-psremoting", "disable-psremoting", "winrm", "powercfg", "shutdown", "reboot",
   "halt", "poweroff", "stop-computer", "restart-computer", "diskutil", "sfdisk",
 ]);
-const CAP_SECRET_FILE = /(\.ssh\/[^/]*id|\.aws\/credentials|\.netrc|\.pgpass|key=clear|-w\b)/i;
+const CAP_SECRET_FILE = /(\.ssh\/[^/]*id|\.aws\/credentials|\.netrc|\.pgpass|key=clear)/i;
 
 function capsForSegment(head, args, reason) {
   const caps = new Set();
@@ -573,13 +573,14 @@ function capsForSegment(head, args, reason) {
   if (CAP_PACKAGE_HEADS.has(head) && /\b(install|add|uninstall|remove|purge|erase|autoremove|upgrade|update)\b/i.test(args)) caps.add("package");
   if (CAP_PROCESS_HEADS.has(head) && !/^\s*(-0|-[lL]\b|--list\b)/.test(args)) caps.add("process");
   if (CAP_CONFIG_HEADS.has(head)) caps.add("system-config");
+  if (/^(defaults\s+(write|delete|import|rename)\b|(networksetup|systemsetup)\s+-set|scutil\s+--set\b|pmset\s+(?!-g)\S|sysctl\s+(-w\b|\S+=)|gsettings\s+(set|reset)\b|set-itemproperty\b|new-itemproperty\b)/i.test(`${head} ${args}`)) caps.add("system-config");
   if (["scp", "sftp", "rsync"].includes(head) && /\S+:[^\s]/.test(args)) caps.add("upload");
   if (["curl", "wget", "invoke-webrequest", "invoke-restmethod", "iwr", "irm"].includes(head) &&
       /-{1,2}[a-zA-Z-]*(d|F|T)\s|--(data|form|upload-file|json|method\s+(post|put|patch|delete))|(-Method|-Body)\s/i.test(args)) caps.add("upload");
   if (["systemctl", "service", "launchctl", "brew"].includes(head) && /\b(start|stop|restart|reload|kill|services)\b/i.test(args)) caps.add("process");
   if (["systemctl", "launchctl", "update-rc.d", "chkconfig"].includes(head) && /\b(enable|disable|mask|load|bootstrap|link)\b/i.test(args)) caps.add("persist");
   if (["crontab", "schtasks", "at", "register-scheduledtask", "new-scheduledtask", "update-rc.d", "chkconfig"].includes(head)) caps.add("persist");
-  if (CAP_SECRET_FILE.test(args)) caps.add("secrets");
+  if (CAP_SECRET_FILE.test(args) || (head === "security" && /-\w*w\b/.test(args))) caps.add("secrets");
   for (const [re, cap] of REASON_CAPS) if (reason && re.test(reason)) caps.add(cap);
   return caps;
 }

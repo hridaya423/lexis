@@ -621,3 +621,10 @@ test("Windows read forms: quser, query, reg query, winget upgrade list", () => {
     "winget upgrade --all", "winget upgrade git", "winget upgrade --include-unknown --all"];
   for (const cmd of no) assert.equal(analyzeCommand(cmd, ps).readonly, false, cmd);
 });
+
+test("capability labels don't fire on look-alike words or flags", () => {
+  assert.deepEqual(analyzeCommand("mkdir test", { shell: "zsh" }).caps, ["write"]);
+  assert.ok(!analyzeCommand("grep -w foo a.txt", { shell: "zsh" }).caps.includes("secrets"));
+  assert.ok(analyzeCommand("defaults write com.apple.dock autohide -bool true", { shell: "zsh" }).caps.includes("system-config"));
+  assert.ok(analyzeCommand("security find-generic-password -s x -w", { shell: "zsh" }).caps.includes("secrets"));
+});

@@ -23,3 +23,10 @@ test("resolveFollowUp prefers same-directory anchors", () => {
   const r = resolveFollowUp("kill it", events, { cwd: "/proj" });
   assert.equal(r.anchor, "check port 3000");
 });
+
+test("a failure inside a pipeline is reported; SIGPIPE from head is not", async () => {
+  const { executePlan } = await import("../src/executor.mjs");
+  const run = async (command) => (await executePlan({ commands: [{ command, platform: "unix" }] }, { platform: "unix", shell: "zsh" }))[0].exitCode;
+  assert.notEqual(await run("ls --definitely-not-a-flag 2>/dev/null | head -1"), 0);
+  assert.equal(await run("yes | head -1 >/dev/null"), 0);
+});

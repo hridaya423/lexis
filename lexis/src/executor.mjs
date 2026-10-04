@@ -13,7 +13,7 @@ function shellInvocation(command, shell) {
   }
 
   const shellCmd = { zsh: "zsh", bash: "bash", fish: "fish" }[resolved] || "sh";
-  return { command: shellCmd, args: ["-c", command] };
+  return { command: shellCmd, args: shellCmd === "zsh" || shellCmd === "bash" ? ["-o", "pipefail", "-c", command] : ["-c", command] };
 }
 
 export async function executePlan(plan, { dryRun = false, platform, shell, onEvent, timeoutMs = 0 } = {}) {
@@ -103,7 +103,7 @@ async function runShellCommand(command, shell, timeoutMs = 0) {
     child.on("exit", (exitCode, signal) => {
       process.off("SIGINT", onSigint);
       clearTimeout(timer);
-      resolve({ exitCode: exitCode ?? 1, signal: signal ?? null, stdoutBytes, stderrBytes, stderrTail });
+      resolve({ exitCode: exitCode === 141 ? 0 : exitCode ?? 1, signal: signal ?? null, stdoutBytes, stderrBytes, stderrTail });
     });
   });
 }

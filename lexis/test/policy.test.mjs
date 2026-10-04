@@ -535,3 +535,9 @@ test("PowerShell nested reads: Where/Format blocks, hashtable values, pure New-*
     assert.equal(analyzeCommand(cmd, ps).readonly, false, cmd);
   }
 });
+
+test("an unclosed backtick does not hang the classifier", () => {
+  for (const cmd of ["echo `tmux", 'echo "a `b', "To install it use `brew install tmux` or `tmux"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  }
+});

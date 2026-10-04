@@ -682,7 +682,8 @@ function substitutionBodies(text, shell) {
       else if (ch === quote) quote = null;
       else if (posix && quote === '"' && ch === "`") {
         const end = text.indexOf("`", i + 1);
-        if (end > i) bodies.push(text.slice(i + 1, end));
+        if (end < 0) { bodies.push(text.slice(i + 1)); break; }
+        bodies.push(text.slice(i + 1, end));
         i = end;
       } else if (quote === '"' && ch === "$" && text[i + 1] === "(") {
         const { inner, end } = captureParen(i + 2);
@@ -697,7 +698,8 @@ function substitutionBodies(text, shell) {
     }
     if (posix && ch === "`") {
       const end = text.indexOf("`", i + 1);
-      if (end > i) bodies.push(text.slice(i + 1, end));
+      if (end < 0) { bodies.push(text.slice(i + 1)); break; }
+      bodies.push(text.slice(i + 1, end));
       i = end;
       continue;
     }

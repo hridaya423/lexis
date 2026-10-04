@@ -164,7 +164,7 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
     print(f"wrote /models/{out_name}-{{f16,q4_k_m,q5_k_m,q6_k,q8_0}}.gguf")
 
 
-@app.function(gpu="A10G", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
+@app.function(gpu="A10G", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=16384)
 def train(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 0.0,
           max_steps: int = -1, limit: int = 0, eval_data: str = "sft_val_chat.jsonl", full: bool = False, seed: int = 7):
     _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, True, eval_data, full, seed)

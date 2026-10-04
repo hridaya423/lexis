@@ -299,6 +299,87 @@ const MODERATE_PATTERNS = [
 
 const ELEVATION_RE = /\b(sudo|doas|runas|pkexec|Start-Process\b[^|;]*-Verb\s+RunAs)\b/i;
 
+// capability labels shown to the user ("does:" on the approval card)
+export const CAP_LABELS = {
+  "delete": "deletes files",
+  "write": "writes/changes files",
+  "network": "network access",
+  "upload": "sends data out",
+  "remote-exec": "runs downloaded code",
+  "elevated": "elevated privileges",
+  "process": "stops/starts processes or services",
+  "persist": "installs startup/scheduled items",
+  "system-config": "changes system settings",
+  "secrets": "reads secrets",
+  "package": "installs/removes packages",
+  "read": "read-only",
+};
+
+const REASON_CAPS = [
+  [/delet|destruction|wipe|erase|clean/i, "delete"],
+  [/writ|move\/copy|extraction|symlink|download|redirect|move|rename/i, "write"],
+  [/remote sync|upload/i, "upload"],
+  [/network|download|remote/i, "network"],
+  [/remote script|encoded|substitution over the network/i, "remote-exec"],
+  [/process|service|kill/i, "process"],
+  [/persist|scheduled|startup|login item|Run key/i, "persist"],
+  [/permission|ownership|firewall|system|registry|account|partition|disk|power|cache flush|settings|config|execution ?policy|history|link in a system path/i, "system-config"],
+  [/secret/i, "secrets"],
+  [/package|install|upgrade/i, "package"],
+];
+
+const CAP_NETWORK_HEADS = new Set([
+  "curl", "wget", "ssh", "scp", "sftp", "rsync", "nc", "ncat", "ftp", "tftp", "telnet",
+  "invoke-webrequest", "invoke-restmethod", "iwr", "irm", "bitsadmin", "aria2c", "mosh",
+  "socat", "rclone", "sshfs", "mshta", "ping", "traceroute", "tracert", "pathping",
+]);
+const CAP_PACKAGE_HEADS = new Set([
+  "brew", "apt", "apt-get", "dnf", "yum", "pacman", "zypper", "apk", "winget", "choco",
+  "scoop", "snap", "flatpak", "msiexec", "nix-env", "mas",
+]);
+const CAP_DELETE_HEADS = new Set([
+  "rm", "rmdir", "rd", "del", "erase", "remove-item", "ri", "unlink", "shred", "srm",
+  "gshred", "wipe", "clear-recyclebin", "cipher",
+]);
+const CAP_WRITE_HEADS = new Set([
+  "mv", "cp", "touch", "mkdir", "md", "ln", "tee", "dd", "unzip", "move-item", "copy-item",
+  "new-item", "set-content", "add-content", "out-file", "move", "copy", "ren", "rename",
+  "expand-archive", "compress-archive", "xcopy", "robocopy", "truncate", "patch",
+]);
+const CAP_PROCESS_HEADS = new Set([
+  "kill", "pkill", "killall", "taskkill", "stop-process", "fuser", "xkill", "renice",
+]);
+const CAP_CONFIG_HEADS = new Set([
+  "chmod", "chown", "chgrp", "chflags", "setfacl", "attrib", "icacls", "takeown", "set-acl",
+  "ufw", "iptables", "ip6tables", "pfctl", "netsh", "new-netfirewallrule", "set-netfirewallrule",
+  "disable-netfirewall", "enable-netfirewall", "reg", "bcdedit", "dscl", "passwd", "useradd",
+  "userdel", "usermod", "adduser", "deluser", "chpasswd", "hostnamectl", "timedatectl",
+  "set-timezone", "route", "set-netipaddress", "nvram", "visudo", "vssadmin", "fdisk", "parted",
+  "mkfs", "wipefs", "losetup", "cryptsetup", "swapon", "swapoff", "set-executionpolicy",
+  "enable-psremoting", "disable-psremoting", "winrm", "powercfg", "shutdown", "reboot",
+  "halt", "poweroff", "stop-computer", "restart-computer", "diskutil", "sfdisk",
+]);
+const CAP_SECRET_FILE = /(\.ssh\/[^/]*id|\.aws\/credentials|\.netrc|\.pgpass|key=clear|-w\b)/i;
+
+function capsForSegment(head, args, reason) {
+  const caps = new Set();
+  if (CAP_DELETE_HEADS.has(head) && !/^(-[a-zA-Z]+\s*)*$/.test(args)) caps.add("delete");
+  if (CAP_WRITE_HEADS.has(head)) caps.add("write");
+  if (CAP_NETWORK_HEADS.has(head)) caps.add("network");
+  if (CAP_PACKAGE_HEADS.has(head) && /\b(install|add|uninstall|remove|purge|erase|autoremove|upgrade|update)\b/i.test(args)) caps.add("package");
+  if (CAP_PROCESS_HEADS.has(head) && !/^\s*(-0|-[lL]\b|--list\b)/.test(args)) caps.add("process");
+  if (CAP_CONFIG_HEADS.has(head)) caps.add("system-config");
+  if (["scp", "sftp", "rsync"].includes(head) && /\S+:[^\s]/.test(args)) caps.add("upload");
+  if (["curl", "wget", "invoke-webrequest", "invoke-restmethod", "iwr", "irm"].includes(head) &&
+      /-{1,2}[a-zA-Z-]*(d|F|T)\s|--(data|form|upload-file|json|method\s+(post|put|patch|delete))|(-Method|-Body)\s/i.test(args)) caps.add("upload");
+  if (["systemctl", "service", "launchctl", "brew"].includes(head) && /\b(start|stop|restart|reload|kill|services)\b/i.test(args)) caps.add("process");
+  if (["systemctl", "launchctl", "update-rc.d", "chkconfig"].includes(head) && /\b(enable|disable|mask|load|bootstrap|link)\b/i.test(args)) caps.add("persist");
+  if (["crontab", "schtasks", "at", "register-scheduledtask", "new-scheduledtask", "update-rc.d", "chkconfig"].includes(head)) caps.add("persist");
+  if (CAP_SECRET_FILE.test(args)) caps.add("secrets");
+  for (const [re, cap] of REASON_CAPS) if (reason && re.test(reason)) caps.add(cap);
+  return caps;
+}
+
 const DOC_LOOKUP_HEADS = new Set(["man", "tldr", "whatis", "apropos", "which", "type", "whereis", "help", "where"]);
 
 function splitScan(text, useDepth) {
@@ -355,7 +436,7 @@ export function splitCommandLine(line) {
   return first.segments;
 }
 
-function segmentHead(segment) {
+export function segmentHead(segment) {
   const cleaned = segment.replace(/^\s*(sudo|doas|runas|pkexec)\s+(-[a-zA-Z]+\s+)*/i, "").trim();
   const m = cleaned.match(/^([^\s]+)\s*(.*)$/s);
   if (!m) {
@@ -716,7 +797,7 @@ function substitutionBodies(text, shell) {
 export function analyzeCommand(command, { shell = "sh", _depth = 0 } = {}) {
   const text = String(command || "").trim();
   if (!text) {
-    return { risk: "low", readonly: true, tags: ["empty"], reasons: [] };
+    return { risk: "low", readonly: true, tags: ["empty"], caps: ["read"], reasons: [] };
   }
 
   let risk = "low";
@@ -725,8 +806,13 @@ export function analyzeCommand(command, { shell = "sh", _depth = 0 } = {}) {
   for (const { re, reason } of LINE_CRITICAL) {
     if (re.test(text)) {
       const tags = ["critical"];
-      if (/remote script|encoded/i.test(reason)) tags.push("remote-or-encoded");
-      return { risk: "critical", readonly: false, tags, reasons: [reason] };
+      const caps = [];
+      if (/remote script|encoded/i.test(reason)) {
+        tags.push("remote-or-encoded");
+        caps.push("remote-exec");
+      }
+      if (/process/i.test(reason)) caps.push("process");
+      return { risk: "critical", readonly: false, tags, caps, reasons: [reason] };
     }
   }
   for (const { re, reason } of LINE_HIGH) {
@@ -739,6 +825,7 @@ export function analyzeCommand(command, { shell = "sh", _depth = 0 } = {}) {
 
   const segments = splitCommandLine(text);
   let readonly = true;
+  const caps = new Set();
 
   for (const segment of segments) {
     const segReadonly = isReadonlySegment(segment, shell);
@@ -752,11 +839,11 @@ export function analyzeCommand(command, { shell = "sh", _depth = 0 } = {}) {
         reason = innerRes.reason;
       }
     }
+    for (const c of capsForSegment(segHead, segArgs, reason)) caps.add(c);
     if (!segReadonly) {
       readonly = false;
-      const { head } = segmentHead(segment);
-      if (head && !reason) {
-        tags.add("non-readonly:" + head);
+      if (segHead && !reason) {
+        tags.add("non-readonly:" + segHead);
       }
     }
     if (RISK_SCORE[segRisk] > RISK_SCORE[risk]) {
@@ -788,22 +875,27 @@ export function analyzeCommand(command, { shell = "sh", _depth = 0 } = {}) {
   if (/\beval\b/i.test(text)) tags.add("eval");
   if (ELEVATION_RE.test(text)) {
     tags.add("elevated");
+    caps.add("elevated");
     if (RISK_SCORE[risk] < RISK_SCORE.high && !readonly) risk = "high";
   }
   if (segments.length > 1) tags.add("pipeline");
+  if (tags.has("remote-or-encoded")) caps.add("remote-exec");
 
   if (readonly && risk !== "low") readonly = false;
-  return { risk, readonly, tags: [...tags], reasons: [...new Set(reasons)] };
+  if (readonly && !caps.size) caps.add("read");
+  return { risk, readonly, tags: [...tags], caps: [...caps], reasons: [...new Set(reasons)] };
 }
 
 export function applyPolicyToPlan(plan, { shell = "sh" } = {}) {
   let allReadonly = true;
   let maxRisk = "low";
   const blockers = [];
+  const caps = new Set();
 
   for (const step of plan.commands || []) {
     const analysis = analyzeCommand(step.command, { shell });
     step.policy = analysis;
+    for (const c of analysis.caps || []) caps.add(c);
     if (!analysis.readonly) {
       allReadonly = false;
       step.requires_confirmation = true;
@@ -829,6 +921,7 @@ export function applyPolicyToPlan(plan, { shell = "sh" } = {}) {
     allReadonly,
     maxRisk,
     blockers,
+    caps: [...caps],
     readonly: allReadonly && maxRisk === "low",
   };
 }

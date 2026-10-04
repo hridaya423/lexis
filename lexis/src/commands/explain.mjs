@@ -1,4 +1,5 @@
-import { analyzeCommand } from "../policy.mjs";
+import { analyzeCommand, CAP_LABELS } from "../policy.mjs";
+import { blastRadius } from "../blast.mjs";
 import { detectShell } from "../machine.mjs";
 
 export async function explainCommand(args) {
@@ -12,5 +13,7 @@ export async function explainCommand(args) {
   process.stdout.write(`risk      : ${analysis.risk}\n`);
   process.stdout.write(`read-only : ${analysis.readonly ? "yes" : "no"}\n`);
   if (analysis.tags.length) process.stdout.write(`signals   : ${analysis.tags.join(", ")}\n`);
+  if (analysis.caps.length) process.stdout.write(`does      : ${analysis.caps.map((k) => CAP_LABELS[k] || k).join(" · ")}\n`);
+  for (const b of blastRadius(command, { shell })) process.stdout.write(`blast     : ${b}\n`);
   if (analysis.reasons.length) process.stdout.write(`why       : ${analysis.reasons.join("; ")}\n`);
 }

@@ -129,15 +129,19 @@ export function commandCard({ commands, reason, reasonColor = "dim", meta, keys,
   if (keys) line(`    ${keys}`);
 }
 
-export function confirmCard({ commands, reason, risk }) {
+export function confirmCard({ commands, reason, risk, caps, blast, family }) {
   const warn = risk === "moderate" || risk === "high";
   const tty = process.stdin.isTTY && process.stdout.isTTY;
   commandCard({
     commands,
     reason: `needs approval${reason ? ` · ${reason}` : ""}`,
     reasonColor: warn ? "warn" : "dim",
-    keys: tty ? dim("enter run · e edit · esc cancel") : dim("non-interactive — pass --yes or --force to run"),
+    meta: caps?.length ? `does: ${caps.join(" · ")}` : null,
+    keys: tty
+      ? dim(`enter run · e edit${family ? ` · a always allow \`${family}\` here` : ""} · esc cancel`)
+      : dim("non-interactive — pass --yes or --force to run"),
   });
+  for (const b of blast || []) line(`    ${dim("→ " + b)}`);
   if (!tty) return Promise.resolve("cancel");
   return new Promise((resolve) => {
     const done = (v) => {
@@ -153,6 +157,7 @@ export function confirmCard({ commands, reason, risk }) {
       }
       if (key.name === "return" || str === "y") return done("run");
       if (str === "e") return done("edit");
+      if (str === "a" && family) return done("always");
       if (key.name === "escape" || str === "n" || str === "q") return done("cancel");
     };
     emitKeypressEvents(process.stdin);

@@ -11,6 +11,7 @@ import { explainCommand } from "./commands/explain.mjs";
 import { webSearchCommand } from "./commands/web-search.mjs";
 import { helpCommand } from "./commands/help.mjs";
 import { updateCommand } from "./commands/update.mjs";
+import { approvalsCommand } from "./commands/approvals.mjs";
 import { supervisorMain } from "./runtime/supervisor.mjs";
 
 const commands = {
@@ -27,6 +28,7 @@ const commands = {
   history: historyCommand,
   "web-search": webSearchCommand,
   update: updateCommand,
+  approvals: approvalsCommand,
   help: helpCommand,
 };
 

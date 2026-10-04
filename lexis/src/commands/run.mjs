@@ -2,7 +2,9 @@ import readline from "node:readline/promises";
 import { loadConfig } from "../config.mjs";
 import { loadSystemPrompt } from "../prompt.mjs";
 import { generatePlan, estimateTimeoutMs } from "../planner.mjs";
-import { applyPolicyToPlan, RISK_SCORE, headBinary, isInstalled, installedAlternative, isRefusalCommand, packageManager } from "../policy.mjs";
+import { applyPolicyToPlan, RISK_SCORE, CAP_LABELS, headBinary, isInstalled, installedAlternative, isRefusalCommand, packageManager } from "../policy.mjs";
+import { blastRadius } from "../blast.mjs";
+import { rememberedMatch, remember, commandFamilies } from "../approvals.mjs";
 import { executePlan } from "../executor.mjs";
 import { resolveProvider } from "../providers/index.mjs";
 import { catalogIdToOllamaTag } from "../providers/ollama.mjs";
@@ -191,10 +193,14 @@ export async function runCommand(runArgs, { dryRunOnly = false, memory = true } 
     }
 
     if (dryRun) {
+      const does = (policy.caps || []).map((k) => CAP_LABELS[k] || k).join(" · ");
       ui.commandCard({
         commands: applicable.map((c) => c.command),
-        meta: `${plan.overall_risk} · ${policy.readonly ? "read-only" : "mutating"} · ${model}`,
+        meta: `${plan.overall_risk} · ${policy.readonly ? "read-only" : "mutating"}${does ? ` · ${does}` : ""} · ${model}`,
       });
+      for (const b of applicable.flatMap((c) => blastRadius(c.command, { shell })).slice(0, 4)) {
+        process.stdout.write(ui.dim(`    → ${b}\n`));
+      }
       if (plan.sources?.length) {
         for (const s of plan.sources) process.stdout.write(ui.dim(`    src: ${s.title} — ${s.url}\n`));
       }
@@ -269,12 +275,31 @@ export async function runCommand(runArgs, { dryRunOnly = false, memory = true } 
         approved = await askCritical(applicable);
         break;
       }
+      const cmds = applicable.map((c) => c.command);
+      const fams = [...new Set(cmds.flatMap((c) => commandFamilies(c, { shell }) || []))];
+      if (fams.length && rememberedMatch(cmds, { shell, cwd: process.cwd() })) {
+        process.stderr.write(ui.dim(`  remembered: ${fams.map((f) => `\`${f}\``).join(", ")} allowed here\n`));
+        approved = true;
+        autoDecided = true;
+        break;
+      }
+      const caps = [...new Set(applicable.flatMap((s) => s.policy?.caps || []))]
+        .map((k) => CAP_LABELS[k]).filter(Boolean);
+      const rememberable = fams.length <= 3 && RISK_SCORE[plan.overall_risk] <= RISK_SCORE.moderate &&
+        !applicable.some((s) => s.policy?.tags?.includes("elevated") || s.policy?.tags?.includes("remote-or-encoded"));
       const answer = await ui.confirmCard({
-        commands: applicable.map((c) => c.command),
+        commands: cmds,
         reason: firstReason(applicable),
         risk: plan.overall_risk,
+        caps,
+        blast: cmds.flatMap((c) => blastRadius(c, { shell })).slice(0, 4),
+        family: rememberable ? fams.join(", ") : null,
       });
-      if (answer === "run") {
+      if (answer === "run" || answer === "always") {
+        if (answer === "always") {
+          remember(cmds, { shell });
+          process.stderr.write(ui.dim(`  will auto-allow \`${fams.join("`, `")}\` in this folder\n`));
+        }
         approved = true;
         break;
       }

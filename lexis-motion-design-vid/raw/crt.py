@@ -95,6 +95,39 @@ bezel = inside[..., None].astype(np.float32)
 FR = 1.6 * np.sqrt(nx * nx + ny * ny)
 
 
+FLARES = [(30, 960, 540, 0.45, 14), (159, 960, 900, 1.0, 26), (411, 1020, 520, 0.8, 18), (820, 1240, 470, 0.55, 30)]
+LEAKS = [(46, 90, -1, 0.35), (231, 275, 1, 0.3), (334, 372, -1, 0.3)]
+PAPER = np.array([0xC3, 0xDF, 0xA0], np.float32) / 255
+CORAL = np.array([0xFF, 0x73, 0x5B], np.float32) / 255
+
+
+def light(img, f):
+    add = None
+    for f0, cx, cy, amp, dec in FLARES:
+        if f0 <= f < f0 + dec * 3:
+            e = amp * np.exp(-(f - f0) / dec) * min(1, (f - f0 + 1) / 2)
+            dx, dy = (xx - cx), (yy - cy)
+            core = np.exp(-(dx * dx + dy * dy) / (2 * 140 ** 2))[..., None] * PAPER
+            halo = np.exp(-(dx * dx + dy * dy) / (2 * 520 ** 2))[..., None] * PAPER * 0.35
+            streak = (np.exp(-(dy * dy) / (2 * 5 ** 2)) * np.exp(-np.abs(dx) / 900))[..., None] * (0.6 * PAPER + 0.4)
+            gx, gy = W - cx, H - cy
+            gd = (xx - (cx + (gx - cx) * 0.7)) ** 2 + (yy - (cy + (gy - cy) * 0.7)) ** 2
+            ghost = (np.exp(-gd / (2 * 60 ** 2)) * 0.25)[..., None] * CORAL
+            v = (core + halo + streak * 0.9 + ghost) * e
+            add = v if add is None else add + v
+    for a, b, side, amp in LEAKS:
+        if a <= f < b:
+            u = (f - a) / (b - a)
+            e = amp * np.sin(np.pi * u) ** 1.5
+            cx = W * (0.5 + side * (0.75 - 0.5 * u)); cy = H * (0.35 + 0.2 * u)
+            d2 = ((xx - cx) / 1.4) ** 2 + (yy - cy) ** 2
+            v = (np.exp(-d2 / (2 * 420 ** 2)) * e)[..., None] * (0.7 * PAPER + 0.3 * CORAL)
+            add = v if add is None else add + v
+    if add is None:
+        return img
+    return 1 - (1 - img) * (1 - np.clip(add, 0, 1))
+
+
 def crt(img, f, s):
     if s <= 0:
         return img
@@ -103,6 +136,9 @@ def crt(img, f, s):
         sx, sy = warp_maps(k)
     else:
         sx, sy = SX, SY
+    jx = s * (0.9 * np.sin(f * 0.83) + 1.1 * (hash01(f * 7 + 1) - 0.5))
+    jy = s * (0.6 * np.sin(f * 0.57 + 1) + 0.8 * (hash01(f * 13 + 5) - 0.5))
+    sx, sy = sx + jx, sy + jy
     dxr = FR * s * nx / (np.sqrt(nx * nx + ny * ny) + 1e-6)
     dyr = FR * s * ny / (np.sqrt(nx * nx + ny * ny) + 1e-6)
     out = np.empty_like(img)
@@ -154,7 +190,7 @@ def main():
             continue
         img = np.frombuffer(buf, np.uint8).reshape(H, W, 3).astype(np.float32) / 255
         s = strength(f)
-        out = (crt(img, f, s) * 255 + 0.5).astype(np.uint8) if s > 0 else (img * 255 + 0.5).astype(np.uint8)
+        out = (np.clip(light(crt(img, f, s), f), 0, 1) * 255 + 0.5).astype(np.uint8)
         if enc:
             enc.stdin.write(out.tobytes())
         else:

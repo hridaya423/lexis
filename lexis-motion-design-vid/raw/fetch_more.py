@@ -6,32 +6,16 @@ UA = "lexis-ad-research/1.0 (contact: hridya@lexis.hridya.tech)"
 OK = ("public domain", "cc0", "cc by 2.0", "cc by 3.0", "cc by 4.0", "cc by-sa 2.0", "cc by-sa 3.0", "cc by-sa 4.0", "no restrictions", "pd")
 
 Q = [
-    # patents, oldest -> newest
-    ("pat_typewriter", "Sholes typewriter patent drawing"), ("pat_telephone", "Bell telephone patent 174465 drawing"),
-    ("pat_lamp", "Edison electric lamp patent drawing"), ("pat_tabulator", "Hollerith tabulating machine patent drawing"),
-    ("pat_flyer", "Wright brothers flying machine patent drawing"), ("pat_television", "Farnsworth television patent drawing"),
-    ("pat_transistor", "transistor patent 2524035"), ("pat_ic", "Kilby integrated circuit patent drawing"),
-    ("pat_noyce", "Noyce semiconductor patent 2981877"), ("pat_mouse", "Engelbart mouse patent drawing"),
-    ("pat_eniac", "ENIAC patent drawing"), ("pat_laser", "laser patent drawing 1960"),
-    ("pat_rocket", "Goddard rocket patent drawing"), ("pat_computer", "electronic computer patent drawing 1950s"),
-    ("pat_keyboard", "keyboard patent drawing"), ("pat_crt", "cathode ray tube patent drawing"),
-    # machines and people
-    ("ph_mark1", "Harvard Mark I computer"), ("ph_colossus", "Colossus computer"), ("ph_whirlwind", "Whirlwind computer MIT"),
-    ("ph_univac", "UNIVAC I computer 1951"), ("ph_7090", "IBM 7090 NASA"), ("ph_ibm360", "IBM System/360"),
-    ("ph_bellxtor", "first transistor Bell Labs replica"), ("ph_pdp1", "PDP-1 computer"), ("ph_cray", "Cray-1 supercomputer"),
-    ("ph_arpanet", "ARPANET logical map 1977"), ("ph_mcc", "Apollo mission control room 1969"),
-    ("ph_launch", "Apollo 11 launch Saturn V"), ("ph_shuttle", "Space Shuttle launch Columbia"),
-    ("ph_hubble", "Hubble Space Telescope deployment"), ("ph_earthmoon", "Earth and Moon from space NASA"),
-    ("ph_pleiades", "Pleiades supercomputer NASA"), ("ph_frontier", "Frontier supercomputer ORNL"),
-    ("ph_datacenter", "data center server racks"), ("ph_wafer", "silicon wafer dies"), ("ph_die", "microprocessor die shot"),
-    ("ph_keypunch", "IBM 029 keypunch operator"), ("ph_coremem", "magnetic core memory plane"),
-    ("ph_telstar", "Telstar satellite"), ("ph_sputnik", "Sputnik 1"), ("ph_cables", "punched card sorter operators"),
-    ("ph_bigboard", "NORAD SAGE direction center"), ("ph_terminal", "computer terminal 1970s operator"),
-    ("ph_altair", "Altair 8800 computer"), ("ph_apple1", "Apple I computer"), ("ph_xerox", "Xerox Alto"),
-    ("ph_mosaic", "NCSA Mosaic web browser screenshot"), ("ph_server", "first web server NeXT CERN"),
-    ("ph_iss", "International Space Station from shuttle"), ("ph_mars", "Curiosity rover selfie"),
-    ("ph_falcon", "Falcon 9 landing"), ("ph_gpu", "graphics card GPU chip"), ("ph_fiber", "optical fiber light"),
-    ("ph_radar", "radar antenna 1950s"), ("ph_tower", "transmission tower lines"), ("ph_vacuum", "vacuum tube computer valves"),
+    ("hu_mcc_celebrate", "Apollo 11 mission control celebrate splashdown"), ("hu_spectators", "spectators watch Apollo 11 launch"),
+    ("hu_kjohnson", "Katherine Johnson at desk NASA 1962"), ("hu_kids", "children using computers classroom 1980s"),
+    ("hu_parade", "John Glenn ticker tape parade New York"), ("hu_edwhite", "Ed White spacewalk Gemini 4"),
+    ("hu_engineers", "Apollo engineers celebrating"), ("hu_ibm_women", "women computer operators 1960s"),
+    ("hu_launchcrowd", "crowd watching rocket launch Cape Canaveral"), ("hu_moonwalk", "Aldrin on the Moon Apollo 11 visor"),
+    ("hu_shuttlecrew", "Space Shuttle crew walkout"), ("hu_firstweb", "Tim Berners-Lee CERN 1994"),
+    ("e8_voyager", "Voyager spacecraft"), ("e8_viking", "Viking lander Mars surface"), ("e8_skylab", "Skylab space station 1973"),
+    ("e8_ibmpc", "IBM Personal Computer 5150"), ("e8_mac", "Macintosh 128K"), ("e8_dynatac", "Motorola DynaTAC 8000X"),
+    ("e8_pet", "Commodore PET 2001"), ("e8_floppy", "8-inch floppy disk"), ("e8_columbia", "STS-1 Columbia launch 1981"),
+    ("e8_hubble90", "Hubble Space Telescope released STS-31"), ("e8_pong", "Pong arcade"), ("e8_fiber", "fiber optic bundle light"),
 ]
 
 

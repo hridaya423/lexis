@@ -140,3 +140,28 @@
 - future: “Future” — Jarek Laaser — CC BY-SA 3.0 — https://www.jamendo.com/track/724268
 - felixstowe: “Felixstowe” — Misto — CC BY 3.0 — https://www.jamendo.com/track/1315908
 - The main v2 cut uses the custom score (raw/score2.py).
+
+## v3 additions
+
+- Stafford, Shepard and Glenn in MCC Houston after Apollo 11 splashdown.jpg — NASA — Public domain — https://commons.wikimedia.org/wiki/File:Stafford,_Shepard_and_Glenn_in_MCC_Houston_after_Apollo_11_splashdown.jpg
+- Apollo 11 Launch Spectators (2).jpg — NASA — Public domain — https://commons.wikimedia.org/wiki/File:Apollo_11_Launch_Spectators_(2).jpg
+- Astronaut Edward White first American spacewalk Gemini 4.jpg — NASA — Public domain — https://commons.wikimedia.org/wiki/File:Astronaut_Edward_White_first_American_spacewalk_Gemini_4.jpg
+- IBM Keypunch Machines in use.jpg — born1945 — CC BY-SA 2.0 — https://commons.wikimedia.org/wiki/File:IBM_Keypunch_Machines_in_use.jpg
+- WGS9 DeltaIV by United Launch Alliance (32677034074).jpg — Michael Seeley — CC BY 2.0 — https://commons.wikimedia.org/wiki/File:WGS9_DeltaIV_by_United_Launch_Alliance_(32677034074).jpg
+- Aldrin Apollo 11 original.jpg — Neil Armstrong — Public domain — https://commons.wikimedia.org/wiki/File:Aldrin_Apollo_11_original.jpg
+- SpaceX Demo-2 Crew Walkout (NHQ202005270012).jpg — Bill Ingalls — Public domain — https://commons.wikimedia.org/wiki/File:SpaceX_Demo-2_Crew_Walkout_(NHQ202005270012).jpg
+- Where the WEB was born.jpg — Max Braun — CC BY-SA 2.0 — https://commons.wikimedia.org/wiki/File:Where_the_WEB_was_born.jpg
+- Voyager spacecraft.jpg — NASA/JPL — Public domain — https://commons.wikimedia.org/wiki/File:Voyager_spacecraft.jpg
+- Mars, July 20, 1976, image of surface from lander camera.png — NASA Viking explorer — Public domain — https://commons.wikimedia.org/wiki/File:Mars,_July_20,_1976,_image_of_surface_from_lander_camera.png
+- Skylab and Earth Limb - GPN-2000-001055.jpg — NASA — Public domain — https://commons.wikimedia.org/wiki/File:Skylab_and_Earth_Limb_-_GPN-2000-001055.jpg
+- IBM PC-IMG 7271.jpg — Rama &amp; Musée Bolo — CC BY-SA 2.0 fr — https://commons.wikimedia.org/wiki/File:IBM_PC-IMG_7271.jpg
+- Steve Jobs and Macintosh computer, January 1984, by Bernard Gotfryd - edited.jpg — Photo: Bernard Gotfryd - Edited from tif by Cart — Public domain — https://commons.wikimedia.org/wiki/File:Steve_Jobs_and_Macintosh_computer,_January_1984,_by_Bernard_Gotfryd_-_edited.jpg
+- 2007Computex e21Forum-MartinCooper.jpg — Rico Shen — CC BY-SA 3.0 — https://commons.wikimedia.org/wiki/File:2007Computex_e21Forum-MartinCooper.jpg
+- Commodore 2001 Series-IMG 0448b.jpg — Rama &amp; Musée Bolo — CC BY-SA 2.0 fr — https://commons.wikimedia.org/wiki/File:Commodore_2001_Series-IMG_0448b.jpg
+- Floppy Disk Drives 8 5 3.jpg — Swtpc6800 en:User:Swtpc6 — Public domain — https://commons.wikimedia.org/wiki/File:Floppy_Disk_Drives_8_5_3.jpg
+- Space Shuttle Columbia launching.jpg — NASA — Public domain — https://commons.wikimedia.org/wiki/File:Space_Shuttle_Columbia_launching.jpg
+- Hubble Space Telescope high gain antenna in appendage deploy position during STS-31.jpg — NASA — Public domain — https://commons.wikimedia.org/wiki/File:Hubble_Space_Telescope_high_gain_antenna_in_appendage_deploy_position_during_STS-31.jpg
+- Signed Pong Cabinet.jpg — Chris Rand — CC BY-SA 3.0 — https://commons.wikimedia.org/wiki/File:Signed_Pong_Cabinet.jpg
+- Optical fiber cable-01ASD.jpg — Asurnipal — CC BY-SA 4.0 — https://commons.wikimedia.org/wiki/File:Optical_fiber_cable-01ASD.jpg
+
+- Score v3 orchestra: VSCO-2 Community Edition (Versilian Studios), CC0 — https://github.com/sgossner/VSCO-2-CE

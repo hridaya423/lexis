@@ -28,8 +28,13 @@ function setup() {
   const OPEN = [[30, "st_typewriter", 1868], [32, "st_flyer", 1869], [34, "st_telephone", 1876], [36, "st_phono", 1878],
     [38, "st_calc", 1888], [40, "st_marconi", 1900], [42, "st_valve", 1905], [44, "st_zuse", 1941], [46, "eniac", 1946]];
   const FLASH = [[57, 60, "fl_univac", 1951], [79, 82, "fl_7090", 1959], [97, 100, "fl_ibm360", 1964],
-    [113, 116, "fl_keypunch", 1966], [127, 130, "fl_bigboard", 1968], [139, 142, "fl_terminal", 1969],
-    [151, 155, "rl_countdown", 1969], [155, 159, "rl_glenn", 1969], [190, 193, "rl_capsule", 1969], [193, 196, "rl_orbit", 1969]];
+    [113, 116, "fl_keypunch", 1966], [127, 130, "x_hu_edwhite", 1968], [139, 142, "x_hu_ibm_women", 1969],
+    [151, 155, "rl_countdown", 1969], [155, 159, "rl_glenn", 1969], [178, 181, "x_hu_spectators", 1969],
+    [189, 193, "x_hu_moonwalk", 1969], [193, 196, "rl_orbit", 1969], [221, 225, "x_hu_mcc_celebrate", 1969],
+    [240, 242, "x_e8_pong", 1972], [247, 249, "x_e8_skylab", 1973], [254, 256, "x_e8_voyager", 1977], [260, 262, "x_e8_pet", 1977],
+    [266, 268, "x_e8_columbia", 1981], [272, 274, "x_e8_ibmpc", 1981], [277, 279, "x_e8_dynatac", 1983], [282, 284, "x_e8_mac", 1984],
+    [287, 289, "x_e8_hubble90", 1990], [292, 294, "x_hu_launchcrowd", 1990], [297, 299, "fl_terminal", 1990], [301, 303, "rl_capsule", 1991],
+    [309, 311, "fl_bigboard", 1991], [314, 316, "rl_countdown", 1991]];
   const FB = [[334, "fb_server", 1991], [338, "fb_mosaic", 1993], [342, "fb_iss", 1998], [345, "fb_pleiades", 2008],
     [348, "fb_mars", 2012], [351, "fb_falcon", 2015], [354, "fb_datacenter", 2017], [356, "fb_die", 2019],
     [358, "fb_gpu", 2020], [360, "fb_hubble", 2021], [362, "fb_frontier", 2022], [364, "fb_wafer", 2024]];

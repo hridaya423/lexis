@@ -1,0 +1,164 @@
+[
+ {
+  "name": "x_hu_moonwalk",
+  "src": "img2/hu_moonwalk.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_hu_mcc_celebrate",
+  "src": "img2/hu_mcc_celebrate.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_e8_skylab",
+  "src": "img2/e8_skylab.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_e8_pong",
+  "src": "img2/e8_pong.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_e8_voyager",
+  "src": "img2/e8_voyager.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_e8_pet",
+  "src": "img2/e8_pet.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_e8_columbia",
+  "src": "img2/e8_columbia.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_e8_ibmpc",
+  "src": "img2/e8_ibmpc.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_e8_dynatac",
+  "src": "img2/e8_dynatac.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5,
+  "crop": [
+   0,
+   0,
+   1,
+   0.62
+  ]
+ },
+ {
+  "name": "x_e8_mac",
+  "src": "img2/e8_mac.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5,
+  "crop": [
+   0,
+   0.02,
+   1,
+   0.56
+  ]
+ },
+ {
+  "name": "x_e8_hubble90",
+  "src": "img2/e8_hubble90.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_hu_launchcrowd",
+  "src": "img2/hu_launchcrowd.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_hu_edwhite",
+  "src": "img2/hu_edwhite.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_hu_ibm_women",
+  "src": "img2/hu_ibm_women.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "x_hu_spectators",
+  "src": "img2/hu_spectators.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ }
+]

@@ -19,7 +19,7 @@ const datasets = ["core.jsonl", "holdout.jsonl"].map((name) => ({
 const PLATFORMS = new Set(["all", "unix", "windows", "macos", "linux"]);
 const OSES = new Set(["darwin", "linux", "windows", "any", "any-unix"]);
 const RISKS = new Set(["low", "moderate", "high", "critical"]);
-const EXPECT_KEYS = new Set(["anyOfRegex", "mustNotMatch", "maxCommands", "readonly", "expectedRiskAtLeast", "platforms", "exec"]);
+const EXPECT_KEYS = new Set(["anyOfRegex", "anyOfRegexByOs", "mustNotMatch", "mustNotMatchByOs", "maxCommands", "readonly", "expectedRiskAtLeast", "platforms", "exec"]);
 
 for (const { name, cases } of datasets) {
   test(`${name}: ids unique and required fields present`, () => {

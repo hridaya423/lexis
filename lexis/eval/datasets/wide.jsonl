@@ -62,7 +62,7 @@
 {"id":"v62","platform":"unix","intent":"eject the USB drive named BACKUP","expect":{"anyOfRegex":["diskutil\\s+(eject|unmount).*BACKUP|umount\\s+.*BACKUP|udisksctl.*unmount.*BACKUP|eject\\s+.*BACKUP","diskutil"],"maxCommands":3}}
 {"id":"v63","platform":"unix","intent":"what shell am I running","expect":{"anyOfRegex":["echo\\s+\\$SHELL|ps\\s+.*\\$\\$|echo\\s+\\$0|readlink.*\\$\\$","basename\\s+\\$SHELL|\\$SHELL"],"maxCommands":3,"readonly":true}}
 {"id":"v64","platform":"unix","intent":"add ~/bin to my PATH for this session","expect":{"anyOfRegex":["export\\s+PATH=.*~/bin|export\\s+PATH=.*\\$HOME/bin|PATH=.*bin"],"maxCommands":3}}
-{"id":"v65","platform":"unix","intent":"show the last 20 commands I ran","expect":{"anyOfRegex":["history\\s+(20|\\|\\s*tail|\\|.*tail.*20|.*20)|fc\\s+-l","tail.*history","history"],"maxCommands":3,"readonly":true}}
+{"id":"v65","platform":"unix","intent":"show the last 20 commands I ran","expect":{"anyOfRegex":["history\\s+(20|\\|\\s*tail|\\|.*tail.*20|.*20)|fc\\s+-ln?\\s+(-n\\s+)?-20\\b","tail.*history","history"],"maxCommands":3,"readonly":true}}
 {"id":"v66","platform":"unix","intent":"reload my zsh config","expect":{"anyOfRegex":["source\\s+~/\\.zshrc|source\\s+\\$HOME/\\.zshrc|\\.\\s+~/\\.zshrc|exec\\s+zsh|source\\s+.*zshrc"],"maxCommands":3}}
 {"id":"v67","platform":"unix","intent":"create an alias ll for ls -la in this shell","expect":{"anyOfRegex":["alias\\s+ll=['\"]?ls\\s+-la|alias\\s+ll="],"maxCommands":2}}
 {"id":"v68","platform":"unix","intent":"show the value of the EDITOR variable","expect":{"anyOfRegex":["echo\\s+\\$EDITOR|printenv\\s+EDITOR|\\$EDITOR"],"maxCommands":2,"readonly":true}}

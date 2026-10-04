@@ -279,7 +279,7 @@ async function main() {
       if (error) break;
     }
 
-    const graded = await gradeCase({ testCase, plan, error, shell, execOs: execOs(testCase), execMode: args.exec });
+    const graded = await gradeCase({ testCase, plan, error, shell, os: osArg || hostOs, execOs: execOs(testCase), execMode: args.exec });
     const { commands, checks, policyFloor, pass, passStrict } = graded;
     error = graded.error;
     const latencies = runs.map((r) => r.latencyMs);

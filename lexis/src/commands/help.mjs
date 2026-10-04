@@ -6,6 +6,7 @@ Usage
   lx run <intent>           same as lx <intent>
   lx plan <intent>          show the plan without executing
   lx explain <command>      show policy analysis for a command
+  lx approvals [rm n|clear] remembered "always allow" families (per folder)
   lx fix                    replan the last failed command with its error
   lx web-search <query>     debug: show fetched web context
   lx history [--limit n]    recent plans and results (redacted)

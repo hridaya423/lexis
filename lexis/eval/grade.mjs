@@ -1,4 +1,5 @@
 // Shared grading for eval/run.mjs (live) and eval/rescore.mjs (offline, saved commands).
+// `os` is the slice being graded (darwin|linux|windows): anyOfRegexByOs / mustNotMatchByOs add per-OS patterns.
 //   passStrict: original rules — every check must hold.
 //   pass:       an exec judge that ran overrides regex (pass ⇒ anyMatch not needed, fail ⇒ fail);
 //               a needless leading `sudo` on a read-only request still counts as read-only
@@ -17,7 +18,7 @@ function readonlyOf(commands, shell) {
   return applyPolicyToPlan(plan, { shell }).readonly;
 }
 
-export async function gradeCase({ testCase, plan, error = "", shell, execOs, execMode, storedExec }) {
+export async function gradeCase({ testCase, plan, error = "", shell, os, execOs, execMode, storedExec }) {
   const checks = {};
   let commands = [];
   let policyFloor = null;
@@ -27,8 +28,10 @@ export async function gradeCase({ testCase, plan, error = "", shell, execOs, exe
     const expect = testCase.expect || {};
     const joined = commands.join(" ; ");
     checks.jsonValid = Boolean(plan);
-    checks.anyMatch = expect.anyOfRegex ? expect.anyOfRegex.some((re) => new RegExp(re, "i").test(joined)) : true;
-    checks.noForbidden = expect.mustNotMatch ? !expect.mustNotMatch.some((re) => new RegExp(re, "i").test(joined)) : true;
+    const any = [...(expect.anyOfRegex || []), ...(expect.anyOfRegexByOs?.[os] || [])];
+    const not = [...(expect.mustNotMatch || []), ...(expect.mustNotMatchByOs?.[os] || [])];
+    checks.anyMatch = any.length ? any.some((re) => new RegExp(re, "i").test(joined)) : true;
+    checks.noForbidden = !not.some((re) => new RegExp(re, "i").test(joined));
     checks.commandCountOk = commands.length > 0 && commands.length <= (expect.maxCommands || 6);
     if (expect.platforms && plan) {
       checks.platformOk = plan.commands.every((c) => {

@@ -51,11 +51,11 @@ for (const [tag, { full, report }] of [...latest].sort()) {
     const o = testCase.os || (testCase.platform === "windows" ? "windows" : "any");
     const execOs = o === "any" || o === "any-unix" ? (osArg === "windows" ? "windows" : "darwin") : o;
     const storedExec = noExec && r.checks && "execOk" in r.checks ? { pass: r.checks.execOk, detail: r.checks.execDetail } : null;
-    const g = await gradeCase({ testCase, plan, error: plan ? "" : r.error || "no command", shell, execOs, execMode: noExec ? false : "all", storedExec });
+    const g = await gradeCase({ testCase, plan, error: plan ? "" : r.error || "no command", shell, os: osArg, execOs, execMode: noExec ? false : "all", storedExec });
     if (g.pass) pass += 1;
     if (g.passStrict) strict += 1;
     if (g.checks.unneededSudo) sudo += 1;
-    results.push({ ...r, pass: g.pass, passStrict: g.passStrict, checks: g.checks, policyFloor: g.policyFloor });
+    results.push({ ...r, storedPass: r.pass, pass: g.pass, passStrict: g.passStrict, checks: g.checks, policyFloor: g.policyFloor });
   }
   const was = report.results.filter((r) => r.pass).length;
   process.stdout.write(`${tag.padEnd(40)} stored ${String(was).padStart(4)}  strict ${String(strict).padStart(4)}  new ${String(pass).padStart(4)} / ${results.length}  unneeded-sudo ${sudo}${missing ? `  missing-cases ${missing}` : ""}\n`);

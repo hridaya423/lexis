@@ -3,7 +3,7 @@
 exact production chat format (planner.mjs PLAIN_*_PROMPT / FIXCMD_SYSTEM_PROMPT; the fixcmd user
 turn mirrors run.mjs: "$ <failed command>\\n<error>").
 
-  build_mix.py [out.jsonl] [extra[:repeat] ...] [--drop-source nl2sh-alfa,...]
+  build_mix.py [out.jsonl] [extra[:repeat] ...] [--drop-source nl2sh-alfa,...] [--no-para]
 
 Rewrites must point at a current train row; nothing whose command is in val/test survives.
 Output: ~/lx-data/final/<out>
@@ -21,6 +21,8 @@ def load(name):
 
 def main(argv):
     drop = set()
+    no_para = "--no-para" in argv
+    argv = [a for a in argv if a != "--no-para"]
     if "--drop-source" in argv:
         i = argv.index("--drop-source")
         drop = set(argv[i + 1].split(","))
@@ -32,7 +34,7 @@ def main(argv):
     train_keys = {(r["prompt_os"], r["command"]) for r in train}
     mix = [chatfmt(r["intent"], r["command"], r) for r in train]
     n = {"sft": len(mix)}
-    para = [r for r in load("paraphrase.jsonl") if (r["prompt_os"], r["command"]) in train_keys and r["command"].strip() not in held]
+    para = [] if no_para else [r for r in load("paraphrase.jsonl") if (r["prompt_os"], r["command"]) in train_keys and r["command"].strip() not in held]
     mix += [chatfmt(r["intent"], r["command"], r) for r in para]
     n["paraphrase"] = len(para)
     for spec in extras:

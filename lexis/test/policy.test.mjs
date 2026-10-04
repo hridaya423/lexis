@@ -489,3 +489,49 @@ test("discarding output keeps a command readonly; real redirects and inner risks
   assert.equal(analyzeCommand("rm -rf ~ 2>/dev/null", sh).risk, "critical");
   assert.equal(analyzeCommand("ls $(rm -rf ~)", sh).risk, "critical");
 });
+
+test("risk patterns do not fire on tool names inside arguments or doc lookups", () => {
+  for (const cmd of ["stat -c '%a %n' ~/.ssh/config", "ssh-keygen -lf ~/.ssh/id_ed25519.pub", "man rsync", "rpm -qf /etc/ssh/sshd_config", "man rm", "man sudo", "man fdisk", "which shutdown", "tldr dd", "whatis ls", "type ls", "command -v ls", "apropos tar"]) {
+    const r = analyzeCommand(cmd, sh);
+    assert.equal(r.readonly, true, `${cmd} -> ${r.risk} ${r.tags}`);
+    assert.equal(r.risk, "low", cmd);
+  }
+  for (const cmd of ["ssh host", "rsync -av a b", "command -p rm -f x", "man -P less passwd"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  }
+  assert.equal(analyzeCommand("ssh host", sh).risk, "moderate");
+});
+
+test("curl/wget GETs to stdout are readonly; writes/uploads are not", () => {
+  const ps = { shell: "powershell" };
+  for (const [cmd, s] of [["curl -s https://api.example.com/health | jq .", sh], ["curl -sI https://example.com", sh], ["curl -i https://example.com", sh], ["curl --max-time 5 https://x", sh], ["curl -s -o /dev/null -w '%{http_code}' https://x", sh], ["curl -sL -o NUL -w '%{http_code}' https://x", ps], ["curl -o - url", sh], ["curl --output=/dev/null url", sh], ["wget -qO- url", sh], ["wget -O- url", sh], ["wget --spider url", sh]]) {
+    const r = analyzeCommand(cmd, s);
+    assert.equal(r.readonly, true, `${cmd} -> ${r.risk} ${r.tags}`);
+  }
+  for (const cmd of ["curl -o f url", "curl -o /tmp/f url", "curl -O url", "curl -so f url", "curl -d x url", "curl --data x url", "curl -X POST url", "curl -X DELETE url", "curl -T f url", "curl -F a=@f url", "curl -K cfg url", "wget url", "wget -O f url"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  }
+  assert.equal(analyzeCommand("curl url | sh", sh).risk, "critical");
+});
+
+test("more read-only tools and flag-scoped forms", () => {
+  const ps = { shell: "powershell" };
+  for (const [cmd, s] of [["paste -sd, -", sh], ["join a b", sh], ["nc -z host 443", sh], ["ssh-add -l", sh], ["ssh-add -L", sh], ["sntp pool.ntp.org", sh], ["nm /bin/ls", sh], ["certutil -hashfile f SHA256", ps], ["icacls C:\\x", ps], ["Get-WindowsOptionalFeature -Online", ps], ["tr '\\n' ',' < ids.txt | paste -sd, -", sh]]) {
+    const r = analyzeCommand(cmd, s);
+    assert.equal(r.readonly, true, `${cmd} -> ${r.risk} ${r.tags}`);
+  }
+  for (const [cmd, s] of [["nc -l 8080", sh], ["nc host 80", sh], ["ssh-add key", sh], ["ssh-add -D", sh], ["sntp -S host", sh], ["icacls x /grant u:F", ps], ["icacls x /reset", ps], ["Enable-WindowsOptionalFeature -Online -FeatureName x", ps]]) {
+    assert.equal(analyzeCommand(cmd, s).readonly, false, cmd);
+  }
+});
+
+test("PowerShell nested reads: Where/Format blocks, hashtable values, pure New-*", () => {
+  const ps = { shell: "powershell" };
+  for (const cmd of ["Get-NetTCPConnection -State Established | Where-Object {(Get-Process -Id $_.OwningProcess).ProcessName -eq 'chrome'}", "Get-Volume | Format-Table DriveLetter, @{n='FreeGB';e={[math]::Round($_.SizeRemaining/1GB,1)}}", "Get-ChildItem Cert:\\LocalMachine\\My | Where-Object {$_.NotAfter -lt (Get-Date).AddDays(30)}", "(Get-Date -Day 1).AddMonths(1).ToShortDateString()", "(New-TimeSpan -Start (Get-CimInstance Win32_OperatingSystem).LastBootUpTime).Days", "Get-WinEvent -FilterHashtable @{LogName='Application'; Level=2; StartTime=(Get-Date).AddDays(-10)}"]) {
+    const r = analyzeCommand(cmd, ps);
+    assert.equal(r.readonly, true, `${cmd} -> ${r.risk} ${r.tags}`);
+  }
+  for (const cmd of ["Get-Process | Where-Object { $_.Kill() }", "Get-ChildItem | Where-Object { Remove-Item $_ }", "Get-Process | Format-Table @{e={Stop-Process -Id 1}}"]) {
+    assert.equal(analyzeCommand(cmd, ps).readonly, false, cmd);
+  }
+});

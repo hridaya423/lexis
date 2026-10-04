@@ -106,10 +106,28 @@ AREAS_R2 = {
 }
 
 
-def shard(outdir, round2=False):
+R3_STYLE = """
+This round, make the requests harder than the obvious ones: more specific, with two or three constraints
+("only .png files over 2MB modified this week, newest first"), follow-up phrasing ("same but recursive"),
+occasional typos and missing words the way people really type, and some vague ones ("my disk is full, what's
+taking the space"). Still ONE command per request, and still the simplest correct command for it.
+"""
+
+
+def shard(outdir, round2=False, round3=False):
     out = Path(outdir)
     out.mkdir(parents=True, exist_ok=True)
     i = 0
+    if round3:
+        for area in AREAS:
+            for os_key, (os_name, shell, tooling) in PLATFORMS.items():
+                sid = f"shard_{i:03d}"
+                prompt = PROMPT.format(os_name=os_name, shell=shell, tooling=tooling, area=area, n=PER_SHARD, sid=sid)
+                (out / f"{sid}.prompt.md").write_text(prompt.replace("\nRequests:\n", R3_STYLE + "\nRequests:\n", 1))
+                (out / f"{sid}.meta.json").write_text(json.dumps({"os": os_key, "area": area, "round": 3}))
+                i += 1
+        print(f"{i} shards -> {out}")
+        return
     if round2:
         for os_key, (os_name, shell, tooling) in PLATFORMS.items():
             for area in AREAS_R2[os_key] + AREAS_R2["any"]:
@@ -159,4 +177,4 @@ def collect(outdir):
 
 
 if __name__ == "__main__":
-    {"shard": shard, "shard2": lambda d: shard(d, True), "collect": collect}[sys.argv[1]](sys.argv[2])
+    {"shard": shard, "shard2": lambda d: shard(d, True), "shard3": lambda d: shard(d, round3=True), "collect": collect}[sys.argv[1]](sys.argv[2])

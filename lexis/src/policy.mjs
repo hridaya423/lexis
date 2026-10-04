@@ -10,12 +10,12 @@ const READONLY_HEADS_UNIX = new Set([
   "env", "printenv", "cal", "uptime", "w", "last", "who",
   "df", "du", "free", "lsof", "netstat", "ss", "ps", "pgrep", "top", "htop",
   "sw_vers", "system_profiler", "sysctlbyname", "mdfind", "plutil",
-  "command", "history", "man", "apropos", "tldr", "wc", "grep",
+  "command", "history", "man", "apropos", "tldr", "whatis", "where", "help", "wc", "grep",
   "egrep", "fgrep", "rg", "fd", "find", "tree", "awk", "gawk",
   "readlink", "realpath", "dirname", "basename", "locate", "strings",
   "zcat", "dmesg", "lastlog",
   "sort", "cut", "tr", "diff", "cmp", "md5", "md5sum", "shasum", "sed", "xargs",
-  "sha256sum", "base64", "od", "hexdump", "jq", "yq", "pbcopy",
+  "sha256sum", "base64", "od", "hexdump", "jq", "yq", "pbcopy", "paste", "join", "nm",
   "pbpaste", "mdls", "ioreg", "iostat", "vm_stat", "memory_pressure",
   "locale", "kextstat",
   "nproc", "arch", "getconf", "lsb_release", "os-release",
@@ -29,7 +29,7 @@ const READONLY_HEADS_WINDOWS = new Set([
   "get-childitem", "gci", "dir", "ls", "get-content", "gc", "type", "cat",
   "get-process", "gps", "ps", "get-command", "gcm", "get-item", "gi",
   "get-location", "gl", "pwd", "get-host", "get-date", "get-history",
-  "get-service", "gsv", "get-psdrive", "get-volume", "get-disk",
+  "get-service", "gsv", "get-psdrive", "get-volume", "get-disk", "get-windowsoptionalfeature",
   "get-netipaddress", "get-netadapter", "test-connection", "resolve-dnsname",
   "get-computerinfo", "get-ciminstance", "get-wmiobject", "get-localuser",
   "get-localgroup", "get-childitem env:", "echo", "write-output",
@@ -79,6 +79,12 @@ const READONLY_ARGS = {
   dism: /^\/online\s+\/cleanup-image\s+\/(scanhealth|checkhealth)\b/i,
   netsh: /^(?!.*\b(set|add|delete|exec|import|dump)\b)(?=[^|;]*\bshow\b)/i,
   fsutil: /^(volume\s+diskfree|fsinfo)\b/i,
+  curl: /^(?![^|;]*(?:^|\s)-{1,2}[a-zA-Z-]*[cdDFKT](?=[\s=]|$))(?![^|;]*(?:^|\s)-{1,2}[a-zA-Z-]*O\b)(?![^|;]*(?:^|\s)-[a-zA-Z]*o\s+(?!-(?:\s|$)|\/dev\/null\b|NUL\b|nul\b))(?![^|;]*--output(?:=|\s+)(?!-(?:\s|$)|\/dev\/null\b|NUL\b|nul\b))(?![^|;]*(?:^|\s)-{1,2}[a-zA-Z-]*u\s+)(?![^|;]*(?:^|\s)-{1,2}[a-zA-Z-]*X\s+(?!GET\b|HEAD\b))(?![^|;]*--(data|data-raw|data-binary|data-urlencode|json|form|form-string|upload-file|config|remote-name|remote-name-all|cookie-jar|dump-header|trace|trace-ascii|stderr|user|request\s+(?!GET\b|HEAD\b))\b)/,
+  wget: /^(?=[^|;]*(?:--spider\b|(?:^|\s)-[\w-]*O(?=\s*-|-)|--output-document[\s=]+\s*-(?=\s|$)))(?![^|;]*(?:^|\s)-[\w-]*O\s+(?!\s*-))(?![^|;]*--output-document[\s=]+\s*(?![-|/]))/,
+  nc: /^(?![^|;]*(?:^|\s)-[a-zA-Z]*[lkLeEo])(?=[^|;]*(?:^|\s)-[a-zA-Z]*z[a-zA-Z]*\b)/,
+  "ssh-add": /^\s*-[lL]+\s*$/,
+  sntp: /^(?![^|;]*(?:^|\s)-[sS]\b)/,
+  certutil: /^-hashfile\b/i,
 };
 
 const READONLY_SUBCOMMANDS = {
@@ -272,14 +278,16 @@ const MODERATE_PATTERNS = [
   { re: /\b(npm|pnpm|yarn|bun|pip|pip3|gem|cargo|go)\s+(install|add|i\b|get\b|update|upgrade)\b/i, reason: "package install" },
   { re: /\bkill\b(?!\s+-0\b)(?!\s+-[lL]\b)(?!\s+--list\b)/i, reason: "process termination" },
   { re: /\bStop-Process\b/i, reason: "process termination" },
-  { re: /\b(Start|Stop|Restart|Set|New|Remove|Clear|Enable|Disable)-[A-Z]/i, reason: "system object mutation (PowerShell verb)" },
+  { re: /\b(Start|Stop|Restart|Set|Remove|Clear|Enable|Disable)-[A-Z]|\bNew-(?!TimeSpan\b|Guid\b|DateTimeOffset\b)[A-Z]/i, reason: "system object mutation (PowerShell verb)" },
   { re: /\bmkdir\b|\bNew-Item\b|\btouch\b/i, reason: "filesystem write" },
   { re: /\btar\b[^|;]*-[a-zA-Z]*x|\bunzip\b(?![^|;]*\s-[lvZt]+\b)|\bExpand-Archive\b|\b7z\s+x/i, reason: "archive extraction (file writes)" },
   { re: /\bln\s+-s\b|\bNew-Item\b[^|;]*-ItemType\s+SymbolicLink/i, reason: "symlink creation" },
-  { re: /\bchmod\b|\bchown\b|\bicacls\b|\bSet-Acl\b/i, reason: "permission/ownership change" },
-  { re: /(?:^|[|;&(]\s*|\bsudo\s+)(?:curl\b[^|;]*(-o|-O|--output|--remote-name)|wget\b)|\bInvoke-WebRequest\b[^|;]*-OutFile/i, reason: "file download (network + write)" },
+  { re: /\bchmod\b|\bchown\b|\bicacls\b(?=[^|;]*\/(grant|deny|remove|reset|setowner|save|restore|setintegritylevel|substitute|inheritance))|\bSet-Acl\b/i, reason: "permission/ownership change" },
+  { re: /(?:^|[|;&(]\s*|\bsudo\s+)curl\b[^|;]*(?:-[a-zA-Z]*o\s+(?!-(?:\s|$)|\/dev\/null\b|NUL\b|nul\b)|-[a-zA-Z]*O\b|--remote-name\b|--remote-name-all\b|--output(?:=|\s+)(?!-(?:\s|$)|\/dev\/null\b|NUL\b|nul\b))/, reason: "file download (network + write)" },
+  { re: /(?:^|[|;&(]\s*|\bsudo\s+)wget\b(?![^|;]*(?:-[\w-]*O\s*-|--spider\b|--output-document[\s=]+\s*-(?=\s|$)))|\bInvoke-WebRequest\b[^|;]*-OutFile/i, reason: "file download (network + write)" },
   { re: /(^|[;&|]\s*|\bsudo\s+)service\s+\S+\s+(start|stop|restart|reload|force-reload)\b|\bsystemctl\s+(--?\S+\s+)*(start|stop|restart|reload|try-restart|reload-or-restart|enable|disable|mask|unmask|kill|daemon-reload|daemon-reexec|isolate|set-default|edit|reset-failed|preset|link|revert|set-property|suspend|hibernate)\b|\blaunchctl\s+(load|bootstrap|kickstart)/i, reason: "service control" },
-  { re: /\bssh\b(?!-)|\bscp\b|\bsftp\b|\brsync\b(?![^|;]*--dry-run)(?![^|;]*\s-[a-zA-Z]*n[a-zA-Z]*\b)/i, reason: "remote session/transfer" },
+  { re: /^\s*(?:(?:sudo|doas|runas|pkexec|env|xargs|nice|ionice|time|nohup|setsid|watch|exec|stdbuf|sshpass|chroot)\s+(?:[\w=.%:,/+-]+\s+)*)*(?:ssh\b(?!-)|scp\b|sftp\b|sshfs\b)/i, reason: "remote session" },
+  { re: /^\s*(?:(?:sudo|doas|runas|pkexec|env|xargs|nice|ionice|time|nohup|setsid|watch|exec|stdbuf|sshpass|chroot)\s+(?:[\w=.%:,/+-]+\s+)*)*rsync\b(?![^|;]*--dry-run)(?![^|;]*\s-[a-zA-Z]*n[a-zA-Z]*\b)/i, reason: "remote sync" },
   { re: /\btee\b/i, reason: "file write" },
   { re: /\b(brew\s+services\s+(start|stop|restart)|launchctl\s+(load|unload|bootstrap|bootout|kickstart))/i, reason: "service control" },
   { re: /\bdscacheutil\s+-flushcache\b/i, reason: "system cache flush" },
@@ -290,6 +298,8 @@ const MODERATE_PATTERNS = [
 ];
 
 const ELEVATION_RE = /\b(sudo|doas|runas|pkexec|Start-Process\b[^|;]*-Verb\s+RunAs)\b/i;
+
+const DOC_LOOKUP_HEADS = new Set(["man", "tldr", "whatis", "apropos", "which", "type", "whereis", "help", "where"]);
 
 function splitScan(text, useDepth) {
   const segments = [];
@@ -357,7 +367,7 @@ function segmentHead(segment) {
 }
 
 function innerCommandOf(head, args) {
-  if (head === "command" && /^\s*-(v|V|p)\b/.test(args)) return null;
+  if (head === "command" && /^\s*-(v|V)\b/.test(args)) return null;
   if (head === "xargs") {
     const VALUE_LONG = new Set(["--arg-file", "--delimiter", "--eof", "--replace", "--max-args", "--max-procs", "--max-lines", "--max-chars"]);
     const toks = args.match(/("[^"]*"|'[^']*'|\S+)/g) || [];
@@ -424,6 +434,7 @@ const MUTATING_FLAGS = {
   ss: /\s(-[a-zA-Z]*K|--kill)\b/,
   history: /\s-[cdwranps]\b/,
   go: /\benv\b[^|;]*\s-[wu]\b/,
+  man: /(^|\s)-[a-zA-Z]*P\b|\s--(pager|prompt|preprocessor)\b/,
 };
 
 const PWSH_SAFE_VERB = /^(get|test|measure|select|sort|where|format|group|compare|resolve|convertto|convertfrom)$/i;
@@ -431,28 +442,99 @@ const PWSH_PURE_BLOCK = /^\{(\s|\$[\w.]+|-[a-z]+|'[^']*'|"[^"$]*"|\d+(\.\d+)?(kb
 
 const PWSH_PURE_METHOD = /\.(Add\w*|To\w+|Trim\w*|Split|Substring|Contains|StartsWith|EndsWith|IndexOf|Equals|CompareTo|GetType)\s*\(/gi;
 const PWSH_PURE_STATIC = /\[(Environment|DateTime|DateTimeOffset|Math|System\.Environment|IO\.Path|System\.IO\.Path)\]::(Get\w*|Now|UtcNow|Today|Round|Floor|Ceiling|Abs|Max|Min|Combine|GetFileName\w*|GetExtension|GetDirectoryName|MachineName|UserName|OSVersion)\b/gi;
-const PWSH_LITERAL_HASH = /@\{(\s*\w+\s*=\s*('[^']*'|"[^"$]*"|\d+)\s*;?)*\s*\}/g;
 
 const PWSH_BLOCK_OPS = /^(join|split|replace|match|notmatch|eq|ne|gt|lt|ge|le|like|notlike|contains|notcontains|in|notin|is|isnot|as|and|or|xor|band|bor|bxor|shl|shr|f|not)$/i;
 
 const PWSH_PURE_CALL = /\.(Add\w*|To\w*|Trim\w*|Split|Substring|Contains|StartsWith|EndsWith|IndexOf|Equals|CompareTo|GetType)\s*\([^()]*\)/gi;
 
 function pwshBlockReadonly(inner) {
-  const s = inner.replace(/"[^"]*"|'[^']*'/g, "").replace(PWSH_PURE_CALL, "");
+  const s = inner.replace(/"[^"]*"|'[^']*'/g, "").replace(PWSH_PURE_CALL, "").replace(PWSH_PURE_STATIC, "");
   if (/(^|[^<>=!])=(?![=>])|[>|;&`]|\$\(|@\{|\[[\w.]+\]::|\.\w+\s*\(/.test(s)) return false;
   const verbs = [...s.matchAll(/(?:^|[\s|({])([a-z]+)-[a-z]\w*/gi)].map((m) => m[1]);
   if (verbs.some((v) => !PWSH_SAFE_VERB.test(v) && !PWSH_BLOCK_OPS.test(v))) return false;
   const cleaned = s
+    .replace(/\d+(\.\d+)?(KB|MB|GB|TB)\b/gi, " ")
     .replace(/\$[\w:]+(\.[\w.]+)*(\s*\([^()]*\))?/g, " ")
     .replace(/\b[\w]+-[\w-]+\b/g, " ")
-    .replace(/(^|\s)-[\w?]+\b/g, " ");
+    .replace(/(^|\s)-[\w?]+\b/g, " ")
+    .replace(/\.[\w]+\b/g, " ");
   return !/[A-Za-z_]\w*/.test(cleaned);
+}
+
+function pwshHashInnerOk(inner) {
+  let i = 0;
+  const n = inner.length;
+  while (i < n) {
+    while (i < n && /[;\s]/.test(inner[i])) i += 1;
+    if (i >= n) return true;
+    const km = inner.slice(i).match(/^(\w+)\s*=/);
+    if (!km) return false;
+    i += km[0].length;
+    let j = i;
+    let q = null;
+    let bd = 0;
+    for (; j < n; j += 1) {
+      const c = inner[j];
+      if (q) {
+        if (c === q) q = null;
+        continue;
+      }
+      if (c === "'" || c === '"') { q = c; continue; }
+      if (c === "{") bd += 1;
+      else if (c === "}") bd -= 1;
+      else if (c === ";" && bd === 0) break;
+    }
+    const v = inner.slice(i, j).trim();
+    if (v.startsWith("{") && v.endsWith("}")) {
+      if (!pwshBlockReadonly(v.slice(1, -1))) return false;
+    } else if (!pwshBlockReadonly(v)) return false;
+    i = j + 1;
+  }
+  return true;
+}
+
+function pwshStripHashLiterals(s) {
+  let out = "";
+  let i = 0;
+  while (i < s.length) {
+    const at = s.indexOf("@{", i);
+    if (at === -1) {
+      out += s.slice(i);
+      break;
+    }
+    out += s.slice(i, at);
+    let depth = 1;
+    let q = null;
+    let j = at + 2;
+    for (; j < s.length; j += 1) {
+      const c = s[j];
+      if (q) {
+        if (c === q) q = null;
+        continue;
+      }
+      if (c === "'" || c === '"') { q = c; continue; }
+      if (c === "{") depth += 1;
+      else if (c === "}") {
+        depth -= 1;
+        if (!depth) break;
+      }
+    }
+    if (depth !== 0 || !pwshHashInnerOk(s.slice(at + 2, j))) return null;
+    out += " ";
+    i = j + 1;
+  }
+  return out;
 }
 
 function pwshReadonly(segment) {
   const raw = segment.trim();
   if (/^\$[\w:]+(\.\w+)*(\s+-(split|join|replace|match|notmatch|contains|notcontains|eq|ne|gt|lt|ge|le|like|notlike)\s+('[^']*'|"[^"]*"|\$[\w:.]+|\d+(\.\d+)?))*$/i.test(raw)) return true;
-  const s = raw.replace(PWSH_PURE_METHOD, "(").replace(PWSH_PURE_STATIC, "").replace(PWSH_LITERAL_HASH, "");
+  const stripped = raw
+    .replace(PWSH_PURE_METHOD, "(")
+    .replace(PWSH_PURE_STATIC, "")
+    .replace(/\bNew-(TimeSpan|Guid|DateTimeOffset)\b/gi, "Get-Date");
+  const s = pwshStripHashLiterals(stripped);
+  if (s === null) return false;
   if (/(?:^|\s)-WhatIf\b/i.test(raw)) return true;
   const headName = segmentHead(raw).head;
   if (headName === "foreach-object" || headName === "%") {
@@ -469,7 +551,7 @@ function pwshReadonly(segment) {
   if (!verbs.length) return raw !== s && /^[\s(),.\d-]*$/.test(s.replace(/'[^']*'|"[^"$]*"/g, ""));
   if (!PWSH_SAFE_VERB.test(segmentHead(s.replace(/^\(+/, "")).head.split("-")[0])) return false;
   if (!verbs.every((v) => PWSH_SAFE_VERB.test(v))) return false;
-  return (s.match(/\{[^{}]*\}/g) || []).every((b) => PWSH_PURE_BLOCK.test(b)) && !/[{}]/.test(s.replace(/\{[^{}]*\}/g, ""));
+  return (s.match(/\{[^{}]*\}/g) || []).every((b) => PWSH_PURE_BLOCK.test(b) || pwshBlockReadonly(b.slice(1, -1))) && !/[{}]/.test(s.replace(/\{[^{}]*\}/g, ""));
 }
 
 function isReadonlySegment(segment, shell, depth = 0) {
@@ -529,6 +611,10 @@ function isReadonlySegment(segment, shell, depth = 0) {
 function patternRisk(segment) {
   if (/(?:^|\s)-WhatIf\b/i.test(segment)) {
     return { risk: "low", reason: "dry run (-WhatIf)" };
+  }
+  const { head: segHeadEarly, args: segArgsEarly } = segmentHead(segment);
+  if ((DOC_LOOKUP_HEADS.has(segHeadEarly) && !(segHeadEarly === "man" && MUTATING_FLAGS.man.test(" " + segArgsEarly))) || (segHeadEarly === "command" && /^\s*-[vV]\b/.test(segArgsEarly))) {
+    return { risk: "low", reason: "documentation lookup" };
   }
   const rm = rmTargetRisk(segment);
   if (rm) {

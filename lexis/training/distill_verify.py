@@ -53,7 +53,10 @@ def win_parse(cmds):
 WIN_EXTRA = {h.lower() for h in """docker ffmpeg ffprobe pip pip3 python py magick scoop npx npm node dotnet code where.exe pwsh nvm pipx uv
     exiftool winget git ssh scp curl.exe tar Dism.exe dism compact.exe taskmgr sls gci ii ls cat Get-Volume Get-PhysicalDisk Get-Disk
     Get-Partition Optimize-Volume Get-LocalUser Get-LocalGroupMember Receive-Job New-NetFirewallRule Get-SmbSession Get-SmbShare
-    Get-DiskImage Format-Volume Set-Disk Resize-Partition Get-InstalledModule""".split()}
+    Get-DiskImage Format-Volume Set-Disk Resize-Partition Get-InstalledModule kubectl jq yq irm iwr iex pnpm yarn go corepack uvx
+    ssh-keyscan sftp winsat iisreset winver mstsc logoff chkntfs mbr2gpt reagentc winmgmt usbipd tnc mountvol""".split()}
+WIN_MODULE_CMDLET = re.compile(r"^(Get|Set|New|Remove|Add|Enable|Disable|Clear|Mount|Dismount|Initialize|Repair|Stop|Start|Suspend|Resume|Confirm|Resize|Optimize|Format)-"
+                               r"(Net\w+|Local\w+|VM\w*|Smb\w+|Disk\w*|Partition\w*|Volume|Storage\w+|Bits\w+|DnsClient\w+|ScheduledTask\w*|WindowsImage|SecureBootUEFI|VirtualDisk|PhysicalDisk)$", re.I)
 
 
 def win_heads(cmd):
@@ -112,7 +115,7 @@ def main():
     for r, ok in zip(win, parsed):
         if not ok:
             stats["win_parse"] += 1
-        elif not all(h.lower() in known for h in win_heads(r["command"])):
+        elif not all(h.lower() in known or WIN_MODULE_CMDLET.match(h) for h in win_heads(r["command"])):
             stats["win_head"] += 1
         else:
             kept.append({**r, "os": ["windows"]})

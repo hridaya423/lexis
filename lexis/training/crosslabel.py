@@ -84,6 +84,7 @@ def usage_db(os_name):
                     short.add(name)
                     if arg.strip(" [") or re.search(r"--[\w-]+=", defn):
                         takes.add(name)
+        longs.update(re.findall(r"^\s{1,12}(?:\w,?\s+)+--([a-z][\w-]*)", man + "\n" + text, re.M))
         db[h] = {"short": sorted(short), "arg": sorted(takes), "long": sorted(longs)}
     cache.write_text(json.dumps(db))
     return db

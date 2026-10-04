@@ -6,7 +6,7 @@ from collections import defaultdict
 latest = {}
 for f in sorted(glob.glob(os.path.join(os.path.dirname(__file__), "reports", "*.json")), key=os.path.getmtime):
     d = json.load(open(f))
-    m = re.match(r"(.*)-(core|wide|holdout|testx)-(darwin|linux|windows)$", d.get("tag") or "")
+    m = re.match(r"(.*)-(core|wide|holdout_a|holdout_b|holdout|testx)-(darwin|linux|windows)$", d.get("tag") or "")
     if m:
         latest[m.groups()] = (d["passed"], d["total"])
 by = defaultdict(dict)
@@ -19,6 +19,7 @@ for tag in sorted(by):
     v = by[tag]
     dev = [x for k, x in v.items() if k.startswith(("core", "wide"))]
     tx = [x for k, x in v.items() if k.startswith("testx")]
-    ho = [x for k, x in v.items() if k.startswith("holdout")]
+    ha = [x for k, x in v.items() if k.startswith("holdout_a")]
+    ho = [x for k, x in v.items() if k.startswith("holdout_b")]
     tot = lambda xs: f"{sum(a for a, _ in xs)}/{sum(b for _, b in xs)}" if xs else "-"
-    print(f"{tag:24} dev {tot(dev):9} testx {tot(tx):9} holdout {tot(ho):9} " + " ".join(f"{k}={a}/{b}" for k, (a, b) in sorted(v.items())))
+    print(f"{tag:24} dev {tot(dev):9} testx {tot(tx):9} hA {tot(ha):9} hB {tot(ho):9} " + " ".join(f"{k}={a}/{b}" for k, (a, b) in sorted(v.items())))

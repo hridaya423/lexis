@@ -441,3 +441,42 @@ test("macOS info commands are readonly; setters are not", () => {
     assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
   }
 });
+
+test("redirects inside quotes and input redirects do not break readonly", () => {
+  for (const cmd of ["awk '$2 > 100' scores.txt", "df -h | awk 'NR==1 || $5+0 > 90'", "tr -cd '[:digit:]' < data.txt", "grep 'a > b' f"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, true, cmd);
+  }
+  for (const cmd of ["awk '{print > \"out\"}' f", "journalctl -u x > out.txt", "echo hi > f.txt"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  }
+});
+
+test("readonly command/process substitutions stay readonly", () => {
+  for (const cmd of ["lsof -p $(pgrep -f nginx)", "diff <(sort a.txt) <(sort b.txt)", "comm -12 <(sort a) <(sort b)", "kill -0 $(pgrep -f worker.py)", "echo \"$(date)\""]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, true, cmd);
+  }
+  for (const cmd of ["ls $(rm -rf x)", "diff <(curl -s url | sh) b", "echo $(rm f)"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  }
+});
+
+test("read-only forms of package/admin tools", () => {
+  for (const cmd of ["brew info wget", "brew list", "brew leaves", "brew search foo", "brew outdated", "brew deps wget", "brew config", "brew doctor", "brew --prefix", "codesign -d /bin/ls", "codesign -dv /bin/ls", "codesign -dvvv /bin/ls", "codesign --verify /bin/ls", "codesign -vv /bin/ls", "date", "date +%s", "date -r 12345", "date -u", "date -d tomorrow +%F", "git branch", "git branch -vv", "git branch -a", "git branch --show-current", "git branch --contains HEAD", "git clean -n", "git clean --dry-run", "git annotate f", "git blame f", "git check-ignore f", "git fsck", "go env", "go env GOPATH", "go version", "groups", "man ls", "npm version", "npm view lodash", "npm info lodash", "npm ls", "openssl dgst -sha256 f", "openssl md5 f", "openssl x509 -in c.pem -noout -text", "openssl s_client -connect h:443", "otool -L /bin/ls", "/usr/libexec/PlistBuddy -c 'Print :a' p.plist", "plutil -p f.plist", "plutil -lint f.plist", "plutil -extract k xml1 -o - f.plist", "plutil -convert xml1 -o - f.plist", "rsync -n -av src/ dst/", "rsync -avzn src/ dst/", "rsync --dry-run -av src/ dst/", "ssh-keygen -l -f k.pub", "ssh-keygen -lf k.pub", "ssh-keygen -E md5 -l -f k.pub", "stat -c %s f", "unzip -l a.zip", "gunzip -l a.gz", "gunzip -c a.gz", "zcat a.gz", "xzless a.xz", "zless a.gz", "ulimit -a", "ulimit -n", "ulimit -H -n", "systemctl status sshd", "systemctl show sshd", "systemctl show-environment", "systemctl list-units", "systemctl list-timers", "systemctl is-active sshd", "systemctl is-enabled sshd", "systemctl cat sshd", "systemd-analyze blame", "systemd-analyze critical-chain", "systemd-analyze verify u.service", "journalctl -u nginx -n 50", "timedatectl status", "timedatectl show", "timedatectl list-timezones", "resolvectl status", "resolvectl query h", "blkid", "dmesg", "iptables -L", "iptables -S", "iptables -nvL", "iptables -nL", "xclip -o", "pg_isready", "kubectl rollout status d", "mountpoint /mnt", "lastb", "last", "dpkg-query -l", "dpkg-query -W x", "dpkg-query -s x", "rpm -qa", "rpm -qi x", "pacman -Qi x", "pacman -Q", "apt list --installed", "docker system df", "ethtool eth0", "ethtool -i eth0", "ethtool -k eth0", "ethtool -S eth0", "crontab -l", "crontab -u root -l", "crontab -l -u root"]) {
+    const r = analyzeCommand(cmd, sh);
+    assert.equal(r.readonly, true, `${cmd} -> ${r.risk} ${r.tags}`);
+  }
+  for (const cmd of ["brew install wget", "brew upgrade", "brew uninstall wget", "brew cleanup", "codesign -s id /bin/ls", "codesign --sign id /bin/ls", "codesign --remove-signature /bin/ls", "codesign -f -s id /bin/ls", "date 093023592021.59", "date -s 2020-01-01", "sudo date -s x", "git branch -d x", "git branch -D x", "git branch -m a b", "git branch newname", "git clean -f", "git clean -fd", "go env -w GOFLAGS=-x", "npm version patch", "openssl req -out f.csr", "openssl genrsa -out k.pem", "/usr/libexec/PlistBuddy -c 'Set :a b' p.plist", "/usr/libexec/PlistBuddy -c 'Add :a string b' p.plist", "/usr/libexec/PlistBuddy -c 'Delete :a' p.plist", "plutil -convert json f.plist", "plutil -replace k -string v f.plist", "plutil -remove k f.plist", "rsync -av src/ dst/", "ssh-keygen -t rsa", "ssh-keygen -f k", "unzip a.zip", "gunzip a.gz", "ulimit -n 4096", "journalctl --vacuum-time=2d", "journalctl --rotate", "timedatectl set-timezone X", "systemctl start x", "systemctl stop x", "systemctl restart x", "systemctl enable x", "dmesg -c", "iptables -A INPUT -j DROP", "iptables -D INPUT 1", "iptables -F", "ethtool -s eth0 speed 100", "ethtool -K eth0 gro off", "ethtool -A eth0 rx off", "docker system prune"]) {
+    assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
+  }
+});
+
+test("PowerShell expressions, blocks, -WhatIf, and admin read tools", () => {
+  const ps = { shell: "powershell" };
+  for (const cmd of ["$env:PATH -split ';' | ForEach-Object { $_ }", "Get-ChildItem | ForEach-Object { $_.FullName }", "Get-ChildItem | % { $_.Name }", "Get-Process | ForEach-Object { $_.Name.ToUpper() }", "Get-FileHash f", "Get-ItemProperty x", "Get-ItemPropertyValue x -Name y", "Get-WinEvent -LogName System", "Get-WinEvent -FilterHashtable @{LogName='System';Id=1}", "Get-ChildItem Cert:\\LocalMachine\\My", "Get-ChildItem -Recurse -Force", "(Get-WinEvent -LogName System).TimeCreated", "Copy-Item a b -WhatIf", "Remove-Item x -WhatIf", "Get-ChildItem | Remove-Item -WhatIf", "DISM /Online /Cleanup-Image /ScanHealth", "DISM /Online /Cleanup-Image /CheckHealth", "netsh wlan show interfaces", "fsutil volume diskfree C:", "fsutil fsinfo drives", "powercfg /list", "powercfg /q", "powercfg /getactivescheme", "systeminfo", "tracert host", "pathping host", "Get-NetAdapter", "Get-NetIPConfiguration"]) {
+    const r = analyzeCommand(cmd, ps);
+    assert.equal(r.readonly, true, `${cmd} -> ${r.risk} ${r.tags}`);
+  }
+  for (const cmd of ["Get-Process | ForEach-Object { $_.Name = 'x' }", "Get-Process | ForEach-Object { Stop-Process $_ }", "Get-Process | ForEach-Object { $_.Delete() }", "Get-Process | ForEach-Object { rm $_ }", "ForEach-Object { $_ | Out-File x }", "Remove-Item x -WhatIf | Remove-Item y", "DISM /Online /Cleanup-Image /RestoreHealth", "netsh advfirewall set all state off", "powercfg /setactive x", "powercfg /change hibernate-timeout-ac 30", "Get-Process | Export-Csv x.csv", "Get-Process | Out-File x.txt"]) {
+    assert.equal(analyzeCommand(cmd, ps).readonly, false, cmd);
+  }
+});

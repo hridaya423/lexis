@@ -79,21 +79,26 @@ const USAGE = Object.fromEntries(["darwin", "linux"].map((o) => {
   try {
     const db = JSON.parse(fs.readFileSync(path.join(DATA, `${o}_usage.json`), "utf8"));
     return [o, Object.fromEntries(Object.entries(db).map(([h, d]) =>
-      [h, new Set([...d.short.map((c) => `-${c}`), ...d.long.map((l) => `--${l}`)])]))];
+      [h, Object.assign(new Set([...d.short.map((c) => `-${c}`), ...d.long.map((l) => `--${l}`)]), { args: new Set(d.arg) })]))];
   } catch { return [o, {}]; }
 }));
-const SINGLE_DASH_LONG = new Set(["find", "java", "ffmpeg", "ffprobe", "openssl", "xcodebuild", "magick", "convert", "iptables", "ip", "tc", "gcc", "clang", "go", "dd"]);
+const SINGLE_DASH_LONG = new Set(["kill", "pkill", "killall", "echo", "printf", "test", "find", "java", "ffmpeg", "ffprobe", "openssl", "xcodebuild", "magick", "convert", "iptables", "ip", "tc", "gcc", "clang", "go", "dd"]);
+const WRAPPERS = new Set(["xargs", "nohup", "nice", "watch", "time", "env", "timeout"]);
 function flagCheck(osKey, _head, cmd) {
   let checked = false;
-  for (const seg of String(cmd).replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, "Q").split(/\|\||&&|\||;/)) {
+  for (const seg of String(cmd).replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, "0").split(/\|\||&&|\||;/)) {
     const words = seg.trim().split(/\s+/).filter((w) => w !== "sudo" && !/^[A-Za-z_]+=/.test(w));
     const head = words[0];
-    const db = USAGE[osKey]?.[head] || FLAGDB[osKey]?.[head];
+    // only the curated classic tools: flagdb's man-page scrape is wrong for subcommand CLIs (git/cargo/npm)
+    const db = USAGE[osKey]?.[head];
     if (!db || SINGLE_DASH_LONG.has(head)) continue;
     checked = true;
     for (const w of words.slice(1)) {
       if (w === "--") break;
-      if (!/^--?[A-Za-z]/.test(w)) continue;
+      if (!/^--?[A-Za-z]/.test(w)) {
+        if (WRAPPERS.has(head) && !/^-/.test(w)) break;
+        continue;
+      }
       const key = w.split("=")[0];
       if (db.has(key)) continue;
       if (key.startsWith("--")) {
@@ -104,6 +109,7 @@ function flagCheck(osKey, _head, cmd) {
       for (const c of key.slice(1)) {
         if (!/[A-Za-z]/.test(c)) break;
         if (!db.has(`-${c}`)) return `bad:-${c}`;
+        if (db.args?.has(c)) break;
       }
     }
   }
@@ -182,8 +188,8 @@ async function execDarwin(cmd, intent) {
 }
 
 async function execLinux(cmd) {
-  const script = `cd /tmp && rm -rf fx && mkdir -p fx/sub && cd fx && touch a.txt b.log 'my file.txt' sub/c.md && printf 'l1\\nl2\\nerror l3\\n' > a.txt && timeout 8 bash -c ${JSON.stringify(cmd)}`;
-  const r = await sh(`docker exec lxverify bash -c ${JSON.stringify(script)}`, { timeout: 20000 });
+  const script = `cd /tmp && rm -rf fx 2>/dev/null; mkdir -p fx && chmod 700 fx && mkdir -p fx/sub && cd fx && touch a.txt b.log 'my file.txt' sub/c.md && printf 'l1\\nl2\\nerror l3\\n' > a.txt && timeout 8 bash -c ${JSON.stringify(cmd)}`;
+  const r = await sh(`docker exec -u nobody -e HOME=/tmp/fx lxverify bash -c ${JSON.stringify(script)}`, { timeout: 20000 });
   return { exit: r.ok ? 0 : 1, out: r.out.slice(0, 300), err: r.err.slice(0, 200) };
 }
 

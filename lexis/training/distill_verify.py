@@ -9,12 +9,18 @@
 """
 import json, re, subprocess, sys
 from pathlib import Path
-from crosslabel import GNU_ONLY, BSD_ONLY, ENOENT_ONLY, BAD_OPT, usage_db, flags_ok
+from crosslabel import GNU_ONLY, BSD_ONLY, usage_db, flags_ok
 from decon import norm, shingles
 from split import DATA, FINAL
 
 ROOT = Path(__file__).resolve().parent.parent
 EVALS = [ROOT / f"eval/datasets/{n}.jsonl" for n in ("core", "wide", "holdout", "testx")]
+
+
+UNIX_EXTRA = {
+    "linux": set("docker npm npx node pip pip3 pipx nvm nmcli snap setfacl getfacl xclip ufw xdg-open dmidecode flatpak upower lspci at add-apt-repository lsb_release logrotate hwclock cal gnome-control-center nautilus ubuntu-drivers exiftool black yarn pnpm".split()),
+    "darwin": set("magick nvm exiftool pipx pyenv mas 7z sox jupyter pip pip3 yarn pnpm".split()),
+}
 
 
 def eval_index():
@@ -44,8 +50,16 @@ def win_parse(cmds):
     return [n == "0" for n in out]
 
 
+WIN_EXTRA = {h.lower() for h in """docker ffmpeg ffprobe pip pip3 python py magick scoop npx npm node dotnet code where.exe pwsh nvm pipx uv
+    exiftool winget git ssh scp curl.exe tar Dism.exe dism compact.exe taskmgr sls gci ii ls cat Get-Volume Get-PhysicalDisk Get-Disk
+    Get-Partition Optimize-Volume Get-LocalUser Get-LocalGroupMember Receive-Job New-NetFirewallRule Get-SmbSession Get-SmbShare
+    Get-DiskImage Format-Volume Set-Disk Resize-Partition Get-InstalledModule""".split()}
+
+
 def win_heads(cmd):
     hs = []
+    for _ in range(3):
+        cmd = re.sub(r"@?\{[^{}]*\}", "X", cmd)
     for seg in re.split(r"\|\||&&|\||;", cmd):
         seg = re.sub(r"^\s*[\(\{]+", "", seg.strip())
         w = seg.split()
@@ -80,8 +94,10 @@ def main():
         v = passed.get((r["prompt_os"], r["intent"]))
         o = r["prompt_os"]
         e = (v or {}).get("verified", {}).get("exec")
-        ran_ok = e is None or e.get("exit") == 0 or (ENOENT_ONLY.search(e.get("err") or "") and not BAD_OPT.search(e.get("err") or ""))
-        if not v or o not in v["os"] or not ran_ok:
+        ran_ok = e is None or e.get("exit") == 0 or not re.search(r"illegal|invalid option|unknown option|unrecognized|usage:|command not found", e.get("err") or "", re.I)
+        heads_ok = v and (o in v["os"] or (v["verified"].get("syntax") and not str(v["verified"].get("flags")).startswith("bad") and all(
+            ok is True or h.split(":", 1)[1] in UNIX_EXTRA[o] for h, ok in v["verified"]["heads"].items() if h.startswith(o + ":"))))
+        if not heads_ok or not ran_ok:
             stats["unix_fail"] += 1
         elif not flags_ok(r["command"], dbs[o]):
             stats["flag"] += 1
@@ -91,7 +107,7 @@ def main():
             kept.append({**r, "os": [o], "risk": v.get("risk"), "readonly": v.get("readonly")})
 
     win = [r for r in rows if r["prompt_os"] == "windows"]
-    known = {k.lower() for k, ok in json.load(open(DATA / "headmap.json"))["windows"].items() if ok is True}
+    known = {k.lower() for k, ok in json.load(open(DATA / "headmap.json"))["windows"].items() if ok is True} | WIN_EXTRA
     parsed = win_parse([r["command"] for r in win]) if win else []
     for r, ok in zip(win, parsed):
         if not ok:

@@ -9,57 +9,56 @@ from pathlib import Path
 
 # fixcmd rows must come from the TRAIN partition only — eval intents are off-limits
 VERIFIED = Path.home() / "lx-data" / "final" / "sft_train.jsonl"
-OUT = Path.home() / "lx-data" / "final" / "fixcmd.jsonl"
+OUT = Path.home() / "lx-data" / "final" / "fixcmd2.jsonl"
 N_TARGET = 3000
 
-FIXABLE = {"rm": "rm -r", "cp": "cp -r", "scp": "scp -r", "grep": "grep -r", "tar": "tar -z"}
-
-
 def typo_head(cmd):
-    m = re.match(r"^(\s*)([a-zA-Z][a-zA-Z]+)", cmd)
+    m = re.match(r"^(\s*)([a-zA-Z][a-zA-Z]{2,})\b", cmd)
     if not m:
         return None
     h = m.group(2)
-    i = random.randrange(len(h))
-    bad = h[:i] + h[i] + h[i + 1:] if i < len(h) - 1 else h + "x"
-    return cmd.replace(h, bad, 1), f"{bad}: command not found"
+    i = random.randrange(len(h) - 1)
+    bad = random.choice([h[:i] + h[i + 1] + h[i] + h[i + 2:], h[:i] + h[i + 1:], h[:i + 1] + h[i] + h[i + 1:]])
+    return None if bad == h else cmd.replace(h, bad, 1)
 
 
 def corrupt(cmd):
-    c = random.choice(["head_typo", "missing_r", "flag_typo", "unquoted", "missing_o"])
+    c = random.choice(["head_typo", "head_typo", "flag_typo", "unquoted", "bsd_sed", "drop_quote"])
     if c == "head_typo":
         return typo_head(cmd)
-    if c == "missing_r":
-        for base, fix in FIXABLE.items():
-            if re.match(rf"^\s*{base}\s+[^-]", cmd) and f"{base} -r" not in cmd:
-                return cmd, f"{base}: directory omitted"
-        return None
     if c == "flag_typo":
-        m = re.search(r"(\s)-([a-zA-Z]{2,})", cmd)
+        m = re.search(r"(\s)-([a-zA-Z]+)\b", cmd)
         if m:
             f = m.group(2)
-            bad = f[0] + f[::-1][1:]
-            return cmd.replace("-" + f, "-" + bad, 1), None
+            i = random.randrange(len(f))
+            bad = f[:i] + random.choice("jqzJQZ") + f[i + 1:]
+            return cmd.replace("-" + f, "-" + bad, 1)
         return None
     if c == "unquoted":
         m = re.search(r'"([^"]*\s[^"]*)"', cmd)
-        if m:
-            return cmd.replace('"' + m.group(1) + '"', m.group(1), 1), None
-        return None
-    if c == "missing_o":
-        if re.match(r"^\s*(curl|wget)\s", cmd):
-            return cmd.replace(" -o ", " ").replace(" -O ", " "), None
-        return None
+        return cmd.replace('"' + m.group(1) + '"', m.group(1), 1) if m else None
+    if c == "bsd_sed":
+        return re.sub(r"\bsed -i (['\"])", r"sed -i '' \1", cmd, count=1) if re.search(r"\bsed -i ['\"]", cmd) else None
+    if c == "drop_quote":
+        m = re.search(r"'[^']+'", cmd)
+        return cmd[:m.end() - 1] + cmd[m.end():] if m else None
     return None
+
+
+DESTRUCTIVE = re.compile(r"\b(rm|rmdir|dd|mkfs\w*|shred|shutdown|reboot|halt|poweroff|kill|pkill|killall|chmod|chown|mv|truncate|wipefs|fdisk|parted|systemctl|service|iptables|ufw|userdel|useradd|passwd|sudo|apt|apt-get|crontab|mount|umount)\b|>|\bfind\b.*-(delete|exec)")
+ERRISH = re.compile(r"error|invalid|unrecognized|not found|unknown|illegal|cannot|can't|unexpected|No such|missing|usage", re.I)
+INFRA_ERR = re.compile(r"docker (API|daemon)|Cannot connect to the Docker|Error response from daemon|No such container", re.I)
 
 
 def real_stderr(cmd):
     try:
         r = subprocess.run(
-            ["docker", "exec", "lxverify", "bash", "-c",
+            ["docker", "exec", "-u", "nobody", "-e", "HOME=/tmp/fxf", "lxverify", "bash", "-c",
              f"cd /tmp && rm -rf fxf && mkdir fxf && cd fxf && timeout 5 bash -c {json.dumps(cmd)}"],
             capture_output=True, text=True, timeout=15)
-        return r.returncode, (r.stderr or r.stdout).strip().split("\n")[-1][:200]
+        lines = [l.strip() for l in (r.stderr or r.stdout).strip().split("\n") if l.strip()]
+        hit = next((l for l in lines if ERRISH.search(l)), lines[0] if lines else "")
+        return r.returncode, hit[:200]
     except Exception:
         return -1, ""
 
@@ -72,7 +71,7 @@ def main():
             r = json.loads(line)
         except Exception:
             continue
-        if "linux" in (r.get("os") or []) and len(r.get("command", "")) < 120:
+        if "linux" in (r.get("os") or []) and len(r.get("command", "")) < 120 and not DESTRUCTIVE.search(r["command"]):
             rows.append(r)
     random.shuffle(rows)
     OUT.parent.mkdir(exist_ok=True)
@@ -81,16 +80,14 @@ def main():
         for r in rows:
             if n >= N_TARGET:
                 break
-            res = corrupt(r["command"])
-            if not res:
-                continue
-            broken, hint = res
-            if broken == r["command"]:
+            broken = corrupt(r["command"])
+            if not broken or broken == r["command"]:
                 continue
             code, err = real_stderr(broken)
-            if code == 0 or not err:
-                err = hint or err
-            if not err:
+            if code in (0, -1) or not err or INFRA_ERR.search(err):
+                continue
+            code0, err0 = real_stderr(r["command"])
+            if INFRA_ERR.search(err0) or (code0 != 0 and err0 == err):
                 continue
             f.write(json.dumps({
                 "broken": broken, "stderr": err, "fixed": r["command"],

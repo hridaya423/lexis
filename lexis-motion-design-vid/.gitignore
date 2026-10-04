@@ -8,3 +8,9 @@ film/node_modules/
 film/.hyperframes/
 film/snapshots/
 *.f32
+raw/music/
+raw/img2/
+raw/pat/
+raw/reel/
+raw/stems/
+v2-audio-options/

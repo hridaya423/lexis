@@ -25,6 +25,16 @@ function setup() {
     saturn: [0, 0, W, H], boot: [0, 0, W, H], earth: [600, 40, 720, 720], chip: [0, 0, W, H],
     brain: [540, 0, 840, 840], probe: [0, 0, W, H], fludd: [182, 0, 1555, 1080],
   };
+  const OPEN = [[30, "st_typewriter", 1868], [32, "st_flyer", 1869], [34, "st_telephone", 1876], [36, "st_phono", 1878],
+    [38, "st_calc", 1888], [40, "st_marconi", 1900], [42, "st_valve", 1905], [44, "st_zuse", 1941], [46, "eniac", 1946]];
+  const FLASH = [[57, 60, "fl_univac", 1951], [79, 82, "fl_7090", 1959], [97, 100, "fl_ibm360", 1964],
+    [113, 116, "fl_keypunch", 1966], [127, 130, "fl_bigboard", 1968], [139, 142, "fl_terminal", 1969],
+    [151, 155, "rl_countdown", 1969], [155, 159, "rl_glenn", 1969], [190, 193, "rl_capsule", 1969], [193, 196, "rl_orbit", 1969]];
+  const FB = [[334, "fb_server", 1991], [338, "fb_mosaic", 1993], [342, "fb_iss", 1998], [345, "fb_pleiades", 2008],
+    [348, "fb_mars", 2012], [351, "fb_falcon", 2015], [354, "fb_datacenter", 2017], [356, "fb_die", 2019],
+    [358, "fb_gpu", 2020], [360, "fb_hubble", 2021], [362, "fb_frontier", 2022], [364, "fb_wafer", 2024]];
+  for (const [, id] of [...OPEN, ...FB]) if (!boxes[id]) boxes[id] = [0, 0, W, H];
+  for (const [, , id] of FLASH) boxes[id] = [0, 0, W, H];
   const media = {};
   for (const [k, b] of Object.entries(boxes)) {
     const el = $("w-" + k);
@@ -110,10 +120,13 @@ function setup() {
   const YP = 10, YW = 26 * YP + 56, YXR = W - 96 - YW, YY = 84, YH = 7 * YP + 48;
   const yearRow = (y) => row(String(y), { p: YP, x: YXR + 28, gx: YXR + 28, cy: YY + YH / 2 });
   function yearAt(f) {
-    const shots = [[30, 1946], [60, 1951], [82, 1956], [100, 1962], [116, 1965], [130, 1967], [142, 1968], [152, 1969]];
-    if (f < 232) { let y = 1946; for (const [a, v] of shots) if (f >= a) y = v; return y; }
+    const shots = [...OPEN.map(([a, , y]) => [a, y]), [57, 1951], [60, 1956], [79, 1959], [82, 1962], [97, 1964], [100, 1965],
+      [113, 1966], [116, 1967], [127, 1968], [139, 1969]];
+    if (f < 232) { let y = 1868; for (const [a, v] of shots) if (f >= a) y = v; return y; }
     if (f < 304) return Math.round(lerp(1969, 1991, E.co(seg(f, 232, 300))));
-    return Math.round(lerp(1991, 2026, E.co(seg(f, 304, 362))));
+    if (f < 334) return 1991;
+    if (f >= 366) return 2026;
+    let y = 1991; for (const [a, , v] of FB) if (f >= a) y = v; return y;
   }
   function drawYear(ctx, f, alpha) {
     if (alpha <= 0) return;
@@ -122,7 +135,7 @@ function setup() {
     ctx.fillRect(YXR, YY, YW, YH);
     ctx.globalAlpha = 1;
     const y = yearAt(f), prev = yearAt(f - 3);
-    const cells = y === prev || Math.abs(y - prev) > 1
+    const cells = y === prev || Math.abs(y - prev) > 1 || f < 60 || (f >= 330 && f < 370)
       ? yearRow(y).cells.map((q) => ({ ...q, col: C.paper }))
       : flip(yearRow(prev), yearRow(y), f, f - 3, { spread: 2, jitter: 1, pop: 3, col: "paper", flash: "coral", flashLen: 2 });
     drawCells(ctx, cells.map((q) => ({ ...q, a: alpha })), YP, FILL);
@@ -164,8 +177,8 @@ function setup() {
     { rx: 820, ry: 240, rot: 0.14, w: -0.017, ph: 2.1, th: [5, 6, 7, 8, 9] },
     { rx: 520, ry: 310, rot: 0.55, w: 0.028, ph: 4.0, th: [10, 11, 12, 13, 14, 15] },
   ];
-  const thumbSize = [[210, 186], [200, 133], [180, 140], [200, 150], [220, 140], [170, 147], [140, 187], [170, 170],
-    [180, 140], [230, 119], [210, 119], [170, 136], [190, 151], [210, 139], [130, 162], [170, 134]];
+  const thumbSize = [[210, 186], [200, 133], [180, 140], [230, 170], [200, 170], [170, 147], [140, 187], [170, 170],
+    [220, 165], [230, 119], [200, 150], [170, 200], [150, 200], [180, 180], [200, 150], [170, 134]];
   const orbitPt = (o, th) => {
     const ox = Math.cos(th) * o.rx, oy = Math.sin(th) * o.ry;
     return [EC[0] + ox * Math.cos(o.rot) - oy * Math.sin(o.rot), EC[1] + ox * Math.sin(o.rot) + oy * Math.cos(o.rot)];
@@ -292,12 +305,20 @@ function setup() {
       if (f >= 30) {
         const u1 = E.eo(seg(f, 30, 40)), u2 = E.eio(seg(f, 40, 52));
         const w = lerp(1200, W, u2), h = lerp(lerp(6, 675, u1), H, u2), r = [960 - w / 2, 540 - h / 2, w, h];
-        show("eniac", { clip: inset(...r, boxes.eniac), zs: tw(f, 30, 60, 1.2, 1.04, E.eo) });
+        let id = "eniac";
+        for (const [a, k] of OPEN) if (f >= a) id = k;
+        const fl0 = FLASH.find(([a, b]) => f >= a && f < b);
+        if (fl0) id = fl0[2];
+        show(id, { clip: inset(...r, boxes[id]), zs: id === "eniac" ? tw(f, 46, 60, 1.12, 1.04, E.eo) : id.startsWith("st_") ? 1.35 : 1.06 });
         const fl = 1 - seg(f, 30, 40);
         if (fl > 0) { over.strokeStyle = C.coral; over.lineWidth = 10 * fl; over.strokeRect(r[0] + 5 * fl, r[1] + 5 * fl, r[2] - 10 * fl, r[3] - 10 * fl); }
         if (f >= 44) curR = holdPath(CUR, f);
         else if (f >= 37) curR = glide(HOME, { x: 1316, y: 404, w: CS, h: CS }, E.eio(seg(f, 37, 44)), 60);
       }
+    } else if (f < 159 && FLASH.some(([a, b]) => f >= a && f < b)) {
+      const [a, , id] = FLASH.find(([a, b]) => f >= a && f < b);
+      show(id, { zs: tw(f, a, a + 3, 1.1, 1.04, E.lin) });
+      curR = holdPath(CUR, f);
     } else if (f < 159) {
       // acceleration montage
       if (f < 82) {
@@ -326,14 +347,16 @@ function setup() {
         show("bino", { zs: tw(f, 142, 159, 1.0, 1.08, E.lin) });
         over.save(); over.setLineDash([2, 14]);
         over.setLineDash([14, 12]);
-        line(over, 1214, 420, 1700, 40, E.eio(seg(f, 145, 156)), C.coral, 4);
+        line(over, 1214, 420, 1700, 40, E.eio(seg(f, 143, 150)), C.coral, 4);
         over.restore();
       }
       curR = holdPath(CUR, f);
     } else if (f < 375) {
       // history, told on the readout plate
       let zoomEarth = 1;
-      if (f < 196) {
+      const fl1 = FLASH.find(([a, b]) => f >= a && f < b);
+      if (fl1) show(fl1[2], { zs: tw(f, fl1[0], fl1[0] + 3, 1.1, 1.04, E.lin) });
+      else if (f < 196) {
         show("saturn", { zs: tw(f, 159, 196, 1.08, 1.0, E.co) });
         const u = E.eio(seg(f, 163, 190));
         over.save(); over.setLineDash([3, 16]);
@@ -352,14 +375,15 @@ function setup() {
         drawOrbits(f, zoomEarth);
       } else {
         ground = C.paper; gridA = 1;
-        if (f < 335) show("brain", { s: f < 327 ? tw(f, 304, 327, 0.98, 1.05, E.lin) : tw(f, 327, 335, 1.05, 6, E.ei), o: f < 331 ? 1 : 1 - seg(f, 331, 335) });
-        if (f >= 327 && f < 351) {
-          show("chip", { zs: f < 339 ? tw(f, 327, 339, 0.24, 1.0, E.eo) : tw(f, 339, 351, 1.0, 1.08, E.lin), o: seg(f, 327, 330) });
-          const u = E.eo(seg(f, 340, 349));
-          line(over, 1014, 434, 1014 - 900 * u, 434, 1, C.coral, 2); line(over, 1014, 434, 1014 + 900 * u, 434, 1, C.coral, 2);
-          line(over, 1014, 434, 1014, 434 - 420 * u, 1, C.coral, 2); line(over, 1014, 434, 1014, 434 + 420 * u, 1, C.coral, 2);
+        if (f < 326) show("brain", { s: f < 318 ? tw(f, 304, 318, 0.98, 1.04, E.lin) : tw(f, 318, 326, 1.04, 6, E.ei), o: f < 322 ? 1 : 1 - seg(f, 322, 326) });
+        if (f >= 318 && f < 334) show("chip", { zs: tw(f, 318, 334, 0.24, 1.06, E.eo), o: seg(f, 318, 321) });
+        if (f >= 334 && f < 366) {
+          let id = FB[0][1], a0 = 334;
+          for (const [a, k] of FB) if (f >= a) { id = k; a0 = a; }
+          show(id, { zs: tw(f, a0, a0 + 4, 1.12, 1.04, E.lin) });
+          ground = C.night; gridA = 0;
         }
-        if (f >= 351) show("probe", { zs: tw(f, 351, 375, 1.1, 1.0, E.eo) });
+        if (f >= 366) show("probe", { zs: tw(f, 366, 375, 1.06, 1.0, E.eo) });
       }
       const st = plateState(f);
       const wipe = st.first ? E.eio(seg(f, 159, 168)) : 1;
@@ -382,16 +406,14 @@ function setup() {
         const sat = { x: EC[0] + (ox - EC[0]) * zoomEarth - CS / 2, y: EC[1] + (oy - EC[1]) * zoomEarth - CS / 2, w: CS, h: CS };
         curR = f < 240 ? glide({ x: 1010, y: 360, w: CS, h: CS }, sat, E.eio(seg(f, 231, 240)), 80) : sat;
       } else {
-        const tgt = { x: 1014 - CS / 2, y: 434 - CS / 2, w: CS, h: CS };
         curR = st.cur;
-        if (f >= 333 && f < 352) curR = glide(plateCursor(R.taught), tgt, E.eio(seg(f, 333, 341)), 90);
-        else if (f >= 352) curR = glide(tgt, plateCursor(R.think), E.eio(seg(f, 352, 361)), 60);
       }
     } else if (f < 483) {
       // punchline: the memory theatre, then the slam, then the noise collapses into the cursor
-      const imp = E.ei(seg(f, 465, 483));
-      const ICX = TAR.charX(9) + TP + 2.5 * TP, ICY = 520;
-      const toC = (x, y) => [lerp(x, ICX, imp), lerp(y, ICY, imp)];
+      // CRT power-off: the picture squashes to a beam, the beam to a dot, the dot is the cursor
+      const imp = 0, ICX = 960, ICY = 540;
+      const sy = f < 465 ? 1 : lerp(1, 0.004, E.ei(seg(f, 465, 474))), sx = f < 474 ? 1 : lerp(1, 0.012, E.ei(seg(f, 474, 481)));
+      const toC = (x, y) => [x, y];
       if (f < 411) {
         show("fludd", { zs: tw(f, 375, 411, 1.0, 1.06, E.lin) });
         const zk = tw(f, 375, 411, 1.0, 1.06, E.lin);
@@ -420,7 +442,7 @@ function setup() {
       } else {
         // the wall: every flag you were ever told to remember, flooding outward from the slam
         over.save();
-        over.translate(ICX, ICY); over.scale(1 - imp, 1 - imp); over.translate(-ICX, -ICY);
+        over.translate(960, 540); over.scale(sx, sy); over.translate(-960, -540);
         over.font = '33px "Departure Mono"'; over.textBaseline = "middle"; over.textAlign = "left";
         for (const w of WALL) {
           if (f < w.f0) continue;
@@ -428,8 +450,7 @@ function setup() {
           over.fillStyle = f < w.f0 + 2 ? C.coral : w.hi ? C.paper : C.ink2;
           over.fillText(w.text.slice(0, n), w.x, w.y);
         }
-        over.restore();
-        const u = E.eo(seg(f, 411, 418)), sc = lerp(1.22, 1, u) * (1 - imp);
+        const u = E.eo(seg(f, 411, 418)), sc = lerp(1.22, 1, u);
         const [tx, ty, tw2, th2] = [TAR.x0 - 40, 520 - 3.5 * TP - 34, TAR.width + 80 + 6 * TP, 7 * TP + 68];
         over.fillStyle = C.night;
         const sc0 = lerp(1.22, 1, u), TCX = TAR.x0 + TAR.width / 2 + 3 * TP;
@@ -442,15 +463,23 @@ function setup() {
           drawCells(over, TAR.cells.map((q) => { const [x, y] = P2(q.x, q.y); return { x, y, col: C.night, s: sc }; }), TP, FILL);
         }
         const tc = { x: TAR.charX(9) + TP, y: 520 - 3.5 * TP, w: 5 * TP, h: 7 * TP };
-        const tcs = { x: 960 + (tc.x - 960) * sc, y: 520 + (tc.y - 520) * sc, w: tc.w * sc, h: tc.h * sc };
         const tc0 = { x: TCX + (tc.x - TCX) * sc0, y: 520 + (tc.y - 520) * sc0, w: tc.w * sc0, h: tc.h * sc0 };
-        const pinch = { x: ICX - 24, y: ICY - 44, w: 48, h: 88 };
-        curR = f < 465 ? tc0 : glide(tc0, pinch, E.eio(seg(f, 465, 480)));
+        if (f < 465) { over.restore(); curR = tc0; }
+        else {
+          // the collapsing picture brightens into a beam
+          const glow = seg(f, 466, 474);
+          over.globalAlpha = 0.85 * glow; over.fillStyle = C.paper; over.fillRect(0, 0, W, H); over.globalAlpha = 1;
+          over.restore();
+          if (f >= 481) {
+            const u2 = E.eo(seg(f, 481, 483));
+            curR = { x: lerp(960 - 12, HOME.x, u2), y: lerp(540 - 6, HOME.y, u2), w: lerp(24, HOME.w, u2), h: lerp(12, HOME.h, u2) };
+            curCol = mix("paper", "coral", u2);
+          }
+        }
       }
     } else if (f < 519) {
       // breath, then Lexis paper floods out of the cursor
-      const ICX = TAR.charX(9) + TP + 2.5 * TP;
-      curR = glide({ x: ICX - 24, y: 520 - 44, w: 48, h: 88 }, HOME, E.eio(seg(f, 484, 503)), 0);
+      curR = HOME;
       if (f >= 507) {
         const u = E.eio(seg(f, 507, 519)), w = lerp(HOME.w, W * 1.25, u), h = lerp(HOME.h, H * 1.45, u);
         over.fillStyle = C.paper;
@@ -496,7 +525,14 @@ function setup() {
       }
     }
 
-    if (f >= 40 && f < 375) drawYear(over, f, E.eo(seg(f, 40, 46)));
+    if (f >= 30 && f < 375) {
+      const big = Math.min(E.eio(seg(f, 330, 337)), 1 - E.eio(seg(f, 362, 369)));
+      const pcx = YXR + YW / 2, pcy = YY + YH / 2, S = lerp(1, 3.4, big);
+      over.save();
+      over.translate(lerp(pcx, 960, big), lerp(pcy, 500, big)); over.scale(S, S); over.translate(-pcx, -pcy);
+      drawYear(over, f, E.eo(seg(f, 30, 34)));
+      over.restore();
+    }
 
     bg.style.background = ground;
     grid.style.opacity = gridA;

@@ -1,0 +1,460 @@
+[
+ {
+  "name": "st_typewriter",
+  "src": "pat/p14.jpg",
+  "crop": [
+   0.05,
+   0.08,
+   0.9,
+   0.86
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "inv",
+  "neg": true,
+  "fit": "contain",
+  "pad": "white",
+  "gamma": 2.2,
+  "s": 0.2,
+  "pct": [
+   2,
+   70
+  ]
+ },
+ {
+  "name": "st_telephone",
+  "src": "pat/p00.jpg",
+  "crop": [
+   0.02,
+   0.02,
+   0.96,
+   0.96
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "inv",
+  "neg": true,
+  "fit": "contain",
+  "pad": "white",
+  "gamma": 2.2,
+  "s": 0.2,
+  "pct": [
+   2,
+   70
+  ]
+ },
+ {
+  "name": "st_phono",
+  "src": "pat/p17.jpg",
+  "crop": [
+   0.05,
+   0.05,
+   0.9,
+   0.85
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "inv",
+  "neg": true,
+  "fit": "contain",
+  "pad": "white",
+  "gamma": 2.2,
+  "s": 0.2,
+  "pct": [
+   2,
+   70
+  ]
+ },
+ {
+  "name": "st_calc",
+  "src": "pat/p04.jpg",
+  "crop": [
+   0.05,
+   0.08,
+   0.9,
+   0.85
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "inv",
+  "neg": true,
+  "fit": "contain",
+  "pad": "white",
+  "gamma": 2.2,
+  "s": 0.2,
+  "pct": [
+   2,
+   70
+  ]
+ },
+ {
+  "name": "st_marconi",
+  "src": "pat/p06.jpg",
+  "crop": [
+   0,
+   0,
+   1,
+   1
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "inv",
+  "neg": true,
+  "fit": "contain",
+  "pad": "white",
+  "gamma": 2.2,
+  "s": 0.2,
+  "pct": [
+   2,
+   70
+  ]
+ },
+ {
+  "name": "st_valve",
+  "src": "pat/p36.jpg",
+  "crop": [
+   0.05,
+   0.08,
+   0.9,
+   0.86
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "inv",
+  "neg": true,
+  "fit": "contain",
+  "pad": "white",
+  "gamma": 2.2,
+  "s": 0.2,
+  "pct": [
+   2,
+   70
+  ]
+ },
+ {
+  "name": "st_flyer",
+  "src": "pat/p23.jpg",
+  "crop": [
+   0.02,
+   0.03,
+   0.96,
+   0.94
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "inv",
+  "neg": true,
+  "fit": "contain",
+  "pad": "white",
+  "gamma": 2.2,
+  "s": 0.2,
+  "pct": [
+   2,
+   70
+  ]
+ },
+ {
+  "name": "st_zuse",
+  "src": "pat/p41.jpg",
+  "crop": [
+   0,
+   0,
+   1,
+   1
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "inv",
+  "neg": true,
+  "fit": "contain",
+  "pad": "white",
+  "gamma": 2.2,
+  "s": 0.2,
+  "pct": [
+   2,
+   70
+  ]
+ },
+ {
+  "name": "fl_univac",
+  "src": "img2/ph_univac.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fl_7090",
+  "src": "img2/ph_7090.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fl_ibm360",
+  "src": "img2/ph_ibm360.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fl_keypunch",
+  "src": "img2/ph_keypunch.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fl_bigboard",
+  "src": "img2/ph_bigboard.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fl_terminal",
+  "src": "img2/ph_terminal.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fb_server",
+  "src": "img2/ph_server.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fb_mosaic",
+  "src": "img2/ph_mosaic.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "inv",
+  "s": 0.5
+ },
+ {
+  "name": "fb_iss",
+  "src": "img2/ph_iss.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fb_pleiades",
+  "src": "img2/ph_pleiades.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fb_mars",
+  "src": "img2/ph_mars.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fb_falcon",
+  "src": "img2/ph_falcon.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fb_datacenter",
+  "src": "img2/ph_datacenter.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "icells",
+  "s": 0.5,
+  "pitch": 10,
+  "gap": 2
+ },
+ {
+  "name": "fb_die",
+  "src": "img2/ph_die.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "cells",
+  "s": 0.5,
+  "pitch": 10,
+  "gap": 2
+ },
+ {
+  "name": "fb_gpu",
+  "src": "img2/ph_gpu.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fb_hubble",
+  "src": "img2/ph_hubble.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fb_frontier",
+  "src": "img2/ph_frontier.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "fb_wafer",
+  "src": "img2/ph_wafer.jpg",
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "icells",
+  "s": 0.5,
+  "pitch": 10,
+  "gap": 2
+ },
+ {
+  "name": "th2_arpanet",
+  "src": "img2/ph_arpanet.jpg",
+  "size": [
+   230,
+   170
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th2_cray",
+  "src": "img2/ph_cray.jpg",
+  "size": [
+   200,
+   170
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th2_altair",
+  "src": "img2/ph_altair.jpg",
+  "size": [
+   220,
+   165
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th2_apple1",
+  "src": "img2/ph_apple1.jpg",
+  "size": [
+   200,
+   150
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th2_xerox",
+  "src": "img2/ph_xerox.jpg",
+  "size": [
+   170,
+   200
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th2_telstar",
+  "src": "img2/ph_telstar.jpg",
+  "size": [
+   180,
+   180
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th2_sputnik",
+  "src": "img2/ph_sputnik.jpg",
+  "size": [
+   200,
+   150
+  ],
+  "mode": "duo",
+  "s": 0.45
+ },
+ {
+  "name": "th2_launch",
+  "src": "img2/ph_launch.jpg",
+  "size": [
+   150,
+   200
+  ],
+  "mode": "duo",
+  "s": 0.45
+ }
+]

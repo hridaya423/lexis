@@ -61,7 +61,10 @@ def vf_geom(spec):
     if "crop" in spec:
         cx, cy, cw, chh = spec["crop"]
         f.append(f"crop=iw*{cw}:ih*{chh}:iw*{cx}:ih*{cy}")
-    f.append(f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}")
+    if spec.get("fit") == "contain":
+        f.append(f"scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color={spec.get('pad', 'white')}")
+    else:
+        f.append(f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}")
     if spec.get("hflip"):
         f.append("hflip")
     return ",".join(f)
@@ -98,10 +101,16 @@ def do_video(spec):
 
 def do_image(spec):
     W, H = spec["size"]
-    raw = subprocess.check_output(["ffmpeg", "-v", "error", "-i", spec["src"], "-vf", vf_geom(spec) + ",format=gray",
+    pre = ["-ss", str(spec["still"])] if "still" in spec else []
+    raw = subprocess.check_output(["ffmpeg", "-v", "error", *pre, "-i", spec["src"], "-vf", vf_geom(spec) + ",format=gray",
                                    "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"])
     x = np.frombuffer(raw, np.uint8).reshape(H, W).astype(np.float32) / 255
-    lo, hi = np.percentile(x, spec.get("pct", (2, 98)))
+    ref = x
+    if spec.get("fit") == "contain":
+        raw2 = subprocess.check_output(["ffmpeg", "-v", "error", "-i", spec["src"], "-vf", (f"crop=iw*{spec['crop'][2]}:ih*{spec['crop'][3]}:iw*{spec['crop'][0]}:ih*{spec['crop'][1]}," if "crop" in spec else "") + "scale=480:-2,format=gray",
+                                        "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"])
+        ref = np.frombuffer(raw2, np.uint8).astype(np.float32) / 255
+    lo, hi = np.percentile(ref, spec.get("pct", (2, 98)))
     rgb = np.clip(treat(curve(x, lo, hi, spec.get("gamma", 1.0), spec.get("s", 0.25)), spec), 0, 255).astype(np.uint8)
     im = Image.fromarray(rgb)
     if spec.get("alpha"):
@@ -121,8 +130,10 @@ def do_image(spec):
 
 
 if __name__ == "__main__":
-    specs = json.load(open("shots.json"))
-    only = set(sys.argv[1:])
+    args = sys.argv[1:]
+    src = args.pop(0) if args and args[0].endswith(".json") else "shots.json"
+    specs = json.load(open(src))
+    only = set(args)
     for s in specs:
         if only and s["name"] not in only:
             continue

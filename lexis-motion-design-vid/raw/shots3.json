@@ -1,0 +1,70 @@
+[
+ {
+  "name": "rl_countdown",
+  "src": "video/nasa_reel1.mp4",
+  "still": 1100,
+  "crop": [
+   0.125,
+   0,
+   0.75,
+   1
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "rl_glenn",
+  "src": "video/nasa_reel1.mp4",
+  "still": 1300,
+  "crop": [
+   0.125,
+   0,
+   0.75,
+   1
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "rl_capsule",
+  "src": "video/nasa_reel1.mp4",
+  "still": 2240,
+  "crop": [
+   0.125,
+   0,
+   0.75,
+   1
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ },
+ {
+  "name": "rl_orbit",
+  "src": "video/nasa_reel1.mp4",
+  "still": 2200,
+  "crop": [
+   0.125,
+   0,
+   0.75,
+   1
+  ],
+  "size": [
+   1920,
+   1080
+  ],
+  "mode": "duo",
+  "s": 0.5
+ }
+]

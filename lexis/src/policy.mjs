@@ -313,7 +313,10 @@ const CRITICAL_PATTERNS = [
   { re: /\bRemove-Item\b[^|;]*-Recurse[^|;]*-Force[^|;]*\b(C:\\|$env:USERPROFILE|%USERPROFILE%|\*|~\\?$)/i, reason: "recursive forced delete of a drive root or profile" },
   { re: /\b(mkfs|sfdisk|parted|wipefs|diskutil\s+(eraseDisk|eraseVolume|apfs\s+deleteContainer|partitionDisk)|format\b[^|;]*\s+[a-z]:)/i, reason: "disk format/partition operation" },
   { re: /\bfdisk\b(?!\s+-l\b)/i, reason: "disk partition operation" },
-  { re: /\bdd\b[^|;]*\bof=\s*\/dev\//i, reason: "raw write to a block device" },
+  { re: /\bdd\b[^|;]*\bof=\s*\/dev\/(sd|hd|vd|xvd|nvme|mmcblk|rdisk|disk)[\w.-]*/i, reason: "raw write to a block device" },
+  { re: /\b(?:shred|srm|gshred|wipe)\b[^|;]*\/dev\/(sd|hd|vd|xvd|nvme|mmcblk|rdisk|disk)[\w.-]*/i, reason: "secure wipe of a block device" },
+  { re: />\s*["']?\/dev\/(sd|hd|vd|xvd|nvme|mmcblk|rdisk|disk)[\w.-]*/i, reason: "redirect write to a block device" },
+  { re: /\btee\b[^|;]*\/dev\/(sd|hd|vd|xvd|nvme|mmcblk|rdisk|disk)[\w.-]*/i, reason: "write to a block device via tee" },
   { re: /\bgit\s+push\b[^|;]*(--force|-f\b)[^|;]*\b(main|master|production|prod)\b/i, reason: "force push to a primary branch" },
   { re: /(^|[;&|(]\s*|\bsudo\s+|\bsystemctl\s+)(shutdown|poweroff|halt|reboot)\b|\b(Stop-Computer|Restart-Computer)\b|(^|[;&|(]\s*|\bsudo\s+)(init|telinit)\s+[06]\b/i, reason: "system power operation" },
   { re: /\b(Format-Volume|Clear-Disk|Remove-Partition|Resize-Partition|Initialize-Disk)\b/i, reason: "disk format/partition operation" },
@@ -499,6 +502,12 @@ const MODERATE_PATTERNS = [
   { re: /\b(?:tcpdump|tshark|dumpcap|ngrep)\b[^|;]*\s-w\s*["']?[^\s|;&]/i, reason: "packet capture file write" },
   { re: /\b(?:Out-File|Out-Printer|Tee-Object|Export-Csv|Export-Clixml|Set-Clipboard)\b/i, reason: "file or clipboard write" },
   { re: /^\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:LD_PRELOAD|LD_LIBRARY_PATH|LD_AUDIT|LD_BIND_NOW|DYLD_[A-Z_]+|BASH_ENV|NODE_OPTIONS|PYTHONSTARTUP|PYTHONINSPECT|PERL5OPT|PERL5DB|RUBYOPT|GIT_SSH_COMMAND|GIT_EXEC_PATH|GIT_PAGER|SYSTEMD_PAGER|SSH_ASKPASS|SUDO_ASKPASS|PROMPT_COMMAND|ZDOTDIR|INPUTRC|GCONV_PATH|JAVA_TOOL_OPTIONS|JDK_JAVA_OPTIONS|_JAVA_OPTIONS|OPENSSL_CONF|OPENSSL_ENGINES|OPENSSL_MODULES|TERMINFO|HOSTALIASES|RES_OPTIONS|NETRC|KRB5_CONFIG|GNUPGHOME|XAUTHORITY|R_PROFILE|R_LIBS|LESSOPEN|LESSCLOSE|PAGER|MANPAGER)=\S/i, reason: "environment variable controlling code loading or a pager" },
+  { re: /(^|[;&|(]\s*)(su|runuser|chroot)\b(?![^|;]*\s--?(help|version)\b)/i, reason: "user/root context switch" },
+  { re: /\bpmset\b(?!\s+-g\b)/i, reason: "power management change" },
+  { re: /\bhdiutil\s+(attach|detach|eject|create|compact|convert|resize)\b/i, reason: "disk image mount or modification" },
+  { re: /\blaunchctl\s+(?:--\w+\s+)*(load|unload|start|stop|kickstart|bootstrap|bootout|enable|disable|kill)\b/i, reason: "service control" },
+  { re: /\bbrew\s+(cleanup|uninstall|rm|autoremove)\b/i, reason: "package removal or cleanup" },
+  { re: /\bln\b[^|;]*\s(?:--force\b|-[a-zA-Z]*f[a-zA-Z]*\b)/i, reason: "forced link overwrite" },
 ];
 
 const ELEVATION_RE = /\b(sudo|doas|runas|pkexec|Start-Process\b[^|;]*-Verb\s+RunAs)\b/i;
@@ -655,6 +664,23 @@ export function segmentHead(segment) {
   return { head: head.toLowerCase(), args: m[2] || "" };
 }
 
+const WRAP_TOKEN_RE = /("[^"]*"|'[^']*'|\S+)/g;
+const STOP_C = new Set(["-c"]);
+
+// walk leading wrapper options: VAL flags consume the next token, a bare
+// "--" or a token in STOP is consumed and ends the walk; returns the index
+// of the first operand/command token
+function skipOpts(toks, VAL, i = 0, STOP = null) {
+  for (; i < toks.length; i += 1) {
+    const t = toks[i];
+    if (t === "--" || (STOP && STOP.has(t))) { i += 1; break; }
+    if (t.startsWith("--")) { if (!t.includes("=") && VAL.has(t)) i += 1; continue; }
+    if (t.startsWith("-")) { if (VAL.has(t)) i += 1; continue; }
+    break;
+  }
+  return i;
+}
+
 function innerCommandOf(head, args) {
   if (head === "command" && /^\s*-(v|V)\b/.test(args)) return null;
   if (head === "xargs") {
@@ -712,14 +738,78 @@ function innerCommandOf(head, args) {
     // a leftover wsl flag (e.g. --list, --unregister) is not an inner command
     return rest && !rest.startsWith("-") ? rest : null;
   }
+  if (head === "chroot") {
+    // chroot [opts] NEWROOT [cmd...] — getopt permutes, so lone flags can sit
+    // between NEWROOT and the command
+    const toks = args.match(WRAP_TOKEN_RE) || [];
+    let i = skipOpts(toks, new Set(["-u", "-g", "--userspec", "--groups"]));
+    i += 1; // NEWROOT
+    for (; i < toks.length; i += 1) if (!toks[i].startsWith("-")) break;
+    const rest = toks.slice(i).join(" ");
+    return rest || null;
+  }
+  if (head === "su") {
+    const m = args.match(/(?:^|\s)-{1,2}(?:[a-z]*c|command|session-command)\s+("([^"]*)"|'([^']*)'|(\S+))/i);
+    return m ? (m[2] || m[3] || m[4]) : null;
+  }
+  if (head === "runuser") {
+    const VAL = new Set(["-u", "-g", "-G", "-s", "--user", "--group", "--supp-group", "--shell"]);
+    const toks = args.match(WRAP_TOKEN_RE) || [];
+    let i = skipOpts(toks, VAL, 0, STOP_C);
+    if (toks[i - 1] !== "--" && toks[i - 1] !== "-c") {
+      // stopped on a positional — it's the target user unless -u/--user
+      // already supplied it; more options may follow the user
+      const userGiven = toks.slice(0, i).some((t) => t === "-u" || t.startsWith("--user"));
+      if (!userGiven) i = skipOpts(toks, VAL, i + 1, STOP_C);
+    }
+    const rest = toks.slice(i).join(" ").replace(/^(['"])(.*)\1$/s, "$2");
+    return rest || null;
+  }
+  if (head === "timeout" || head === "gtimeout") {
+    const toks = args.match(WRAP_TOKEN_RE) || [];
+    const i = skipOpts(toks, new Set(["-k", "-s", "--kill-after", "--signal"]));
+    const rest = toks.slice(i + 1).join(" "); // +1 skips the duration
+    return rest || null;
+  }
+  if (head === "chrt") {
+    // -p/--pid operates on an existing process — no inner command
+    if (/(?:^|\s)-[a-zA-Z]*p\b|\s--pid\b/.test(args)) return null;
+    const toks = args.match(WRAP_TOKEN_RE) || [];
+    const i = skipOpts(toks, new Set(["-T", "-P", "-D", "--sched-timeout", "--sched-period", "--sched-deadline", "--sched-runtime"]));
+    const rest = toks.slice(i + 1).join(" "); // +1 skips the priority
+    return rest || null;
+  }
+  if (head === "unshare") {
+    const toks = args.match(WRAP_TOKEN_RE) || [];
+    const i = skipOpts(toks, new Set(["-S", "-G", "--setuid", "--setgid", "--root", "--wd", "--monotonic", "--boottime", "--setgroups", "--map-user", "--map-group", "--map-users", "--map-groups", "--map-auto"]));
+    const rest = toks.slice(i).join(" ");
+    return rest || null;
+  }
+  if (head === "flock") {
+    // flock [opts] FILE [-c] cmd — -c takes the whole remainder
+    const toks = args.match(WRAP_TOKEN_RE) || [];
+    const i = skipOpts(toks, new Set(["-w", "-E", "--timeout", "--conflict-exit-code", "--wait"]), 0, STOP_C);
+    let j = toks[i - 1] === "-c" ? i : i + 1; // -c cmd, or FILE then cmd
+    if (toks[j] === "-c") j += 1;
+    const rest = toks.slice(j).join(" ").replace(/^(['"])(.*)\1$/s, "$2");
+    return rest || null;
+  }
+  if (head === "setsid") {
+    // setsid's flags (-f -w -c --fork --wait --ctty) all take no value
+    const toks = args.match(WRAP_TOKEN_RE) || [];
+    const i = skipOpts(toks, new Set());
+    const rest = toks.slice(i).join(" ").replace(/^(['"])(.*)\1$/s, "$2");
+    return rest || null;
+  }
   const FLAG_VALUE = new Set(["-n", "--interval", "--adjustment", "-i", "-o", "-e", "-c", "--cpu-list"]);
-  if (["time", "nice", "nohup", "stdbuf", "watch", "ionice", "taskset", "unbuffer", "flock", "setsid"].includes(head)) {
+  if (["time", "nice", "nohup", "stdbuf", "watch", "ionice", "taskset", "unbuffer"].includes(head)) {
     const toks = args.match(/("[^"]*"|'[^']*'|\S+)/g) || [];
     let i = 0;
     for (; i < toks.length; i += 1) {
       const t = toks[i].replace(/^["']|["']$/g, "");
       if (!t.startsWith("-")) break;
-      if (FLAG_VALUE.has(t) || /^-(n|i|o|e|c)\d/.test(t)) i += 1;
+      if (FLAG_VALUE.has(t)) i += 1; // flag takes the NEXT token as its value
+      // attached-value flags (-n5, -c3) are single tokens: just continue
     }
     const rest = toks.slice(i).join(" ");
     return rest || null;

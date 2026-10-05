@@ -611,6 +611,32 @@ test("readonly additions: macOS query tools, distro readers, system probes", () 
   for (const cmd of no) assert.equal(analyzeCommand(cmd, sh).readonly, false, cmd);
 });
 
+test("readonly siblings of newly floored commands stay read-only", () => {
+  const ro = [
+    "pmset -g batt", "pmset -g",
+    "launchctl list", "launchctl print gui/501",
+    "hdiutil info", "hdiutil imageinfo x.dmg", "hdiutil verify x.dmg",
+    "cat f > /dev/null",
+    "brew list", "brew info wget",
+    "flock /tmp/lk -c 'id'", "timeout 5 ls", "timeout 5 sleep 100",
+  ];
+  for (const cmd of ro) {
+    const r = analyzeCommand(cmd, sh);
+    assert.equal(r.readonly, true, `${cmd} -> ${r.risk}`);
+  }
+  const no = [
+    "pmset sleepnow", "pmset -a sleep 10",
+    "hdiutil attach x.dmg", "launchctl start com.x.job",
+    "brew cleanup", "ln -f a b", "ln -s a b", "ln a b",
+    "su -c 'rm -rf /'",
+    "shred -a /dev/sda", "dd if=/dev/sda of=disk.img", "cat f > /dev/tty",
+  ];
+  for (const cmd of no) {
+    const r = analyzeCommand(cmd, sh);
+    assert.equal(r.readonly, false, `${cmd} -> ${r.risk}`);
+  }
+});
+
 test("Windows read forms: quser, query, reg query, winget upgrade list", () => {
   const ps = { shell: "powershell" };
   const ro = ["quser", "quser /server:x", "query user", "query user /server:x", "query session", "query process",

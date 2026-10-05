@@ -14,6 +14,9 @@ end
 
 function __lexis_command_shaped
   set -l head $argv[1]
+  if test (count $argv) -le 1
+    return 0
+  end
   if contains -- $head man help
     for a in $argv[2..]
       if string match -qr '^[-/~=$]' -- $a; or test -e $a; or command -sq $a

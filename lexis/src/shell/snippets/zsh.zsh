@@ -10,6 +10,7 @@ __lexis_run() {
 
 __lexis_command_shaped() {
   local head=$1 a
+  [ $# -le 1 ] && return 0
   shift
   case "$head" in
     man|help)

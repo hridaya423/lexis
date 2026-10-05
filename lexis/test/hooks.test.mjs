@@ -88,6 +88,39 @@ test("zsh __lexis_command_shaped flags commands, not English", async (t) => {
     ["./build.sh -x", 0],
     ["docker ps -a", 0],
     ["FOO=1 bar", 0],
+    ["t3", 0],
+    ["help", 0],
+    ["what", 0],
+    ["show disk usage", 1],
+    ["install jq", 1],
+    ["what is using port 3000", 1],
+  ];
+  for (const [line, want] of cases) {
+    let got;
+    try { run(line); got = 0; } catch (e) { got = e.status; }
+    assert.equal(got, want, `'${line}'`);
+  }
+});
+
+test("bash __lexis_command_shaped flags commands, not English", async (t) => {
+  const { execFileSync } = await import("node:child_process");
+  const { readFileSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  const snippet = fileURLToPath(new URL("../src/shell/snippets/bash.sh", import.meta.url));
+  const src = readFileSync(snippet, "utf8");
+  const fn = src.match(/^__lexis_command_shaped\(\) \{[\s\S]*?^\}/m)[0];
+  const run = (line) => execFileSync("bash", ["-c",
+    `${fn}\n__lexis_command_shaped $1`, "t", line],
+    { stdio: ["ignore", "pipe", "pipe"] });
+  try { run("x"); } catch (e) { if (e.code === "ENOENT") return t.skip("bash not available"); }
+  const cases = [
+    ["gh --version", 0],
+    ["./build.sh -x", 0],
+    ["docker ps -a", 0],
+    ["FOO=1 bar", 0],
+    ["t3", 0],
+    ["help", 0],
+    ["what", 0],
     ["show disk usage", 1],
     ["install jq", 1],
     ["what is using port 3000", 1],

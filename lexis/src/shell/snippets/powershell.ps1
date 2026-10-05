@@ -24,6 +24,7 @@ function __LexisShouldAutoRun {
   if ($trimmed.Contains('$(')) { return $false }
   $first = ($trimmed -split '\s+', 2)[0]
   if (-not $first) { return $false }
+  if (-not ($trimmed -match '\s')) { return $false }
   # keywords/builtins that must never route to Lexis
   if ($first -in @('exit','break','continue','return','cd','pwd','cls','clear','echo','set','copy','move','del','erase','rd','rmdir','md','mkdir','type','ren','pushd','popd','dir','kill','start','help','history')) { return $false }
   if ($first -match '^[./\\]') { return $false }

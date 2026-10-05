@@ -274,6 +274,14 @@ def dpo_run(base: str = "v5", data: str = "dpo_train.jsonl", eval_data: str = "d
 
 
 @app.function(gpu="L40S", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
+def dpo_l40s(base: str = "v5", data: str = "dpo_train.jsonl", eval_data: str = "dpo_val.jsonl",
+             out_name: str = "v5-dpo", beta: float = 0.1, lr: float = 1e-6, epochs: float = 2.0,
+             rpo_alpha: float = 0.5, max_steps: int = -1, skip_export: bool = False, seed: int = 7,
+             label_smoothing: float = 0.0):
+    _dpo(base, data, eval_data, out_name, beta, lr, epochs, rpo_alpha, max_steps, skip_export, seed, label_smoothing)
+
+
+@app.function(gpu="L40S", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
 def train_l40s(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 0.0,
                max_steps: int = -1, limit: int = 0, eval_data: str = "sft_val_chat.jsonl", full: bool = False, seed: int = 7,
                eval_steps: int = 200):
@@ -296,7 +304,8 @@ def main(model: str = "Qwen/Qwen2.5-Coder-0.5B-Instruct", data: str = "sft_train
          eval_steps: int = 200):
     # epochs<=0 / lr<=0 mean "not overridden": SFT defaults 1 ep, DPO 2 ep / 1e-6
     if dpo:
-        dpo_run.remote(base=base, data=data, eval_data=eval_data, out_name=out,
+        dpo_fn = dpo_l40s if gpu == "L40S" else dpo_run
+        dpo_fn.remote(base=base, data=data, eval_data=eval_data, out_name=out,
                    beta=beta, lr=lr if lr > 0 else 1e-6,
                    epochs=epochs if epochs > 0 else 2.0,
                    rpo_alpha=rpo_alpha, max_steps=max_steps, skip_export=skip_export, seed=seed,

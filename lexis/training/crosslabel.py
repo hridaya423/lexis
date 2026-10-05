@@ -49,7 +49,9 @@ USAGE_TOOLS = BSD_TOOLS.strip("()").split("|") + ["grep", "awk", "sort", "kill",
     "seq", "comm", "tee", "uname", "id", "env", "mktemp", "readlink", "realpath", "base64", "gzip", "gunzip", "zip", "unzip", "md5", "shasum",
     "dig", "ping", "netstat", "ifconfig", "rsync", "scp", "ssh", "diff", "cmp", "which", "whoami", "hostname", "uptime", "printf", "echo", "split", "fold", "rev", "expand", "column",
     "iostat", "vmstat", "install", "renice", "nice", "groups", "iconv", "shasum", "md5sum", "sha256sum", "traceroute", "nc", "xxd", "od", "hexdump", "less", "more",
-    "bzip2", "xz", "zcat", "zless", "zgrep", "pgrep", "killall", "nohup", "watch", "free", "w", "who", "last", "umask", "fmt", "pr", "tsort", "cksum", "sum", "strings"]
+    "bzip2", "xz", "zcat", "zless", "zgrep", "pgrep", "killall", "nohup", "watch", "free", "w", "who", "last", "umask", "fmt", "pr", "tsort", "cksum", "sum", "strings",
+    "locate", "plocate", "updatedb", "fd", "fdfind", "getfacl", "setfacl", "mtr", "tracepath", "lsmod", "modinfo", "modprobe",
+    "wl-copy", "wl-paste", "xclip", "xsel", "xdg-open", "notify-send", "gsettings"]
 BUILTINS = {"cd", "export", "unset", "alias", "true", "false", "exit", "source", ".", "bg", "fg", "jobs", "wait", "pwd", "type", "set", "read", "test", "[", "history"}
 RUNNERS = {
     "darwin": lambda s: ["/bin/sh", "-c", s],

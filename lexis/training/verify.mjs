@@ -159,7 +159,7 @@ async function mapHeads(heads, osKey) {
 let boxReady = null;
 async function ensureLinuxBox() {
   if (boxReady) return boxReady;
-  const up = await sh("docker start lxverify 2>/dev/null || docker run -d --name lxverify ubuntu:24.04 sleep infinity");
+  const up = await sh("docker start lxverify 2>/dev/null || docker run -d --name lxverify lxverify:tools sleep infinity");
   if (!up.ok) { boxReady = false; return false; }
   // tool bundle for command -v coverage
   await sh(`docker exec lxverify bash -c 'apt-get update -qq >/dev/null 2>&1; DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl wget git jq rsync openssh-client dnsutils iproute2 iputils-ping net-tools procps psmisc sysstat file xxd zip unzip tar gzip bzip2 xz-utils findutils grep sed gawk diffutils coreutils util-linux mount sudo cron tmux screen less tree sqlite3 lsof strace ltrace pciutils usbutils hdparm ethtool netcat-openbsd socat traceroute mtr-tiny whois xz-utils libarchive-tools p7zip-full rclone ncdu fd-find ripgrep bat fzf moreutils pv lz4 zstd nmap npm nodejs python3 python3-pip golang-go rustc cargo ffmpeg imagemagick pandoc vim nano tmux htop iotop iftop nethogs ncdu aria2 axel w3m lynx docker.io kubectl helm kubectl 2>/dev/null | tail -1; echo READY'`, { timeout: 600000 });

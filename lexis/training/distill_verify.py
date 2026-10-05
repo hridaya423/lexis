@@ -18,7 +18,7 @@ EVALS = [ROOT / f"eval/datasets/{n}.jsonl" for n in ("core", "wide", "holdout", 
 
 
 UNIX_EXTRA = {
-    "linux": set("docker npm npx node pip pip3 pipx nvm nmcli snap setfacl getfacl xclip ufw xdg-open dmidecode flatpak upower lspci at add-apt-repository lsb_release logrotate hwclock cal gnome-control-center nautilus ubuntu-drivers exiftool black yarn pnpm".split()),
+    "linux": set("docker npm npx node pip pip3 pipx nvm nmcli snap ufw dmidecode flatpak upower lspci at add-apt-repository lsb_release logrotate hwclock cal gnome-control-center nautilus ubuntu-drivers exiftool black yarn pnpm".split()),
     "darwin": set("magick nvm exiftool pipx pyenv mas 7z sox jupyter pip pip3 yarn pnpm".split()),
 }
 
@@ -71,14 +71,28 @@ def win_heads(cmd):
     return hs
 
 
-def main():
-    raw = [json.loads(l) for l in open(DATA / "distill_raw.jsonl", encoding="utf-8")]
+def main(raw_path=None, out_path=None):
+    raw_path = Path(raw_path) if raw_path else DATA / "distill_raw.jsonl"
+    out_path = Path(out_path) if out_path else FINAL / "distill.jsonl"
+    raw = [json.loads(l) for l in open(raw_path, encoding="utf-8")]
     idx = eval_index()
-    stats = {"in": len(raw), "leak": 0, "unix_fail": 0, "flag": 0, "idiom": 0, "win_parse": 0, "win_head": 0, "kept": 0}
+    prior = set()
+    if out_path != FINAL / "distill.jsonl" and (FINAL / "distill.jsonl").exists():
+        for l in open(FINAL / "distill.jsonl", encoding="utf-8"):
+            if l.strip():
+                r = json.loads(l)
+                prior.add(norm(r["intent"]))
+                prior.add(norm(r["command"]))
+    stats = {"in": len(raw), "dup": 0, "leak": 0, "unix_fail": 0, "flag": 0, "idiom": 0, "win_parse": 0, "win_head": 0, "kept": 0}
+    dropped = []
     rows = []
     for r in raw:
-        if leaks(r["intent"], idx):
+        if norm(r["intent"]) in prior or norm(r["command"]) in prior:
+            stats["dup"] += 1
+            dropped.append({**r, "reason": "dup"})
+        elif leaks(r["intent"], idx):
             stats["leak"] += 1
+            dropped.append({**r, "reason": "leak"})
         else:
             rows.append(r)
 
@@ -102,10 +116,13 @@ def main():
             ok is True or h.split(":", 1)[1] in UNIX_EXTRA[o] for h, ok in v["verified"]["heads"].items() if h.startswith(o + ":"))))
         if not heads_ok or not ran_ok:
             stats["unix_fail"] += 1
+            dropped.append({**r, "reason": "unix_fail"})
         elif not flags_ok(r["command"], dbs[o]):
             stats["flag"] += 1
+            dropped.append({**r, "reason": "flag"})
         elif (GNU_ONLY if o == "darwin" else BSD_ONLY).search(r["command"]):
             stats["idiom"] += 1
+            dropped.append({**r, "reason": "idiom"})
         else:
             kept.append({**r, "os": [o], "risk": v.get("risk"), "readonly": v.get("readonly")})
 
@@ -115,16 +132,20 @@ def main():
     for r, ok in zip(win, parsed):
         if not ok:
             stats["win_parse"] += 1
+            dropped.append({**r, "reason": "win_parse"})
         elif not all(h.lower() in known or WIN_MODULE_CMDLET.match(h) for h in win_heads(r["command"])):
             stats["win_head"] += 1
+            dropped.append({**r, "reason": "win_head"})
         else:
             kept.append({**r, "os": ["windows"]})
 
     stats["kept"] = len(kept)
-    with open(FINAL / "distill.jsonl", "w", encoding="utf-8") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in kept)
+    with open(str(out_path) + ".dropped.jsonl", "w", encoding="utf-8") as f:
+        f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in dropped)
     print(json.dumps(stats))
 
 
 if __name__ == "__main__":
-    main()
+    main(*sys.argv[1:])

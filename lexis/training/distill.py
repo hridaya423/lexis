@@ -114,10 +114,73 @@ taking the space"). Still ONE command per request, and still the simplest correc
 """
 
 
-def shard(outdir, round2=False, round3=False):
+# Round 4: tool clusters the 1.5B/0.5B failure audit showed the models don't know or misuse.
+AREAS_R4 = {
+    "darwin": [
+        "unified logging: log show / log stream with --predicate, --last, --style, --info; reading app and system logs",
+        "copying and archiving the mac way: ditto (incl. -c -k --keepParent), cp -R vs cp -a differences, rsync shipped with macOS",
+        "Finder-level file state: chflags (hidden/nohidden/uchg), xattr, SetFile-free alternatives, ~/.Trash, mdls, GetFileInfo-free alternatives",
+        "Spotlight and file search: mdfind (-onlyin, -name, kMDItem queries), find on BSD (no -printf, -E, -mtime/-newer), locate on macOS",
+        "who and where: whois, dig, host, nslookup, scutil --dns, dscacheutil -flushcache, networksetup -getinfo, route -n get default",
+        "ssh agent and keys on mac: ssh-add -l/-D/--apple-use-keychain, ssh-keygen -l -f, ~/.ssh/config, ssh -G",
+        "developer versions and paths: xcodebuild -version, xcode-select -p, xcrun --find, sw_vers, uname -m, sysctl -n machdep.cpu.brand_string",
+        "BSD process and resource tools: ps -axo with -r/-m sorting (no --sort), top -l 1 -o cpu, vm_stat, sysctl hw.memsize, lsof -nP",
+        "BSD text tools precision: sed -i '', date -j -f / -v, stat -f, sort -r/-h/-k, head/tail, wc, base64 -i, md5 vs shasum -a 256",
+        "power, display and devices: pmset -g (read) vs pmset changes, caffeinate, system_profiler data types, ioreg battery, diskutil list/info",
+    ],
+    "linux": [
+        "finding files fast and precisely: locate/plocate and updatedb, find -printf/-newermt/-size/-mmin, fd if installed, lsof +L1 for deleted-but-open files",
+        "ACLs and special permissions: getfacl, setfacl -m/-d/-x/-R, chattr/lsattr, umask, setuid/setgid/sticky bits",
+        "network interfaces and routes with iproute2: ip link set up/down, ip addr add/del, ip route, ip neigh, ss -tulpn, mtr --report, tracepath",
+        "kernel modules and kernel state: lsmod, modinfo, modprobe and modprobe -r, /etc/modules-load.d, sysctl -a/-w, dmesg -T --level",
+        "name service and accounts: getent passwd/group/hosts, id, groups, usermod -aG, chage -l, last/lastb, who, w",
+        "package managers by distro: apt/apt-cache/dpkg -L/-S on Ubuntu, dnf/rpm -qf on Fedora, pacman -Ss/-Qi/-Qo/-Rns on Arch, zypper on openSUSE (the request names the distro or the context makes it clear)",
+        "ssh in depth on linux: ssh -G, ssh -J, -L/-R/-D forwards with -N, ssh-copy-id, ssh-keyscan, known_hosts cleanup with ssh-keygen -R",
+        "desktop integration: wl-copy/wl-paste on Wayland vs xclip -selection clipboard/xsel on X11, xdg-open, notify-send, gsettings get/set",
+        "GNU text tools precision: sort -rn/-h/-k/-t, uniq -c/-d/-D, grep -i/-w/-r/-l/-c/-P/-o, cut, awk field math, sed -n with addresses, tr, comm, join",
+        "bash builtins and shell state: type, command -v, hash, alias, export, set -o, shopt, ulimit, read, printf, history, fc, jobs, disown, trap",
+    ],
+    "windows": [
+        "power and sleep diagnostics: powercfg /lastwake, /requests, /a, /batteryreport, /energy, /waketimers, /list, /change",
+        "Windows Update and servicing: Get-WindowsUpdateLog, Get-HotFix, wuauclt-free alternatives, UsoClient, DISM /Online /Get-Packages, sfc /scannow",
+        "event logs precisely: Get-WinEvent -FilterHashtable (LogName, Id, Level, StartTime), -MaxEvents with newest-first default, wevtutil qe/el",
+        "networking cmdlets and native tools: Get-NetAdapter, Get-NetIPConfiguration, Get-DnsClientServerAddress, Clear-DnsClientCache, Test-NetConnection -Port, Get-NetTCPConnection -State Listen, netsh wlan show, arp -a, route print, tracert, pathping",
+        "firewall and sharing: Get-NetFirewallRule with filters, New-NetFirewallRule, Set-NetFirewallProfile, Get-SmbShare, netsh advfirewall",
+        "processes precisely: Get-Process | Sort-Object CPU/WS -Descending | Select-Object -First N, Stop-Process -Name/-Id, taskkill /F /PID /IM, tasklist /svc",
+        "files with exact constraints: Get-ChildItem -Recurse -File -Filter/-Include, Where-Object Length/LastWriteTime, Sort-Object -Descending, Measure-Object -Sum, Select-String -SimpleMatch/-CaseSensitive",
+        "PackageManagement vs winget: Find-Package/Install-Package/Uninstall-Package, Get-Package, winget search/show/list/upgrade/uninstall, Get-AppxPackage",
+        "system info and hardware: Get-CimInstance Win32_* classes, Get-ComputerInfo -Property, systeminfo, wmic-free alternatives, Get-PnpDevice, Get-PhysicalDisk",
+        "PowerShell 5.1-safe syntax: chaining with ; and if ($?) instead of &&, here-strings, -f formatting, splatting, ForEach-Object, Get-Date -Format",
+    ],
+}
+
+
+R4_STYLE = """
+This round targets tools and details small models get wrong. For every tool in the topic, cover its common real
+subcommands and flags across several requests, not just the most famous one. Make the details matter:
+ordering ("biggest first", "newest first"), case ("any capitalization"), counts ("top 5"), units, output format
+("as json", "wide"), and scope ("only this folder", "recursive"). The command must honour every detail exactly.
+About 1 in 5 requests should be look-only ("show", "preview", "without changing anything"); those get commands that
+change nothing (no -i, no >, no in-place conversion). Never use a flag unless you are certain it exists on this
+platform's version of the tool.
+"""
+
+
+def shard(outdir, round2=False, round3=False, round4=False):
     out = Path(outdir)
     out.mkdir(parents=True, exist_ok=True)
     i = 0
+    if round4:
+        for os_key, areas in AREAS_R4.items():
+            os_name, shell, tooling = PLATFORMS[os_key]
+            for area in areas:
+                sid = f"shard_{i:03d}"
+                prompt = PROMPT.format(os_name=os_name, shell=shell, tooling=tooling, area=area, n=PER_SHARD, sid=sid)
+                (out / f"{sid}.prompt.md").write_text(prompt.replace("\nRequests:\n", R4_STYLE + "\nRequests:\n", 1))
+                (out / f"{sid}.meta.json").write_text(json.dumps({"os": os_key, "area": area, "round": 4}))
+                i += 1
+        print(f"{i} shards -> {out}")
+        return
     if round3:
         for area in AREAS:
             for os_key, (os_name, shell, tooling) in PLATFORMS.items():
@@ -149,9 +212,9 @@ def shard(outdir, round2=False, round3=False):
 SHELL = {"darwin": "zsh", "linux": "bash", "windows": "powershell"}
 
 
-def collect(outdir):
+def collect(outdir, outpath=None):
     seen, n, bad = set(), 0, 0
-    with open(DATA / "distill_raw.jsonl", "w", encoding="utf-8") as f:
+    with open(outpath or DATA / "distill_raw.jsonl", "w", encoding="utf-8") as f:
         for meta in sorted(Path(outdir).glob("shard_*.meta.json")):
             m = json.loads(meta.read_text())
             outp = meta.with_name(meta.name.replace(".meta.json", ".out.jsonl"))
@@ -177,4 +240,4 @@ def collect(outdir):
 
 
 if __name__ == "__main__":
-    {"shard": shard, "shard2": lambda d: shard(d, True), "shard3": lambda d: shard(d, round3=True), "collect": collect}[sys.argv[1]](sys.argv[2])
+    {"shard": shard, "shard2": lambda d: shard(d, True), "shard3": lambda d: shard(d, round3=True), "shard4": lambda d: shard(d, round4=True), "collect": collect}[sys.argv[1]](*sys.argv[2:3], *(sys.argv[3:] or []))

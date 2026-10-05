@@ -73,7 +73,7 @@ def _export_gguf(merged, out_name, calib_texts):
     print(f"wrote /models/{out_name}-{{f16,q4_k_m,q5_k_m,q6_k,q8_0}}.gguf")
 
 
-def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16, eval_data, full, seed=7):
+def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16, eval_data, full, seed=7, eval_steps=200):
     import glob
     import json
     import os
@@ -116,10 +116,10 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
         bf16=use_bf16,
         logging_steps=25,
         save_strategy="steps",
-        save_steps=200,
+        save_steps=eval_steps,
         save_total_limit=2,
         eval_strategy="steps",
-        eval_steps=200,
+        eval_steps=eval_steps,
         per_device_eval_batch_size=16,
         gradient_checkpointing=full,
         report_to=[],
@@ -156,6 +156,13 @@ def _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, use_bf16
     if resume:
         print(f"resuming from {resume}")
     trainer.train(resume_from_checkpoint=resume)
+
+    try:
+        import torch
+        print(f"peak GPU mem: {torch.cuda.max_memory_allocated()/1e9:.2f} GB; "
+              f"dtype={next(trainer.model.parameters()).dtype}")
+    except Exception as e:
+        print(f"mem probe unavailable: {e}")
 
     metrics = trainer.evaluate()
     print(f"eval loss: {metrics.get('eval_loss')}")
@@ -253,8 +260,9 @@ def _dpo(base, data_name, eval_data, out_name, beta, lr, epochs, rpo_alpha, max_
 
 @app.function(gpu="A10G", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=16384)
 def train(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 0.0,
-          max_steps: int = -1, limit: int = 0, eval_data: str = "sft_val_chat.jsonl", full: bool = False, seed: int = 7):
-    _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, True, eval_data, full, seed)
+          max_steps: int = -1, limit: int = 0, eval_data: str = "sft_val_chat.jsonl", full: bool = False, seed: int = 7,
+          eval_steps: int = 200):
+    _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, True, eval_data, full, seed, eval_steps)
 
 
 @app.function(gpu="A10G", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=16384)
@@ -263,6 +271,13 @@ def dpo_run(base: str = "v5", data: str = "dpo_train.jsonl", eval_data: str = "d
             rpo_alpha: float = 0.5, max_steps: int = -1, skip_export: bool = False, seed: int = 7,
             label_smoothing: float = 0.0):
     _dpo(base, data, eval_data, out_name, beta, lr, epochs, rpo_alpha, max_steps, skip_export, seed, label_smoothing)
+
+
+@app.function(gpu="L40S", timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
+def train_l40s(model_id: str, data_name: str, out_name: str, epochs: float = 1.0, lr: float = 0.0,
+               max_steps: int = -1, limit: int = 0, eval_data: str = "sft_val_chat.jsonl", full: bool = False, seed: int = 7,
+               eval_steps: int = 200):
+    _train(model_id, data_name, out_name, epochs, lr, max_steps, limit, True, eval_data, full, seed, eval_steps)
 
 
 @app.function(cpu=8, timeout=6 * 3600, volumes={"/models": vol, "/data": data_vol}, memory=32768)
@@ -277,7 +292,8 @@ def main(model: str = "Qwen/Qwen2.5-Coder-0.5B-Instruct", data: str = "sft_train
          cpu: bool = False, max_steps: int = -1, limit: int = 0,
          eval_data: str = "sft_val_chat.jsonl", full: bool = False, seed: int = 7,
          dpo: bool = False, base: str = "v5", beta: float = 0.1, rpo_alpha: float = 0.5,
-         skip_export: bool = False, label_smoothing: float = 0.0):
+         skip_export: bool = False, label_smoothing: float = 0.0, gpu: str = "A10G",
+         eval_steps: int = 200):
     # epochs<=0 / lr<=0 mean "not overridden": SFT defaults 1 ep, DPO 2 ep / 1e-6
     if dpo:
         dpo_run.remote(base=base, data=data, eval_data=eval_data, out_name=out,
@@ -287,5 +303,7 @@ def main(model: str = "Qwen/Qwen2.5-Coder-0.5B-Instruct", data: str = "sft_train
                    label_smoothing=label_smoothing)
     elif cpu:
         train_cpu.remote(model, data, out, epochs or 1.0, lr, max_steps, limit, eval_data, full)
+    elif gpu == "L40S":
+        train_l40s.remote(model, data, out, epochs or 1.0, lr, max_steps, limit, eval_data, full, seed, eval_steps)
     else:
-        train.remote(model, data, out, epochs or 1.0, lr, max_steps, limit, eval_data, full, seed)
+        train.remote(model, data, out, epochs or 1.0, lr, max_steps, limit, eval_data, full, seed, eval_steps)

@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { runtimeDir, runtimeLogPath, runtimeStatePath, modelsDir } from "../paths.mjs";
-import { catalogEntry, modelFilePath } from "./models.mjs";
+import { catalogEntry, modelFilePath, defaultModelFor } from "./models.mjs";
 import { installedRuntime } from "./installer.mjs";
 
 const READY_TIMEOUT_MS = 240000;
@@ -185,7 +185,7 @@ export async function ensureServer(config, { onProgress } = {}) {
     throw new Error("llama-server runtime not installed. Run: lx model runtime install");
   }
   if (!wanted.modelFile) {
-    throw new Error("No model installed. Run: lx model download kitty-bash-0.5b");
+    throw new Error(`No model installed. Run: lx model download ${defaultModelFor()}`);
   }
 
   const state = await readRuntimeState();

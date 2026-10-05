@@ -50,9 +50,11 @@ test("all pinned assets carry sha256 digests", () => {
 });
 
 test("default model scales with RAM", () => {
-  assert.equal(defaultModelFor({ totalMemoryGb: 4 }), "kitty-bash-0.5b");
-  assert.equal(defaultModelFor({ totalMemoryGb: 16 }), "kitty-bash-0.5b");
-  assert.equal(defaultModelFor({ totalMemoryGb: 48 }), "kitty-bash-0.5b");
+  assert.equal(defaultModelFor({ totalMemoryGb: 4 }), "lexis-0.5b");
+  assert.equal(defaultModelFor({ totalMemoryGb: 7.9 }), "lexis-0.5b");
+  assert.equal(defaultModelFor({ totalMemoryGb: 8 }), "lexis-1.5b");
+  assert.equal(defaultModelFor({ totalMemoryGb: 16 }), "lexis-1.5b");
+  assert.equal(defaultModelFor({ totalMemoryGb: 48 }), "lexis-1.5b");
 });
 
 test("catalog entries carry repo/file/minRam", () => {

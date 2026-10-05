@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import fsSync from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { once } from "node:events";
@@ -7,6 +8,30 @@ import { modelsDir } from "../paths.mjs";
 import { recordManifestEntry } from "../manifest.mjs";
 
 export const MODEL_CATALOG = [
+  {
+    id: "lexis-1.5b",
+    repo: "hridya423/lexis-1.5b-GGUF",
+    file: "lexis-1.5b-q4_k_m.gguf",
+    sha256: "7457a2e5215fd2581bb3074c736eaebfc35fa71e8cb45c9003fe33a9218b550d",
+    tier: "default",
+    minRamGb: 4,
+    approxMb: 990,
+    format: "plain",
+    platforms: ["unix", "windows"],
+    webContext: false,
+  },
+  {
+    id: "lexis-0.5b",
+    repo: "hridya423/lexis-0.5b-GGUF",
+    file: "lexis-0.5b-q4_k_m.gguf",
+    sha256: "6b449069d0e755fc2967f62c5b49e8e2ddb6f651944f1a2658d42d2f748e8d6d",
+    tier: "small",
+    minRamGb: 2,
+    approxMb: 400,
+    format: "plain",
+    platforms: ["unix", "windows"],
+    webContext: false,
+  },
   {
     id: "qwen3-linuxcmd-4b",
     repo: "dieegorenan/Qwen3-linux-commands",
@@ -38,8 +63,8 @@ export function catalogEntry(id) {
   return MODEL_CATALOG.find((m) => m.id === id) || null;
 }
 
-export function defaultModelFor() {
-  return "kitty-bash-0.5b";
+export function defaultModelFor({ totalMemoryGb = os.totalmem() / 2 ** 30 } = {}) {
+  return totalMemoryGb >= 8 ? "lexis-1.5b" : "lexis-0.5b";
 }
 
 export function modelFilePath(id) {

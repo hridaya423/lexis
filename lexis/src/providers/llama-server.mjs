@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { PLAN_JSON_SCHEMA } from "../plan-schema.mjs";
 import { ensureServer } from "../runtime/supervisor.mjs";
 import { runtimeDir, modelsDir } from "../paths.mjs";
+import { defaultModelFor } from "../runtime/models.mjs";
 
 export const id = "llama-server";
 export const capabilities = {
@@ -27,7 +28,7 @@ export async function availability() {
     return { ok: false, reason: "runtime-not-installed", detail: "Run: lx model runtime install" };
   }
   if (!model) {
-    return { ok: false, reason: "model-not-installed", detail: "Run: lx model download kitty-bash-0.5b" };
+    return { ok: false, reason: "model-not-installed", detail: `Run: lx model download ${defaultModelFor()}` };
   }
   return { ok: true };
 }

@@ -33,3 +33,7 @@ Eval set: `merge-holdout.py` merges `~/lx-data/holdout-shards/shard-*.jsonl` →
 `run.mjs --exec <os>`.
 
 `decon.py` — standalone train-vs-test contamination checker (shingle index).
+
+Published models: [lexis-1.5b](https://huggingface.co/hridya423/lexis-1.5b-GGUF) and
+[lexis-0.5b](https://huggingface.co/hridya423/lexis-0.5b-GGUF) (GGUF, q4_k_m).
+Training recipe and data provenance: `../model-cards/METHODOLOGY.md`.

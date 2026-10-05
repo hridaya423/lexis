@@ -32,10 +32,10 @@ export async function setupCommand(args) {
 
   let modelId = typeof options.model === "string" ? options.model.trim() : "";
   if (providerId === "llama-server" && !modelId) {
-    const suggested = defaultModelFor();
+    const suggested = defaultModelFor(machine);
     modelId = isTTY ? await askModel(machine, suggested) : suggested;
   } else if (providerId === "ollama" && !modelId) {
-    modelId = defaultModelFor();
+    modelId = "kitty-bash-0.5b";
   }
 
   let hookMode = typeof options["hook-mode"] === "string" ? options["hook-mode"].trim().toLowerCase() : "";

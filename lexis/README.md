@@ -43,17 +43,18 @@ lx model download <id>   # fetch a GGUF (lexis-owned, removed on uninstall)
 lx model stop            # stop the local server (it also self-stops when idle)
 ```
 
-**Model choice is measured, not guessed** (`eval/` harness, 96-case set on identical prompts):
+**Model choice is measured, not guessed.** The default models are trained for Lexis; first-try pass rate is on the 919-case final held-out set, warm latency on an M4 Pro:
 
 | Model | Pass | Warm p50 | Role |
 | --- | --- | --- | --- |
-| kitty-bash-0.5b | 72% | ~0.1s | **default** (0.4 GB, unix only) |
-| qwen3-linuxcmd-4b | 81% | ~0.4s | opt-in upgrade (`lx model use`), unix **and** windows, best measured |
+| [lexis-1.5b](https://huggingface.co/hridya423/lexis-1.5b-GGUF) | 82% | ~0.25s | **default** on ≥8 GB RAM (1.0 GB, unix + windows) |
+| [lexis-0.5b](https://huggingface.co/hridya423/lexis-0.5b-GGUF) | 78% | ~0.1s | **default** under 8 GB RAM (0.4 GB, unix + windows) |
+| kitty-bash-0.5b | | | ollama default (0.4 GB, unix only) |
+| qwen3-linuxcmd-4b | | | opt-in (`lx model use`), unix and windows |
 
-Both emit one bare command (`format: plain`); multi-step intents come back
-as `a && b` chains, which policy inspects as a whole. The ~46-model bake-off
-(`eval/reports/`) retired the old schema catalog: kitty owns the speed/RAM
-floor, linuxcmd owns accuracy.
+All emit one bare command (`format: plain`); multi-step intents come back
+as `a && b` chains, which policy inspects as a whole. How the Lexis models
+were trained and evaluated: [`model-cards/METHODOLOGY.md`](model-cards/METHODOLOGY.md).
 
 ## Shell integration
 

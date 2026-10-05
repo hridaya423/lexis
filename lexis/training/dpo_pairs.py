@@ -79,11 +79,26 @@ def gate_fail(v):
     return None
 
 
-def bad_reason(cmd, gold, vs, vg, broken=None):
+READ_CUE = re.compile(r"\b(show|print|display|preview|view|peek)\b|without (chang|modify|touch|edit)|don'?t (chang|modify|touch|edit|convert)", re.I)
+WRITE_CUE = re.compile(r"\b(save|write|writ|into|file named|overwrite|in[- ]place|replace|edit|update|change|convert|rename|move|create|make|append|export|backup|back up|strip|remove|delete|excise|drop|clean|fix|log to|redirect|tee)\b|\bto (a |the )?file\b", re.I)
+FILE_WRITE = re.compile(r"\bsed\s+(-\w+\s+)*-i|\bperl\s+(-\w+\s+)*-\w*i|(?<![0-9&])>>?\s*(?!&|/dev/(null|stdout|stderr|tty))[\w~./$\"'-]|\|\s*(sudo\s+)?tee\b|\bplutil\s+-convert\s+\w+\s+(?!.*\s-o\s)")
+
+
+def writes_on_read(cmd, chosen, intent):
+    """Asked to look, answered by writing a file: the specific 'preview → sed -i' failure.
+    Only when the intent has a read cue and no write cue, and chosen writes nothing."""
+    bare = lambda c: re.sub(r"'[^']*'|\"[^\"]*\"", "''", c)
+    return bool(intent and READ_CUE.search(intent) and not WRITE_CUE.search(intent)
+                and FILE_WRITE.search(bare(cmd)) and not FILE_WRITE.search(bare(chosen)))
+
+
+def bad_reason(cmd, gold, vs, vg, broken=None, intent=None, chosen=None):
     if not cmd.strip() or PROSE.match(cmd):
         return "prose"
     if broken and norm(cmd) == norm(broken):
         return "unchanged"
+    if chosen is not None and writes_on_read(cmd, chosen, intent):
+        return "writes-on-read"
     g = gate_fail(vs)
     if g and g != "unverified":
         return g
@@ -124,7 +139,7 @@ def main():
             if norm(c) in seen or norm(c) == norm(gold):
                 continue
             seen.add(norm(c))
-            why = bad_reason(c, gold, ver.get((osh, c)), vg, broken)
+            why = bad_reason(c, gold, ver.get((osh, c)), vg, broken, p["intent"], chosen)
             if why:
                 wrong.append((c, greedy, why))
         if not wrong:

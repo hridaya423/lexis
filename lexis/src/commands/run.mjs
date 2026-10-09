@@ -193,7 +193,7 @@ export async function runCommand(runArgs, { dryRunOnly = false, memory = true } 
     }
 
     if (dryRun) {
-      const does = (policy.caps || []).map((k) => CAP_LABELS[k] || k).join(" · ");
+      const does = (policy.caps || []).filter((k) => !(k === "read" && policy.readonly)).map((k) => CAP_LABELS[k] || k).join(" · ");
       ui.commandCard({
         commands: applicable.map((c) => c.command),
         meta: `${plan.overall_risk} · ${policy.readonly ? "read-only" : "mutating"}${does ? ` · ${does}` : ""} · ${model}`,

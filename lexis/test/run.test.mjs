@@ -24,9 +24,10 @@ test("resolveFollowUp prefers same-directory anchors", () => {
   assert.equal(r.anchor, "check port 3000");
 });
 
-test("a failure inside a pipeline is reported; SIGPIPE from head is not", async () => {
+test("a failure inside a pipeline is reported; SIGPIPE from head is not", async (t) => {
+  if (process.platform === "win32") return t.skip("unix shell semantics");
   const { executePlan } = await import("../src/executor.mjs");
-  const run = async (command) => (await executePlan({ commands: [{ command, platform: "unix" }] }, { platform: "unix", shell: "zsh" }))[0].exitCode;
+  const run = async (command) => (await executePlan({ commands: [{ command, platform: "unix" }] }, { platform: "unix", shell: "bash" }))[0].exitCode;
   assert.notEqual(await run("ls --definitely-not-a-flag 2>/dev/null | head -1"), 0);
   assert.equal(await run("yes | head -1 >/dev/null"), 0);
 });

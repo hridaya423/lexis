@@ -83,7 +83,10 @@ function runtimeDirSafe() {
 
 function run(command, args) {
   return new Promise((resolve) => {
-    const child = spawn(command, args, { stdio: "inherit", windowsHide: true, shell: process.platform === "win32" });
+    const opts = { stdio: "inherit", windowsHide: true };
+    const child = process.platform === "win32"
+      ? spawn([command, ...args].join(" "), { ...opts, shell: true })
+      : spawn(command, args, opts);
     child.on("error", () => resolve(1));
     child.on("exit", (c) => resolve(c ?? 1));
   });

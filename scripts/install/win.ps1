@@ -163,9 +163,11 @@ function Resolve-InstallSource {
     return $env:LEXIS_INSTALL_SOURCE
   }
 
-  $localPackage = Join-Path $PSScriptRoot "..\..\lexis"
-  if (Test-Path (Join-Path $localPackage "package.json")) {
-    return (Resolve-Path $localPackage).Path
+  if ($PSScriptRoot) {
+    $localPackage = Join-Path $PSScriptRoot "..\..\lexis"
+    if (Test-Path (Join-Path $localPackage "package.json")) {
+      return (Resolve-Path $localPackage).Path
+    }
   }
 
   return "@hridyacodes/lexis"

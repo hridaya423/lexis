@@ -60,6 +60,10 @@ require_cmd() {
   fi
 }
 
+node_major() {
+  node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0
+}
+
 run_with_optional_sudo() {
   if [ "$(id -u)" -eq 0 ]; then
     "$@"
@@ -101,6 +105,7 @@ ensure_npm_installed() {
       elif has_cmd apk; then
         run_with_optional_sudo apk add --no-cache nodejs npm || fail "failed to install nodejs/npm with apk"
       else
+        log "No supported package manager found."
         install_node_with_nvm_fallback
       fi
       ;;
@@ -119,17 +124,19 @@ install_node_with_nvm_fallback() {
     fail "npm is missing, no supported package manager found, and curl is unavailable for nvm fallback"
   fi
 
-  log "No supported package manager found. Installing Node.js via nvm fallback..."
+  log "Installing Node.js LTS via nvm..."
 
   export NVM_DIR="$HOME/.nvm"
   if [ ! -s "$NVM_DIR/nvm.sh" ]; then
     curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
   fi
 
+  set +u
   # shellcheck disable=SC1090
   . "$NVM_DIR/nvm.sh"
   nvm install --lts
   nvm use --lts
+  set -u
 }
 
 ensure_homebrew_available() {
@@ -203,9 +210,9 @@ is_valid_hook_mode() {
 
 read_from_tty() {
   local prompt="$1"
-  local value
+  local value=""
 
-  if [ -r /dev/tty ]; then
+  if { : < /dev/tty; } 2>/dev/null; then
     printf "%s" "$prompt" > /dev/tty
     IFS= read -r value < /dev/tty || true
     printf "%s" "$value"
@@ -256,6 +263,16 @@ resolve_install_source() {
 
 main() {
   ensure_npm_installed
+
+  if [ "$(node_major)" -lt 20 ]; then
+    log "Node $(node --version 2>/dev/null || echo none) is older than 20; installing Node LTS with nvm..."
+    install_node_with_nvm_fallback
+    hash -r
+    if [ "$(node_major)" -lt 20 ]; then
+      fail "Lexis needs Node 20+; install it and rerun"
+    fi
+  fi
+
   require_cmd node
   require_cmd npm
 

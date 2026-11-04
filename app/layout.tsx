@@ -18,13 +18,73 @@ const ibmPlexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
+const SITE_URL = "https://lexis.hridya.tech";
+const GITHUB_URL = "https://github.com/hridaya423/lexis";
+const CASE_STUDY_URL = "https://www.hridya.tech/projects/lexis";
+const TITLE = "Lexis: plain English to shell commands, run on-device";
+const DESCRIPTION =
+  "Lexis turns plain English into one shell command with a local model, scores its risk, and runs only what you approve. macOS, Linux, Windows.";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://lexis.hridya.tech"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Lexis",
+    default: TITLE,
     template: "%s | Lexis",
   },
-  description: "Natural Language Terminal.",
+  description: DESCRIPTION,
+  applicationName: "Lexis",
+  authors: [{ name: "Hridya Agrawal", url: "https://www.hridya.tech" }],
+  creator: "Hridya Agrawal",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "Lexis",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      name: "Lexis",
+      url: SITE_URL,
+      description: DESCRIPTION,
+      inLanguage: "en",
+      publisher: { "@id": "https://www.hridya.tech/#person" },
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}/#software`,
+      name: "Lexis",
+      description: DESCRIPTION,
+      url: SITE_URL,
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "macOS, Linux, Windows",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      license: "https://www.apache.org/licenses/LICENSE-2.0",
+      codeRepository: GITHUB_URL,
+      downloadUrl: "https://www.npmjs.com/package/@hridyacodes/lexis",
+      sameAs: [GITHUB_URL, CASE_STUDY_URL],
+      subjectOf: { "@type": "WebPage", url: CASE_STUDY_URL },
+      isPartOf: { "@id": `${SITE_URL}/#website` },
+      author: {
+        "@type": "Person",
+        "@id": "https://www.hridya.tech/#person",
+        name: "Hridya Agrawal",
+        url: "https://www.hridya.tech",
+      },
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -39,6 +99,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-[100dvh] flex flex-col bg-[var(--bg)] text-[var(--text)] selection:bg-[var(--text)] selection:text-[var(--bg)]">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
 
         <a
           href="#main-content"

@@ -1,10 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import lcd from "@/app/lexis-lcd.module.css";
 import styles from "@/app/lexis-legal.module.css";
 import { LexisLegalFooter } from "@/components/lexis-lcd-sections";
 
-export const metadata = {
-  title: "Lexis — Privacy",
+export const metadata: Metadata = {
+  title: "Privacy: what Lexis sends and stores",
+  description:
+    "Lexis runs locally. See when web search sends queries to public search engines, what remote providers may receive, and that the site has no telemetry.",
+  alternates: { canonical: "/privacy" },
+  openGraph: { url: "/privacy", images: ["/opengraph-image.png"], title: "Privacy: what Lexis sends and stores | Lexis", description:
+    "Lexis runs locally. See when web search sends queries to public search engines, what remote providers may receive, and that the site has no telemetry." },
 };
 
 const PRIVACY_SECTIONS = [

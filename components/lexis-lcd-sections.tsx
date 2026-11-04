@@ -5,6 +5,8 @@ import styles from "@/app/lexis-lcd-sections.module.css";
 
 const GITHUB_URL = "https://github.com/hridaya423/lexis";
 
+const CREDIT_URL = "https://www.hridya.tech/projects/lexis";
+
 export function LexisFooter() {
   return (
     <footer className={styles.foot}>
@@ -33,6 +35,9 @@ export function LexisFooter() {
             <Link href="/terms" className={styles.underlined}>
               Terms
             </Link>
+            <a href={CREDIT_URL} className={styles.underlined}>
+              Built by Hridya Agrawal
+            </a>
           </nav>
         </div>
       </div>
@@ -52,6 +57,7 @@ export function LexisLegalFooter() {
           <a href={GITHUB_URL}>GitHub ↗</a>
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
+          <a href={CREDIT_URL}>Built by Hridya Agrawal</a>
         </nav>
       </div>
     </footer>

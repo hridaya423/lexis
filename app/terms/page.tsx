@@ -1,10 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import lcd from "@/app/lexis-lcd.module.css";
 import styles from "@/app/lexis-legal.module.css";
 import { LexisLegalFooter } from "@/components/lexis-lcd-sections";
 
-export const metadata = {
-  title: "Lexis — Terms",
+export const metadata: Metadata = {
+  title: "Terms of use",
+  description:
+    "Terms for using Lexis, including that it gives no guarantees and that you stay responsible for the commands you approve.",
+  alternates: { canonical: "/terms" },
+  openGraph: { url: "/terms", images: ["/opengraph-image.png"], title: "Terms of use | Lexis", description:
+    "Terms for using Lexis, including that it gives no guarantees and that you stay responsible for the commands you approve." },
 };
 
 const TERMS_SECTIONS = [

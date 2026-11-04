@@ -79,6 +79,9 @@ export function LexisLcdHero() {
           <span className="sr-only">In your own words.</span>
           <span className={styles.headlinePixels} aria-hidden="true" />
         </h1>
+        <p className="sr-only">
+          Lexis turns plain English into one shell command with a model that runs on your machine. A policy engine scores the risk of the command, and Lexis runs it only after you approve it. It works on macOS, Linux and Windows.
+        </p>
 
         <form className={styles.promptRow} onSubmit={review}>
           <span className={styles.promptGt} aria-hidden="true">
